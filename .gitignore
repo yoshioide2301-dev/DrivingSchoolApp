@@ -1,0 +1,8 @@
+# 将来 Node.js 等を導入した場合に備えた最小限の除外設定
+node_modules/
+
+# OS/エディタ関連
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
