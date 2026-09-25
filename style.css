@@ -1,22 +1,55 @@
 /* style.css
- * ミチト MVP v0.1 スタイル（Step6 + UI/ブランド移行 v1）
+ * ミチト MVP v0.1 スタイル（Step6 + UI/ブランド移行 v1 + 基本UIデザイン改善 Step 1）
  * シンプル・大きめボタン・タップ領域重視。過剰な装飾はしない。
  * ブランドカラー: ティールブルー(#0A8F9A) × ディープネイビー(#0A192F) × ライトグレー(#F4F8FB) × 白
+ *
+ * デザイン方針（基本UIデザイン改善 Step 1）:
+ * - 文字サイズだけでなく、余白・コントラスト・境界・影・階層で読みやすさを作る
+ * - HOMEは「今日の10問」を主役、その他の機能は補助として一段下げる
+ * - 選択肢は「押せるカード」として背景から明確に浮かせる
+ * - 正解／不正解は色だけに頼らず、アイコン・見出し・境界で区別する
+ * - 角丸・影・余白はトークン（:root）で全画面共通にする
  */
 
 :root {
+  /* ブランドカラー */
   --color-bg: #F4F8FB;
   --color-surface: #ffffff;
   --color-text: #0A192F;
-  --color-text-sub: #5B6B7A;
+  --color-text-sub: #4F6070;
+  --color-text-muted: #6B7B8A;
   --color-primary: #0A8F9A;
   --color-primary-dark: #0A192F;
-  --color-correct: #1e8e3e;
-  --color-correct-bg: #e6f4ea;
-  --color-incorrect: #c5221f;
-  --color-incorrect-bg: #fce8e6;
+  --color-primary-hover: #087C86;
+  --color-primary-tint: #E3F4F5;
+  --color-primary-tint-strong: #CDEBEE;
+
+  /* 状態カラー */
+  --color-correct: #1e7e36;
+  --color-correct-bg: #e8f5ec;
+  --color-correct-border: #9fd3ae;
+  --color-incorrect: #b3261e;
+  --color-incorrect-bg: #fdf0ee;
+  --color-incorrect-border: #efb8b2;
+
+  /* 境界線 */
   --color-border: #DCE6EA;
+  --color-border-strong: #C5D4DA;
+
+  /* 角丸 */
   --radius: 14px;
+  --radius-sm: 10px;
+  --radius-lg: 20px;
+
+  /* 影（控えめ） */
+  --shadow-sm: 0 1px 2px rgba(10, 25, 47, 0.06);
+  --shadow-md: 0 2px 6px rgba(10, 25, 47, 0.06), 0 1px 2px rgba(10, 25, 47, 0.05);
+  --shadow-lg: 0 8px 24px rgba(10, 25, 47, 0.08), 0 2px 6px rgba(10, 25, 47, 0.05);
+  --shadow-cta: 0 4px 12px rgba(10, 143, 154, 0.28);
+
+  /* 余白 */
+  --space-section: 20px;
+
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -29,15 +62,29 @@ html, body {
   height: 100%;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic",
     "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   padding-top: var(--safe-top);
   padding-bottom: var(--safe-bottom);
+  /* 横スクロール防止 */
+  overflow-x: hidden;
+}
+
+/* ボタン・入力欄にもアプリのフォントを適用（ブラウザ既定フォントを使わない） */
+button, input, textarea {
+  font-family: inherit;
 }
 
 #app {
@@ -45,6 +92,15 @@ body {
   margin: 0 auto;
   padding: 16px 16px calc(24px + var(--safe-bottom));
   min-height: 100%;
+  overflow-wrap: break-word;
+}
+
+/* キーボード操作時のフォーカス表示 */
+button:focus-visible,
+textarea:focus-visible,
+input:focus-visible {
+  outline: 3px solid rgba(10, 143, 154, 0.45);
+  outline-offset: 2px;
 }
 
 /* ---------- 共通 ---------- */
@@ -55,7 +111,7 @@ h1, h2, h3 {
 }
 
 p {
-  line-height: 1.6;
+  line-height: 1.7;
   color: var(--color-text-sub);
 }
 
@@ -64,107 +120,213 @@ p {
 }
 
 .header .app-title {
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
 }
 
 .header .app-tagline {
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.6;
   color: var(--color-text-sub);
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .card {
   background: var(--color-surface);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
-  padding: 16px;
-  margin-bottom: 16px;
+  box-shadow: var(--shadow-md);
+  padding: 20px;
+  margin-bottom: var(--space-section);
 }
 
 .btn {
   display: block;
   width: 100%;
-  padding: 16px 20px;
+  min-height: 54px;
+  padding: 15px 20px;
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
   border-radius: var(--radius);
   border: none;
   cursor: pointer;
   text-align: center;
   -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.btn:active {
+  transform: scale(0.985);
 }
 
 .btn-primary {
   background: var(--color-primary);
   color: #fff;
+  box-shadow: var(--shadow-cta);
 }
 
 .btn-primary:active {
   background: var(--color-primary-dark);
+  box-shadow: none;
 }
 
 .btn-secondary {
   background: var(--color-surface);
   color: var(--color-primary);
-  border: 1px solid var(--color-primary);
+  border: 1.5px solid var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-secondary:active {
+  background: var(--color-primary-tint);
 }
 
 .btn-ghost {
   background: transparent;
   color: var(--color-text-sub);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-strong);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.btn-ghost:active {
+  background: rgba(10, 25, 47, 0.04);
+}
+
+@media (hover: hover) {
+  .btn-primary:hover {
+    background: var(--color-primary-hover);
+  }
+  .btn-secondary:hover {
+    background: var(--color-primary-tint);
+  }
+  .btn-ghost:hover {
+    background: rgba(10, 25, 47, 0.04);
+  }
 }
 
 .btn-block-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
+/* 補助メニュー（HOMEの補助機能・トレーニングメモの履歴リンク） */
 .link-row {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 16px;
+  margin-top: 8px;
+  margin-bottom: var(--space-section);
 }
 
 .link-row button {
+  position: relative;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+  min-height: 56px;
+  padding: 14px 44px 14px 16px;
   text-align: left;
   font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
   color: var(--color-text);
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* 押せることが分かる「›」 */
+.link-row button::after {
+  content: "›";
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--color-text-muted);
+}
+
+.link-row button:active {
+  background: var(--color-bg);
+}
+
+@media (hover: hover) {
+  .link-row button:hover {
+    border-color: var(--color-border-strong);
+  }
 }
 
 .home-card-link-title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text);
 }
 
 .home-card-link-subtitle {
-  font-size: 12px;
-  color: var(--color-text-sub);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-text-muted);
 }
 
 /* ---------- ホーム ---------- */
 
+/* 「今日の10問」カード＝HOMEの主役
+ * :has() 非対応ブラウザでは通常カードとして表示され、下の見出し・CTAの強調は維持される */
+.card:has(> .home-card-title) {
+  position: relative;
+  overflow: hidden;
+  padding: 26px 20px 20px;
+  border: 1px solid var(--color-primary-tint-strong);
+  box-shadow: var(--shadow-lg);
+  margin-bottom: 28px;
+}
+
+.card:has(> .home-card-title)::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 5px;
+  background: var(--color-primary);
+}
+
 .home-card-title {
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
 }
 
 .home-card-subtitle {
-  font-size: 13px;
+  font-size: 15px;
+  line-height: 1.6;
   color: var(--color-text-sub);
-  margin-top: 2px;
+  margin-top: 6px;
+}
+
+/* 「はじめる →」メインCTA */
+.home-card-subtitle + .btn-primary {
+  margin-top: 22px;
+  min-height: 60px;
+  font-size: 18px;
+  border-radius: 16px;
 }
 
 .stats-grid {
@@ -172,32 +334,38 @@ p {
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   text-align: center;
-  margin-top: 12px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-border);
 }
 
 .stat-box {
   background: var(--color-bg);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 10px 4px;
+  min-width: 0;
 }
 
 .stat-box .stat-value {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 800;
+  line-height: 1.4;
+  color: var(--color-text);
 }
 
 .stat-box .stat-label {
-  font-size: 11px;
-  color: var(--color-text-sub);
+  font-size: 12px;
+  color: var(--color-text-muted);
   margin-top: 2px;
 }
 
 /* ---------- 進捗バー ---------- */
 
 .progress-label {
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--color-text-sub);
-  margin-bottom: 6px;
+  margin: 4px 4px 8px;
 }
 
 .progress-bar {
@@ -205,119 +373,288 @@ p {
   background: var(--color-border);
   border-radius: 999px;
   overflow: hidden;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-section);
 }
 
 .progress-bar-fill {
   height: 100%;
   background: var(--color-primary);
+  border-radius: 999px;
   transition: width 0.2s ease;
 }
 
 /* ---------- 問題 ---------- */
 
 .question-number {
-  font-size: 12px;
+  display: inline-block;
+  font-size: 13px;
   font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
   color: var(--color-primary);
-  margin-bottom: 6px;
+  background: var(--color-primary-tint);
+  border-radius: 999px;
+  padding: 3px 12px;
+  margin-bottom: 12px;
 }
 
 .question-text {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 4px 0 20px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.65;
+  color: var(--color-text);
+  margin: 4px 0 24px;
 }
 
+/* 選択肢：背景から浮いた「押せるカード」 */
 .choice-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  counter-reset: choice;
 }
 
 .choice-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   width: 100%;
   text-align: left;
-  padding: 16px;
-  font-size: 16px;
+  padding: 14px 16px;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.55;
+  color: var(--color-text);
   border-radius: var(--radius);
-  border: 1px solid var(--color-border);
+  border: 1.5px solid var(--color-border-strong);
   background: var(--color-surface);
+  box-shadow: 0 2px 0 rgba(10, 25, 47, 0.05), var(--shadow-sm);
   cursor: pointer;
-  min-height: 52px;
+  min-height: 60px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease,
+    transform 0.1s ease;
+}
+
+/* 選択肢番号（見た目のみ・選択肢の文章は変更しない） */
+.choice-btn::before {
+  counter-increment: choice;
+  content: counter(choice);
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-sub);
 }
 
 .choice-btn:active {
-  background: var(--color-bg);
+  background: var(--color-primary-tint);
+  border-color: var(--color-primary);
+  box-shadow: none;
+  transform: scale(0.99);
 }
 
+@media (hover: hover) {
+  .choice-btn:not([disabled]):hover {
+    border-color: var(--color-primary);
+  }
+}
+
+/* 正解の選択肢：色＋✓マーク */
 .choice-btn.is-correct {
-  border-color: var(--color-correct);
+  border: 2px solid var(--color-correct);
   background: var(--color-correct-bg);
   color: var(--color-correct);
-  font-weight: 600;
+  font-weight: 700;
+  box-shadow: none;
+  padding-right: 48px;
 }
 
+.choice-btn.is-correct::before {
+  background: var(--color-correct);
+  border-color: var(--color-correct);
+  color: #fff;
+}
+
+.choice-btn.is-correct::after {
+  content: "✓";
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-correct);
+}
+
+/* 選んだが正解でなかった選択肢：色＋×マーク（威圧感を抑えた淡い背景） */
 .choice-btn.is-incorrect {
-  border-color: var(--color-incorrect);
+  border: 2px solid var(--color-incorrect-border);
   background: var(--color-incorrect-bg);
   color: var(--color-incorrect);
   font-weight: 600;
+  box-shadow: none;
+  padding-right: 48px;
+}
+
+.choice-btn.is-incorrect::before {
+  background: #fff;
+  border-color: var(--color-incorrect-border);
+  color: var(--color-incorrect);
+}
+
+.choice-btn.is-incorrect::after {
+  content: "×";
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-incorrect);
 }
 
 .choice-btn[disabled] {
   cursor: default;
+  transform: none;
+}
+
+/* 回答後、関係のない選択肢は一段控えめに */
+.choice-btn[disabled]:not(.is-correct):not(.is-incorrect) {
+  opacity: 0.55;
+  box-shadow: none;
 }
 
 /* ---------- 判定結果 ---------- */
 
 .result-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   text-align: center;
-  padding: 14px;
+  padding: 16px;
   border-radius: var(--radius);
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.4;
   margin-bottom: 12px;
+  border: 1.5px solid transparent;
+}
+
+.result-banner::before {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
 }
 
 .result-banner.correct {
   background: var(--color-correct-bg);
+  border-color: var(--color-correct-border);
   color: var(--color-correct);
+}
+
+.result-banner.correct::before {
+  content: "✓";
+  background: var(--color-correct);
 }
 
 .result-banner.incorrect {
   background: var(--color-incorrect-bg);
+  border-color: var(--color-incorrect-border);
+  color: var(--color-incorrect);
+}
+
+/* 不正解は責める印象にならないよう、淡い円のアイコンにする */
+.result-banner.incorrect::before {
+  content: "!";
+  background: #fff;
+  border: 1.5px solid var(--color-incorrect-border);
   color: var(--color-incorrect);
 }
 
 .answer-message {
-  background: #E3F4F5;
+  background: var(--color-primary-tint);
   border-radius: var(--radius);
-  padding: 14px;
-  font-size: 14px;
+  padding: 14px 16px;
+  font-size: 15px;
+  font-weight: 500;
   color: var(--color-primary-dark);
-  line-height: 1.6;
+  line-height: 1.7;
   text-align: center;
   margin-bottom: 16px;
 }
 
-.explanation-box {
-  background: var(--color-bg);
+/* 不正解時の「正解：〜」表示（answer-message直後の段落） */
+.answer-message + p {
+  margin: 0 0 16px !important;
+  padding: 12px 16px;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-correct-border);
   border-radius: var(--radius);
-  padding: 14px;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.6;
+  color: var(--color-correct);
+  text-align: left !important;
+}
+
+/* 解説：判定とは別の「読むための」ブロック */
+.feedback-title:has(+ .explanation-box) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  margin-bottom: 10px;
+  font-size: 16px;
+  font-weight: 800;
   color: var(--color-text);
-  margin-bottom: 16px;
+}
+
+.feedback-title:has(+ .explanation-box)::before {
+  content: "";
+  width: 4px;
+  height: 18px;
+  border-radius: 2px;
+  background: var(--color-primary);
+}
+
+.explanation-box {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 16px 18px;
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--color-text);
+  margin-bottom: var(--space-section);
 }
 
 .mock-badge {
   display: inline-block;
-  font-size: 11px;
+  font-size: 12px;
   color: #8a5a00;
   background: #fff3cd;
   border-radius: 999px;
-  padding: 2px 8px;
-  margin-bottom: 8px;
+  padding: 3px 10px;
+  margin: 0 0 12px 6px;
 }
 
 /* ---------- フィードバック ---------- */
@@ -328,9 +665,18 @@ p {
   margin-top: 4px;
 }
 
+/* カードとして表示される振り返りは通常のカード境界を使う */
+.card.feedback-section {
+  border-top: 1px solid var(--color-border);
+  padding-top: 20px;
+  margin-top: 8px;
+}
+
 .feedback-title {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--color-text);
   margin-bottom: 10px;
 }
 
@@ -342,17 +688,22 @@ p {
 
 .emoji-btn {
   flex: 1;
+  min-width: 0;
+  min-height: 52px;
   font-size: 24px;
   padding: 10px 0;
   border-radius: var(--radius);
-  border: 1px solid var(--color-border);
+  border: 1.5px solid var(--color-border-strong);
   background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .emoji-btn.is-selected {
-  border-color: var(--color-primary);
-  background: #E3F4F5;
+  border: 2px solid var(--color-primary);
+  background: var(--color-primary-tint);
+  box-shadow: none;
 }
 
 .reason-list {
@@ -366,24 +717,42 @@ p {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .reason-item input {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--color-primary);
 }
 
+/* 入力欄：入力できる領域が一目で分かるように
+ * iOSでフォーカス時に自動ズームしないよう16px以上にする */
 .comment-input {
+  display: block;
   width: 100%;
-  min-height: 64px;
-  border-radius: 10px;
-  border: 1px solid var(--color-border);
-  padding: 10px;
-  font-size: 14px;
-  font-family: inherit;
+  min-height: 96px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--color-border-strong);
+  background: var(--color-surface);
+  box-shadow: inset 0 1px 2px rgba(10, 25, 47, 0.05);
+  padding: 12px 14px;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--color-text);
   resize: vertical;
-  margin-bottom: 14px;
+  margin-bottom: 20px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.comment-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.comment-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(10, 143, 154, 0.18);
 }
 
 .next-actions {
@@ -396,49 +765,63 @@ p {
 /* ---------- 振り返り（Step6-B） ---------- */
 
 .reflect-intro {
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.6;
   color: var(--color-text-sub);
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .reflect-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  gap: 10px;
 }
 
 .reflect-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 6px;
   padding: 14px 8px;
   border-radius: var(--radius);
-  border: 1px solid var(--color-border);
+  border: 1.5px solid var(--color-border-strong);
   background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
-  min-height: 76px;
+  min-height: 84px;
+  min-width: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.reflect-btn:active {
+  background: var(--color-primary-tint);
 }
 
 .reflect-btn .reflect-emoji {
-  font-size: 22px;
+  font-size: 24px;
+  line-height: 1.2;
 }
 
 .reflect-btn .reflect-label {
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--color-text);
   text-align: center;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 .reflect-btn.is-selected {
-  border-color: var(--color-primary);
-  background: #E3F4F5;
+  border: 2px solid var(--color-primary);
+  background: var(--color-primary-tint);
+  box-shadow: none;
 }
 
 .reflect-btn[disabled] {
   cursor: default;
-  opacity: 0.55;
+  opacity: 0.5;
+  box-shadow: none;
 }
 
 .reflect-btn.is-selected[disabled] {
@@ -446,117 +829,206 @@ p {
 }
 
 .zerodora-reply {
-  background: #E3F4F5;
+  background: var(--color-primary-tint);
   border-radius: var(--radius);
-  padding: 12px 14px;
-  font-size: 14px;
+  padding: 14px 16px;
+  font-size: 15px;
+  font-weight: 500;
   color: var(--color-primary-dark);
-  line-height: 1.6;
-  margin-top: 12px;
+  line-height: 1.7;
+  margin-top: 14px;
 }
 
 /* ---------- 結果画面 ---------- */
 
 .result-score {
   text-align: center;
-  padding: 24px 0 8px;
+  padding: 28px 20px 20px;
 }
 
 .result-score .big-number {
-  font-size: 40px;
+  font-size: 44px;
   font-weight: 800;
+  line-height: 1.2;
   color: var(--color-primary);
+  letter-spacing: 0.02em;
 }
 
 .result-score .accuracy {
+  display: inline-block;
   font-size: 15px;
-  color: var(--color-text-sub);
-  margin-top: 4px;
+  font-weight: 700;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border-radius: 999px;
+  padding: 4px 14px;
+  margin-top: 10px;
+}
+
+.result-score p {
+  font-size: 14px;
+  margin-bottom: 0;
+}
+
+/* 結果メッセージ（カード表示時）は影を付けず、スコアと区別する */
+.card.answer-message {
+  border: 1px solid var(--color-primary-tint-strong);
+  box-shadow: none;
+  padding: 18px 20px;
+  margin-bottom: var(--space-section);
+}
+
+/* 結果画面：「間違えた問題を復習」を次の行動として主役にする */
+.result-score ~ .btn-block-group .btn-secondary {
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  box-shadow: var(--shadow-cta);
+  min-height: 58px;
+  font-size: 18px;
+}
+
+.result-score ~ .btn-block-group .btn-secondary:active {
+  background: var(--color-primary-dark);
+  box-shadow: none;
+}
+
+@media (hover: hover) {
+  .result-score ~ .btn-block-group .btn-secondary:hover {
+    background: var(--color-primary-hover);
+  }
 }
 
 .mistake-list, .history-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .mistake-item, .history-item {
   background: var(--color-bg);
-  border-radius: 10px;
-  padding: 12px;
-  font-size: 14px;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 15px;
+  line-height: 1.6;
   text-align: left;
-  border: none;
-  cursor: pointer;
+  border: 1px solid var(--color-border);
+  cursor: default;
   color: var(--color-text);
+}
+
+/* 間違い問題一覧のカード（タップして解き直す） */
+button.mistake-item {
+  width: 100%;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 0 rgba(10, 25, 47, 0.05), var(--shadow-sm);
+  padding: 14px 16px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+button.mistake-item:active {
+  background: var(--color-primary-tint);
+  border-color: var(--color-primary);
+  box-shadow: none;
+}
+
+@media (hover: hover) {
+  button.mistake-item:hover {
+    border-color: var(--color-primary);
+  }
 }
 
 .mistake-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
+/* 再チャレンジが必要な問題：左側のアクセント＋バッジで区別 */
 .mistake-item.is-retry {
-  border: 1px solid var(--color-incorrect);
+  border: 1.5px solid var(--color-incorrect-border);
+  border-left: 4px solid var(--color-incorrect);
 }
 
 .mistake-item-top {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .mistake-item-id {
   font-size: 12px;
   font-weight: 700;
-  color: var(--color-primary);
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
 }
 
 .mistake-retry-badge {
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 700;
   color: var(--color-incorrect);
   background: var(--color-incorrect-bg);
   border-radius: 999px;
-  padding: 1px 8px;
+  padding: 2px 10px;
 }
 
 .mistake-item-preview {
-  font-size: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.6;
   color: var(--color-text);
 }
 
 .mistake-item-cta {
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--color-primary);
   align-self: flex-end;
 }
 
+/* 「◯問中 ◯問クリア」の進捗表示 */
 .mistake-progress {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text);
-  margin-top: 4px;
+  display: inline-block;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--color-primary-tint);
+  border-radius: 999px;
+  padding: 4px 14px;
+  margin-top: 14px;
 }
 
 .mistake-progress-sub {
-  font-size: 12px;
+  font-size: 15px;
+  line-height: 1.6;
   color: var(--color-text-sub);
-  margin-top: 2px;
+  margin-top: 8px;
+}
+
+.mistake-clear-note,
+.mistake-retry-note {
+  font-size: 15px;
+  line-height: 1.7;
+  text-align: center;
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin: 0 0 var(--space-section);
 }
 
 .mistake-clear-note {
-  font-size: 13px;
   color: var(--color-correct);
-  text-align: center;
-  margin-top: -6px;
+  background: var(--color-correct-bg);
 }
 
 .mistake-retry-note {
-  font-size: 13px;
   color: var(--color-text-sub);
-  text-align: center;
-  margin-top: -6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
 }
 
 /* ---------- 教習メモ ---------- */
@@ -565,59 +1037,80 @@ p {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .checkbox-grid label {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  background: var(--color-bg);
-  border-radius: 10px;
-  padding: 10px;
+  gap: 8px;
+  min-height: 48px;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 500;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.checkbox-grid label:has(input:checked) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-tint);
 }
 
 .checkbox-grid input {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: var(--color-primary);
 }
 
 .mood-row {
   display: flex;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
+/* 保存されたメモ：1件ずつカードとして区切る */
 .training-note-item {
-  background: var(--color-bg);
-  border-radius: 10px;
-  padding: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .training-note-date {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--color-primary);
 }
 
 .training-note-activities {
-  font-size: 13px;
-  color: var(--color-text-sub);
+  font-size: 14px;
+  color: var(--color-text-muted);
 }
 
 .training-note-mood {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .training-note-comment {
-  font-size: 14px;
+  font-size: 16px;
+  line-height: 1.75;
   color: var(--color-text);
   white-space: pre-wrap;
   word-break: break-word;
+  padding-top: 8px;
+  margin-top: 2px;
+  border-top: 1px solid var(--color-border);
 }
 
 /* ---------- ユーティリティ ---------- */
@@ -633,8 +1126,9 @@ p {
 .empty-state {
   text-align: center;
   color: var(--color-text-sub);
-  padding: 24px 0;
-  font-size: 14px;
+  padding: 24px 8px;
+  font-size: 15px;
+  line-height: 1.7;
 }
 
 .toast {
@@ -646,7 +1140,8 @@ p {
   color: #fff;
   padding: 10px 18px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 14px;
+  box-shadow: var(--shadow-lg);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
@@ -655,4 +1150,12 @@ p {
 
 .toast.is-visible {
   opacity: 0.95;
+}
+
+/* ---------- PC表示 ---------- */
+
+@media (min-width: 768px) {
+  #app {
+    padding-top: 32px;
+  }
 }
