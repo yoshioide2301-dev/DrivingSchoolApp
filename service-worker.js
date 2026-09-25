@@ -9,7 +9,7 @@
 //   このファイルではキャッシュ処理のみを扱う。
 // - バックエンド通信・外部APIは扱わない。
 
-const CACHE_NAME = "zerodora-cache-v1";
+const CACHE_NAME = "zerodora-cache-v2";
 
 const CORE_ASSETS = [
   "./",
