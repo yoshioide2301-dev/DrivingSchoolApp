@@ -1,0 +1,5650 @@
+
+I'll start by checking for existing assets, since the images rely on a landscape, a character, and an app icon.
+
+  Ran 1 shell command
+
+Since the icons folder is empty and the mockups aren't usable as-is (text overlays, low-res character), I'll draw the app icon, landscape, character, and UI icons as inline SVG instead. I'm now rewriting app.js entirely for the new UI while preserving the existing data logic—storage, shuffle, session/history summaries, feedback saving, and note format.
+
+  Read 1 file
+
+● Write(app.js)
+Added 769 lines, removed 466 lines
+// 「今日の10問」の基本UI・学習導線 ＋ 実問題20問（
+D-C001〜D-C020）の出題。
+// Step 6-A: 間違えた問題の復習UX改善（正解するたび
+に一覧から消える）
+// Step 6-B: 問題後の振り返り（旧フィードバック機能
+を「寄り添いアンケート」へ変更）
+// V4.0 DESIGN-REFERENCE: ミチトデザイン１.png / ミ
+チトデザイン２.png の画面構成・フローを再現
+//   HOME → 今日の10問（開始） → 問題（選択 → 回答
+する） → 正解／不正解 → 解説 → 振り返り → … → 結果
+//
+// 方針:
+// - Vanilla JS のみ（フレームワーク・ビルド環境な
+し）
+
+//   「今日の10問」の出題対象とする（"mock"・"draft
+" は出題対象に含めない）
+// - Google Sheets 等の外部送信は未実装。振り返り・
+教習メモは localStorage のみに保存
+// - バックエンド、認証、広告、課金、AI機能は未実装
+// - イラスト（アプリアイコン・風景・キャラクター）
+は外部素材を使わず、インラインSVGで描画する
+//
+// 問題データの構造（QUESTION_DATA_SCHEMA.md 準拠）
+:
+//   { id, reviewStatus, category, question, choice
+s: [...], correct: <index>, explanation,
+
+
+  var APP_VERSION = "0.1.0-step6";
+  var SESSION_SIZE = 10;
+  var NOTE_MAX_LENGTH = 500;
+
+  var STORAGE_KEYS = {
+    HISTORY: "zerodora_history",
+
+      .replace(/"/g, "&quot;");
+  }
+
+  function nl2br(escaped) {
+    return escaped.replace(/\n/g, "<br>");
+  }
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+
+    };
+  }
+
+  // ---------- イラスト・アイコン（インラインSVG
+） ----------
+
+  var svgSeq = 0;
+
+  // アプリアイコン：「道」をかたどった M（ティー
+ル → ディープブルーのグラデーション）
+  function appIconSvg(cls) {
+    var id = "ai" + ++svgSeq;
+    return (
+      '<svg class="' +
+      (cls || "app-icon") +
+      '" viewBox="0 0 64 64" aria-hidden="true">'
++
+      '<defs><linearGradient id="' +
+      id +
+      '" x1="0" y1="0" x2="0.9" y2="1">' +
+      '<stop offset="0" stop-color="#14C2C0"/><sto
+p offset="0.45" stop-color="#0A8FA8"/><stop offset
+="1" stop-color="#0B2F6E"/>' +
+      "</linearGradient></defs>" +
+      '<rect width="64" height="64" rx="15" fill="
+url(#' +
+      id +
+      ')"/>' +
+      '<path d="M9 55 C13 36 17 17 22.5 15 C27 13.
+5 29.5 27 32 35 C34.5 27 37 13.5 41.5 15 C47 17 51
+ 36 55 55" fill="none" stroke="#fff" stroke-width=
+"7.5" stroke-linecap="round" stroke-linejoin="roun
+d"/>' +
+      '<path d="M32 41 V58" stroke="#fff" stroke-w
+idth="2.6" stroke-dasharray="4 3.2"/>' +
+      "</svg>"
+    );
+  }
+
+  // 空・山・街・丘・道路の風景。variant: "hero"（
+HOME上部） / "card"（今日の10問カード） / "ground"
+（画面下部）
+  function sceneSvg(variant) {
+    var id = "sc" + ++svgSeq;
+    var city =
+      variant === "hero"
+        ? '<g fill="#A9C4DA">' +
+          '<rect x="300" y="58" width="9" height="
+46"/><rect x="311" y="46" width="11" height="58"/>
+' +
+          '<rect x="324" y="64" width="8" height="
+40"/><rect x="334" y="52" width="10" height="52"/>
+' +
+          '<rect x="346" y="70" width="8" height="
+34"/><rect x="356" y="60" width="9" height="44"/>'
+ +
+          "</g>" +
+          '<g fill="#C3D8E8"><rect x="286" y="74"
+width="10" height="30"/><rect x="368" y="76" width
+="12" height="28"/></g>'
+        : "";
+    return (
+      '<svg class="scene scene--' +
+      variant +
+      '" viewBox="0 0 400 160" preserveAspectRatio
+="xMidYMax slice" aria-hidden="true">' +
+      "<defs>" +
+      '<linearGradient id="' +
+      id +
+      's" x1="0" y1="0" x2="0" y2="1"><stop offset
+="0" stop-color="#BFE3F6"/><stop offset="0.7" stop
+-color="#EAF6FC"/><stop offset="1" stop-color="#F6
+FBFE"/></linearGradient>' +
+      '<linearGradient id="' +
+      id +
+      'r" x1="0" y1="0" x2="0" y2="1"><stop offset
+="0" stop-color="#A8B3BE"/><stop offset="1" stop-c
+olor="#5D6B79"/></linearGradient>' +
+      "</defs>" +
+      '<rect width="400" height="160" fill="url(#'
+ +
+      id +
+      's)"/>' +
+      '<g fill="#fff" opacity="0.92">' +
+      '<ellipse cx="292" cy="30" rx="30" ry="8"/><
+ellipse cx="310" cy="24" rx="17" ry="9"/>' +
+      '<ellipse cx="120" cy="22" rx="24" ry="6"/><
+ellipse cx="134" cy="18" rx="12" ry="7"/>' +
+      "</g>" +
+      '<path d="M0 96 L34 80 L70 90 L112 70 L150 8
+6 L196 72 L238 88 L276 76 L320 90 L360 80 L400 92
+V160 H0Z" fill="#C4DCEB"/>' +
+      '<path d="M0 104 L46 90 L92 100 L140 88 L188
+ 100 L240 92 L292 102 L400 96 V160 H0Z" fill="#A9C
+BDF"/>' +
+      city +
+      '<path d="M0 112 C70 98 130 106 190 110 C250
+ 114 320 100 400 108 V160 H0Z" fill="#9CCB8F"/>' +
+      '<path d="M0 122 C80 110 150 122 230 118 C30
+0 114 350 110 400 118 V160 H0Z" fill="#6BB070"/>'
++
+      '<g fill="#4F9A5E">' +
+      '<circle cx="30" cy="118" r="8"/><circle cx=
+"42" cy="114" r="10"/><circle cx="56" cy="119" r="
+7"/>' +
+      '<circle cx="372" cy="112" r="9"/><circle cx
+="386" cy="116" r="8"/><circle cx="360" cy="117" r
+="6"/>' +
+      "</g>" +
+      '<path d="M120 160 C210 142 290 126 338 111
+L350 111 C318 128 282 146 250 160 Z" fill="url(#'
++
+      id +
+      'r)"/>' +
+      '<path d="M120 160 C210 142 290 126 338 111"
+ fill="none" stroke="#fff" stroke-width="2.2" opac
+ity="0.9"/>' +
+      '<path d="M250 160 C282 146 318 128 350 111"
+ fill="none" stroke="#fff" stroke-width="2.2" opac
+ity="0.9"/>' +
+      '<path d="M186 160 C250 142 305 126 344 111"
+ fill="none" stroke="#fff" stroke-width="2" stroke
+-dasharray="9 8"/>' +
+      '<path d="M0 138 C90 128 160 140 240 150 L26
+0 160 H0Z" fill="#7DBD7C" opacity="0.85"/>' +
+      "</svg>"
+    );
+  }
+
+  // 寄り添うキャラクター（キャップ・パーカー・リ
+ュックの青年）
+  function characterSvg(cls) {
+    return (
+      '<svg class="' +
+      (cls || "character") +
+      '" viewBox="0 0 80 96" aria-hidden="true">'
++
+      // リュック
+      '<path d="M14 58 C12 70 13 84 16 92 L30 92 L
+28 58 Z" fill="#1F5F7A"/>' +
+      // 体（パーカー）
+      '<path d="M18 96 C18 74 26 62 40 62 C54 62 6
+2 74 62 96 Z" fill="#2E97B3"/>' +
+      '<path d="M32 62 C34 70 46 70 48 62" fill="#
+23809A"/>' +
+      '<path d="M36 70 L36 84 M44 70 L44 84" strok
+e="#EAF6FA" stroke-width="1.6" stroke-linecap="rou
+nd"/>' +
+      // リュックの肩ひも
+      '<path d="M26 66 C24 74 24 84 26 94" stroke=
+"#1F5F7A" stroke-width="3.2" fill="none" stroke-li
+necap="round"/>' +
+      // 首・顔
+      '<rect x="35" y="54" width="10" height="9" r
+x="3" fill="#F2C7A5"/>' +
+      '<circle cx="40" cy="40" r="17" fill="#F8D8B
+E"/>' +
+      '<circle cx="23.5" cy="42" r="3.2" fill="#F2
+C7A5"/><circle cx="56.5" cy="42" r="3.2" fill="#F2
+C7A5"/>' +
+      // 髪
+      '<path d="M23 38 C23 28 30 24 40 24 C50 24 5
+7 28 57 38 C52 33 46 31 40 32 C34 31 28 33 23 38 Z
+" fill="#1E2C44"/>' +
+      // キャップ
+      '<path d="M22 32 C22 18 31 12 40 12 C49 12 5
+8 18 58 32 Z" fill="#1B87A6"/>' +
+      '<path d="M40 30 C50 29 60 30 67 34 C62 36 5
+2 35 44 34 Z" fill="#14708B"/>' +
+      '<circle cx="40" cy="13" r="2" fill="#14708B
+"/>' +
+      // 目・口・頬
+      '<ellipse cx="33.5" cy="42" rx="2" ry="2.6"
+fill="#1E2C44"/><ellipse cx="46.5" cy="42" rx="2"
+ry="2.6" fill="#1E2C44"/>' +
+      '<circle cx="34.2" cy="41.2" r="0.7" fill="#
+fff"/><circle cx="47.2" cy="41.2" r="0.7" fill="#f
+ff"/>' +
+      '<path d="M35 48.5 C37.5 51.5 42.5 51.5 45 4
+8.5" stroke="#B5563F" stroke-width="1.8" fill="non
+e" stroke-linecap="round"/>' +
+      '<ellipse cx="29.5" cy="47" rx="2.6" ry="1.5
+" fill="#F4A9A0" opacity="0.6"/><ellipse cx="50.5"
+ cy="47" rx="2.6" ry="1.5" fill="#F4A9A0" opacity=
+"0.6"/>' +
+      "</svg>"
+    );
+  }
+
+  var ICONS = {
+    gear:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"
+><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0
+ 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.
+5h-4L10.6 6a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6
+a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0
+0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1
+2-3.4-2-1.6ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0
+ 1 0 7Z" transform="translate(-1 0)"/></svg>',
+    target:
+      '<svg viewBox="0 0 32 32" aria-hidden="true"
+><circle cx="15" cy="17" r="12" fill="none" stroke
+="#0A8F9A" stroke-width="2.6"/><circle cx="15" cy=
+"17" r="7.2" fill="none" stroke="#0A8F9A" stroke-w
+idth="2.6"/><circle cx="15" cy="17" r="2.6" fill="
+#0A8F9A"/><path d="M15 17 L27 5" stroke="#0A192F"
+stroke-width="2.4" stroke-linecap="round"/><path d
+="M23 4 L28 4 L28 9" fill="none" stroke="#0A192F"
+stroke-width="2.4" stroke-linecap="round" stroke-l
+inejoin="round"/></svg>',
+    alert:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"
+><rect x="10.6" y="5" width="2.8" height="9.5" rx=
+"1.4" fill="#fff"/><circle cx="12" cy="18.3" r="1.
+7" fill="#fff"/></svg>',
+    chart:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"
+><rect x="5" y="12" width="3" height="7" rx="1" fi
+ll="#fff"/><rect x="10.5" y="8" width="3" height="
+11" rx="1" fill="#fff"/><rect x="16" y="5" width="
+3" height="14" rx="1" fill="#fff"/></svg>',
+    memo:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"
+><rect x="6" y="4" width="12" height="16" rx="2" f
+ill="none" stroke="#fff" stroke-width="2"/><path d
+="M9 9h6M9 12.5h6M9 16h3.5" stroke="#fff" stroke-w
+idth="1.8" stroke-linecap="round"/></svg>',
+    tabHome:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"
+><path d="M4 11 L12 4 L20 11 V20 H14.5 V14.5 H9.5
+V20 H4 Z" fill="currentColor"/></svg>',
+    tabQuestion:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"
+><circle cx="5.5" cy="6.5" r="1.8" fill="none" str
+oke="currentColor" stroke-width="1.6"/><circle cx=
+"5.5" cy="12" r="1.8" fill="none" stroke="currentC
+olor" stroke-width="1.6"/><circle cx="5.5" cy="17.
+5" r="1.8" fill="none" stroke="currentColor" strok
+e-width="1.6"/><path d="M10 6.5h10M10 12h10M10 17.
+5h7" stroke="currentColor" stroke-width="1.8" stro
+ke-linecap="round"/></svg>',
+    tabHistory:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"
+><path d="M4 20h16" stroke="currentColor" stroke-w
+idth="1.8" stroke-linecap="round"/><rect x="5.5" y
+="12" width="3" height="6" rx="0.8" fill="none" st
+roke="currentColor" stroke-width="1.6"/><rect x="1
+0.5" y="8.5" width="3" height="9.5" rx="0.8" fill=
+"none" stroke="currentColor" stroke-width="1.6"/><
+rect x="15.5" y="5" width="3" height="13" rx="0.8"
+ fill="none" stroke="currentColor" stroke-width="1
+.6"/></svg>',
+    tabMemo:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"
+><rect x="5" y="3.5" width="14" height="17" rx="2"
+ fill="none" stroke="currentColor" stroke-width="1
+.7"/><path d="M8.5 8h7M8.5 11.5h7M8.5 15h4.5" stro
+ke="currentColor" stroke-width="1.6" stroke-lineca
+p="round"/></svg>',
+    bulb:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"
+><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V
+17h5.2v-1.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z" fill="
+#F5B82E"/><rect x="9.4" y="18" width="5.2" height=
+"2.6" rx="1" fill="#6B7B8A"/></svg>',
+    check:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"
+><path d="M6 12.5 L10.2 16.5 L18 8" fill="none" st
+roke="currentColor" stroke-width="3" stroke-lineca
+p="round" stroke-linejoin="round"/></svg>',
+    back:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"
+><path d="M15 5 L8 12 L15 19" fill="none" stroke="
+currentColor" stroke-width="2.4" stroke-linecap="r
+ound" stroke-linejoin="round"/></svg>'
+  };
+
+  // 円形の進捗リング（今日の10問開始画面・結果画
+面）
+  function ringHtml(value, total, cls) {
+    var r = 52;
+    var c = 2 * Math.PI * r;
+    var ratio = total > 0 ? Math.max(0, Math.min(1
+, value / total)) : 0;
+    return (
+      '<div class="ring ' +
+      (cls || "") +
+      '">' +
+      '<svg viewBox="0 0 120 120" aria-hidden="tru
+e">' +
+      '<circle cx="60" cy="60" r="' +
+      r +
+      '" fill="none" stroke="#E3EBF1" stroke-width
+="9"/>' +
+      '<circle cx="60" cy="60" r="' +
+      r +
+      '" fill="none" stroke="#0A8F9A" stroke-width
+="9" stroke-linecap="round" stroke-dasharray="' +
+      (c * ratio).toFixed(1) +
+      " " +
+      c.toFixed(1) +
+      '" transform="rotate(-90 60 60)"/>' +
+      "</svg>" +
+      '<div class="ring-label"><span class="ring-v
+alue">' +
+      value +
+      '</span><span class="ring-total">/' +
+      total +
+      "</span></div>" +
+      "</div>"
+    );
+  }
+
+  // ミチトのひとこと（キャラクター＋吹き出し）
+  function michitoTalkHtml(title, message, extraCl
+s) {
+    return (
+      '<div class="michito-talk ' +
+      (extraCls || "") +
+      '">' +
+      characterSvg("character character--talk") +
+      '<div class="talk-bubble">' +
+      (title ? '<div class="talk-title">' + escape
+Html(title) + "</div>" : "") +
+      '<div class="talk-text">' +
+      nl2br(escapeHtml(message)) +
+      "</div>" +
+      "</div>" +
+      "</div>"
+    );
+  }
+
+  function topBackHtml(action) {
+    return (
+      '<button class="top-back" data-action="' +
+      action +
+      '" aria-label="戻る">' +
+      ICONS.back +
+      "</button>"
+    );
+  }
+
+  // ---------- 画面遷移 ----------
+
+  function goHome() {
+
+    render();
+  }
+
+  function openStart() {
+    state.view = "start";
+    state.session = null;
+    render();
+  }
+
+  function startSession() {
+    var sessionQuestions = buildSessionQuestions()
+;
+    if (sessionQuestions.length === 0) {
+
+      startTime: Date.now(),
+      answeredCurrent: false,
+      selectedIndex: null,
+      pendingIndex: null, // 「回答する」を押す前
+に選んでいる選択肢
+      phase: "question", // question → verdict → e
+xplain → reflect
+      reflectionChoice: null
+    };
+    state.view = "question";
+    render();
+  }
+
+  function selectChoice(choiceIndex) {
+  // 選択肢を選ぶ（まだ判定しない）
+  function pickChoice(choiceIndex) {
+    var s = state.session;
+    if (!s || s.answeredCurrent) return;
+    s.selectedIndex = choiceIndex;
+    s.pendingIndex = choiceIndex;
+    render({ keepScroll: true });
+  }
+
+  // 「回答する」で確定して判定する
+  function submitAnswer() {
+    var s = state.session;
+    if (!s || s.answeredCurrent || s.pendingIndex
+=== null) return;
+    s.selectedIndex = s.pendingIndex;
+    s.answeredCurrent = true;
+    render({ scrollToFeedback: true });
+    s.phase = "verdict";
+    render();
+  }
+
+  function setPhase(phase) {
+    var s = state.session;
+    if (!s || !s.answeredCurrent) return;
+    s.phase = phase;
+    render();
+  }
+
+  function proceedToNext(feedbackPayload) {
+    var s = state.session;
+    if (!s) return;
+
+    s.currentIndex += 1;
+    s.answeredCurrent = false;
+    s.selectedIndex = null;
+    s.pendingIndex = null;
+    s.phase = "question";
+    s.reflectionChoice = null;
+    render();
+  }
+
+          correct: q.correct,
+          explanation: q.explanation,
+          // choices / correct は表示順のため、選
+んだ選択肢も表示順のインデックスに揃える
+          selectedAnswer: q._choiceOrder ? q._choi
+ceOrder.indexOf(a.selectedAnswer) : a.selectedAnsw
+er
+          selectedAnswer: q._choiceOrder ? q._choi
+ceOrder.indexOf(a.selectedAnswer) : a.selectedAnsw
+er,
+          questionNumber: idx + 1 // 「第◯問」表示
+用（画面内でのみ使用）
+        });
+      }
+    });
+
+      summary: summary,
+      mistakes: mistakes, // 現段階では画面遷移内
+でのみ保持し、localStorageへは保存しない
+      // (正式問題投入後、間違い履歴の永続化を追加
+予定)
+      mistakeTotal: mistakes.length // 復習の進捗
+表示用（正解して一覧から消えても変化しない当初件数
+）
+      mistakeTotal: mistakes.length, // 復習の進捗
+表示用（正解して一覧から消えても変化しない当初件数
+）
+      mistakeAll: mistakes.slice() // 一覧表示用（
+クリア済みも「クリア」として表示する）
+    };
+
+    state.session = null;
+
+
+  function openMistakeSolve(index) {
+    var data = state.lastSession;
+    state.mistakeSolveSnapshot = data.mistakes[ind
+ex];
+    if (!data || !data.mistakeAll[index]) return;
+    state.mistakeSolveSnapshot = data.mistakeAll[i
+ndex];
+    state.mistakeAnswered = false;
+    state.mistakeSelected = null;
+    state.mistakePending = null;
+    state.view = "mistakeSolve";
+    render();
+  }
+
+  function pickMistakeChoice(choiceIndex) {
+    if (!state.mistakeSolveSnapshot || state.mista
+keAnswered) return;
+    state.mistakePending = choiceIndex;
+    render({ keepScroll: true });
+  }
+
+  function submitMistakeAnswer() {
+    if (state.mistakePending === null) return;
+    selectMistakeChoice(state.mistakePending);
+  }
+
+  function selectMistakeChoice(choiceIndex) {
+    var m = state.mistakeSolveSnapshot;
+    if (!m || state.mistakeAnswered) return;
+
+      var list = state.lastSession.mistakes;
+      var idx = list.indexOf(m);
+      if (idx !== -1) list.splice(idx, 1);
+      m.cleared = true;
+      var remaining = list.length;
+      if (remaining === 0) {
+        showToast("🎉 間違えた問題を全部クリアしま
+した！");
+
+      // 再び間違えた問題は一覧に残し、「もう一度
+チャレンジ」の印を付ける
+      m.retryNeeded = true;
+    }
+    render({ scrollToFeedback: true });
+    render();
+  }
+
+  function openTrainingNotes() {
+
+    }, 1800);
+  }
+
+  // ---------- 共通パーツ: 画面ヘッダー ---------
+-
+  // ---------- ① HOME ----------
+
+  // 濃紺の画面ヘッダー（HOME以外の画面で共通）
+  function pageHeaderHtml(title, tagline, extraHtm
+l) {
+    return (
+      '<header class="hero hero--page">' +
+      '<h1 class="page-title">' +
+      escapeHtml(title) +
+      "</h1>" +
+      (tagline ? '<p class="page-tagline">' + esca
+peHtml(tagline) + "</p>" : "") +
+      (extraHtml || "") +
+      "</header>"
+    );
+  }
+
+  // ---------- ビュー: ホーム ----------
+
+  // 「今日のミチトのつぶやき」：日付ごとに1つ。交
+通ルールの内容は含めない（ブランドの一言のみ）
+  var MICHITO_MURMURS = [
+    "焦らなくて大丈夫。1問ずつ、確実に。",
+    "間違えた問題は、伸びしろです。",
+    "昨日より1問多く分かれば、それで十分。",
+    "迷った問題こそ、覚えるチャンス。",
+    "短い時間でも、続けることがいちばんの近道。",
+    "教習のあとに10問。今日の運転を思い出しながら
+。",
+    "分からなかったところは、ミチトと一緒にもう一
+度。"
+  ];
+
+  function todaysMurmur() {
+    var d = new Date();
+    var dayIndex = Math.floor(new Date(d.getFullYe
+ar(), d.getMonth(), d.getDate()).getTime() / 86400
+000);
+    return MICHITO_MURMURS[dayIndex % MICHITO_MURM
+URS.length];
+  }
+
+  function viewHome() {
+    var stats = computeHomeStats();
+    var remaining = state.lastSession ? state.last
+Session.mistakes.length : 0;
+    var todayPercent = Math.round((stats.todayCoun
+t / SESSION_SIZE) * 100);
+
+    // ★★★★★ 最重要：今日のあなたに必要な10問（濃
+紺のファーストビュー全体が主役）
+    var html =
+      '<section class="hero hero--home">' +
+      '<div class="hero-topbar">' +
+      '<span class="brand-mark">ミチト</span>' +
+      '<span class="hero-chip">今日 ' +
+      stats.todayCount +
+      " / " +
+      SESSION_SIZE +
+      "問</span>" +
+      '<header class="home-header">' +
+      '<div class="brand">' +
+      appIconSvg("app-icon") +
+      '<div class="brand-text"><div class="brand-n
+ame">ミチト</div><div class="brand-tagline">今日も
+、少しずつ。</div></div>' +
+      "</div>" +
+      '<div class="hero-eyebrow">今日のおすすめ</d
+iv>' +
+      '<h1 class="hero-title">今日のあなたに<br>必
+要な10問</h1>' +
+      '<p class="hero-lead">まずは10問。今日も、少
+しずつ。</p>' +
+      '<div class="hero-progress" aria-hidden="tru
+e"><div class="hero-progress-fill" style="width:'
++
+      todayPercent +
+      '%"></div></div>' +
+      '<button class="btn btn-hero" data-action="s
+tart-session">10問はじめる <span aria-hidden="true
+">→</span></button>' +
+      "</section>";
+      '<button class="icon-btn" data-action="open-
+settings" aria-label="設定">' +
+      ICONS.gear +
+      "</button>" +
+      "</header>";
+
+    // ★★★★☆ もう一度、ここだけ。 / ★★★☆☆ あなたの
+成長
+    html += '<section class="home-section">';
+    html += '<h2 class="section-label">あなたの学
+習</h2>';
+    html +=
+      '<button class="review-entry" data-action="o
+pen-mistakes">' +
+      '<span class="review-entry-icon" aria-hidden
+="true">↻</span>' +
+      '<span class="review-entry-body">' +
+      '<span class="review-entry-title">もう一度、
+ここだけ。</span>' +
+      '<span class="review-entry-sub">' +
+      (remaining > 0 ? "間違えた問題を、今日のうち
+にもう一度。" : "間違えた問題を、もう一度。") +
+      "</span>" +
+      "</span>" +
+      (remaining > 0 ? '<span class="review-entry-
+count">あと' + remaining + "問</span>" : "") +
+      '<span class="entry-arrow" aria-hidden="true
+">›</span>' +
+      "</button>";
+    html +=
+      '<button class="growth-entry" data-action="o
+pen-history">' +
+      '<span class="growth-body">' +
+      '<span class="growth-title">あなたの成長</sp
+an>' +
+      '<span class="growth-stats">' +
+      '<span class="growth-stat"><span class="grow
+th-value">' +
+      stats.totalCount +
+      '</span>問 解いた</span>' +
+      '<span class="growth-stat">正答率 <span clas
+s="growth-value">' +
+      stats.accuracyText +
+      "</span></span>" +
+      "</span>" +
+      "</span>" +
+      '<span class="entry-arrow" aria-hidden="true
+">›</span>' +
+      "</button>";
+    html +=
+      '<button class="plain-entry" data-action="op
+en-training-notes">' +
+      '<span class="plain-entry-title">トレーニン
+グメモ</span>' +
+      '<span class="plain-entry-sub">教習で気づい
+たことを残しておこう</span>' +
+      '<span class="entry-arrow" aria-hidden="true
+">›</span>' +
+      "</button>";
+    html += "</section>";
+      '<section class="home-hero">' +
+      sceneSvg("hero") +
+      '<h1 class="home-greeting">こんにちは。<br>
+今日も少しだけ進もう。</h1>' +
+      "</section>";
+
+    // 本番に備える（未実装のため実行できるボタン
+にはしない）
+    html +=
+      '<section class="home-section">' +
+      '<h2 class="section-label">本番に備える</h2>
+' +
+      '<div class="coming-soon-card" aria-disabled
+="true">' +
+      '<div class="coming-soon-top">' +
+      '<span class="coming-soon-title">本番そっく
+り模擬試験</span>' +
+      '<span class="coming-soon-badge">準備中</spa
+n>' +
+      '<section class="today-card">' +
+      '<div class="today-card-scene">' +
+      sceneSvg("card") +
+      "</div>" +
+      '<div class="coming-soon-text">本番と同じ形
+式で力試しができるよう、準備しています。</div>' +
+      '<div class="today-card-body">' +
+      '<h2 class="today-card-title"><span class="t
+oday-card-icon">' +
+      ICONS.target +
+      "</span>今日の10問</h2>" +
+      '<p class="today-card-sub">今日も10問、一緒
+にやろう。</p>' +
+      '<button class="btn-pill" data-action="open-
+start">はじめる <span aria-hidden="true">→</span><
+/button>' +
+      "</div>" +
+      "</section>";
+
+    // ★★☆☆☆ 補助：もっと学ぶ（いずれも準備中・押
+せない）
+    html +=
+      '<section class="home-section home-section--
+minor">' +
+      '<h2 class="section-label section-label--min
+or">もっと学ぶ</h2>' +
+      '<ul class="minor-list" aria-disabled="true"
+>' +
+      '<li><span>最近のルール変更</span><span clas
+s="minor-badge">準備中</span></li>' +
+      '<li><span>標識</span><span class="minor-bad
+ge">準備中</span></li>' +
+      '<li><span>危険予測</span><span class="minor
+-badge">準備中</span></li>' +
+      "</ul>" +
+      "</section>";
+    html += '<nav class="menu-list">';
+    html += menuItemHtml(
+      "open-mistakes",
+      "menu-icon--pink",
+      ICONS.alert,
+      "間違い問題",
+      "もう一度、一緒にやってみよう。",
+      remaining > 0 ? '<span class="menu-badge">'
++ remaining + "</span>" : ""
+    );
+    html += menuItemHtml("open-history", "menu-ico
+n--blue", ICONS.chart, "学習履歴", "これまでの歩み
+を確認する。", "");
+    html += menuItemHtml("open-training-notes", "m
+enu-icon--green", ICONS.memo, "トレーニングメモ",
+"今日の気づきを残しておこう。", "");
+    html += "</nav>";
+
+    // 今日のミチトのつぶやき
+    html +=
+      '<section class="murmur">' +
+      '<div class="murmur-label">今日のミチトのつ
+ぶやき</div>' +
+      '<p class="murmur-text">' +
+      escapeHtml(todaysMurmur()) +
+      "</p>" +
+      "</section>";
+      '<button class="home-talk" data-action="open
+-start">' +
+      characterSvg("character character--home") +
+      '<span class="home-talk-bubble">ミチトと一緒
+に、<br>あなたのペースで。<span class="menu-chevro
+n" aria-hidden="true">›</span></span>' +
+      "</button>";
+
+    return html;
+  }
+
+  // ---------- ビュー: 問題（回答前／回答後を含む
+） ----------
+  function menuItemHtml(action, iconCls, icon, tit
+le, sub, badge) {
+    return (
+      '<button class="menu-item" data-action="' +
+      action +
+      '">' +
+      '<span class="menu-icon ' +
+      iconCls +
+      '">' +
+      icon +
+      "</span>" +
+      '<span class="menu-body"><span class="menu-t
+itle">' +
+      title +
+      "</span>" +
+      '<span class="menu-sub">' +
+      sub +
+      "</span></span>" +
+      badge +
+      '<span class="menu-chevron" aria-hidden="tru
+e">›</span>' +
+      "</button>"
+    );
+  }
+
+  // ---------- ② 今日の10問（開始） ----------
+
+  function viewStart() {
+    var stats = computeHomeStats();
+    return (
+      '<div class="screen screen--start">' +
+      topBackHtml("go-home") +
+      '<h1 class="screen-title">今日の10問</h1>' +
+      '<p class="screen-lead">まずは10問。<br>自分
+のペースで進めよう。</p>' +
+      ringHtml(stats.todayCount, SESSION_SIZE, "ri
+ng--start") +
+      '<button class="btn-pill btn-pill--wide" dat
+a-action="start-session">ミチトと始める <span aria
+-hidden="true">→</span></button>' +
+      '<div class="ground-scene">' +
+      sceneSvg("ground") +
+      "</div>" +
+      "</div>"
+    );
+  }
+
+  // ---------- ③〜⑦ 今日の10問（問題 → 正解／不正
+解 → 解説 → 振り返り） ----------
+
+  var CHOICE_LETTERS = ["A", "B", "C", "D", "E", "
+F"];
+
+  function viewQuestion() {
+    var s = state.session;
+    switch (s.phase) {
+      case "verdict":
+        return viewVerdict();
+      case "explain":
+        return viewExplain();
+      case "reflect":
+        return viewReflect();
+      default:
+        return viewQuestionAsk();
+    }
+  }
+
+  // ③ 問題画面
+  function viewQuestionAsk() {
+    var s = state.session;
+    var q = s.questions[s.currentIndex];
+    var done = s.currentIndex + (s.answeredCurrent
+ ? 1 : 0);
+    var progressPercent = Math.round((done / s.que
+stions.length) * 100);
+    var isLast = s.currentIndex + 1 >= s.questions
+.length;
+    var progressPercent = Math.round(((s.currentIn
+dex + 1) / s.questions.length) * 100);
+
+    var html =
+      '<header class="hero hero--compact">' +
+      '<div class="quiz-head-row">' +
+      '<span class="quiz-head-title">今日のあなた
+に必要な10問</span>' +
+      '<span class="quiz-head-count"><span class="
+quiz-head-now">' +
+      '<div class="screen screen--question">' +
+      '<div class="quiz-progress">' +
+      '<div class="quiz-progress-label">今日の10問
+<span class="quiz-progress-count">' +
+      (s.currentIndex + 1) +
+      '</span> / ' +
+      " / " +
+      s.questions.length +
+      "</span>" +
+      "</div>" +
+      '<div class="hero-progress" aria-hidden="tru
+e"><div class="hero-progress-fill" style="width:'
++
+      "</span></div>" +
+      '<div class="quiz-progress-bar"><div class="
+quiz-progress-fill" style="width:' +
+      progressPercent +
+      '%"></div></div>' +
+      "</header>";
+
+    html += questionPanelHtml("Q" + (s.currentInde
+x + 1), q.question, q.reviewStatus === "mock");
+    html += '<div class="choice-hint">答えを1つ選
+んでください</div>';
+    html += choiceListHtml(q.choices, q.correct, s
+.answeredCurrent, s.selectedIndex, "select-choice"
+);
+
+    if (s.answeredCurrent) {
+      var isCorrect = s.selectedIndex === q.correc
+t;
+      html += judgementHtml(isCorrect, q.choices[q
+.correct]);
+      html += explanationBlockHtml(q.explanation,
+rememberItemsFor(q.question, q.choices[q.correct])
+);
+      html += viewReflectionForm();
+      // 次の行動：常に画面下に見える「次へ」ボタ
+ン（振り返りは任意）
+      html +=
+        '<div class="next-bar"><button class="btn
+btn-next" data-action="' +
+        (s.reflectionChoice ? "next-after-reflecti
+on" : "skip-reflection") +
+        '">' +
+        (isLast ? "結果を見る" : "次の問題へ") +
+        ' <span aria-hidden="true">→</span></butto
+n></div>';
+    }
+
+      "</div>" +
+      '<div class="question-number">第' +
+      (s.currentIndex + 1) +
+      "問</div>" +
+      (q.reviewStatus === "mock" ? '<div class="mo
+ck-badge">仮問題（UI確認用）</div>' : "") +
+      '<p class="question-text">' +
+      escapeHtml(q.question) +
+      "</p>" +
+      choiceListHtml(q.choices, s.pendingIndex, "p
+ick-choice") +
+      '<div class="answer-bar"><button class="btn-
+pill btn-pill--block" data-action="submit-answer"'
+ +
+      (s.pendingIndex === null ? " disabled" : "")
+ +
+      ">回答する</button></div>" +
+      "</div>";
+    return html;
+  }
+
+  // ---------- 共通パーツ: 問題文・選択肢・判定・
+解説 ----------
+
+  function questionPanelHtml(label, questionText,
+isMock) {
+    return (
+      '<div class="question-panel">' +
+      '<div class="question-meta"><span class="que
+stion-number">' +
+      escapeHtml(label) +
+      "</span>" +
+      (isMock ? '<span class="mock-badge">仮問題（
+UI確認用）</span>' : "") +
+      "</div>" +
+      '<div class="question-text">' +
+      escapeHtml(questionText) +
+      "</div>" +
+      "</div>"
+    );
+  }
+
+  // 4択の選択肢（今日の10問・「もう一度、ここだけ
+。」で共通）
+  function choiceListHtml(choices, correctIndex, a
+nswered, selectedIndex, action) {
+    var html = '<div class="choice-list">';
+  // A〜D の選択肢（選ぶだけ。判定は「回答する」で
+行う）
+  function choiceListHtml(choices, pendingIndex, a
+ction) {
+    var html = '<div class="choice-list" role="rad
+iogroup">';
+    choices.forEach(function (choice, idx) {
+      var cls = "choice-btn";
+      var disabledAttr = "";
+      var isSelected = answered && idx === selecte
+dIndex;
+      var isCorrectChoice = answered && idx === co
+rrectIndex;
+      var tags = "";
+      if (answered) {
+        disabledAttr = "disabled";
+        if (isCorrectChoice) {
+          cls += " is-correct";
+          tags += '<span class="choice-tag choice-
+tag--correct">✓ 正解</span>';
+        } else if (isSelected) {
+          cls += " is-incorrect";
+        }
+        if (isSelected) {
+          cls += " is-selected";
+          tags += '<span class="choice-tag choice-
+tag--mine">あなたの回答</span>';
+        }
+      }
+      var isSelected = idx === pendingIndex;
+      html +=
+        '<button class="' +
+        cls +
+        '<button class="choice-btn' +
+        (isSelected ? " is-selected" : "") +
+        '" role="radio" aria-checked="' +
+        (isSelected ? "true" : "false") +
+        '" data-action="' +
+        action +
+        '" data-index="' +
+        idx +
+        '" ' +
+        disabledAttr +
+        ">" +
+        '<span class="choice-num" aria-hidden="tru
+e">' +
+        (isCorrectChoice ? "✓" : answered && isSel
+ected ? "✕" : idx + 1) +
+        '">' +
+        '<span class="choice-letter">' +
+        (CHOICE_LETTERS[idx] || idx + 1) +
+        "</span>" +
+        '<span class="choice-text">' +
+        escapeHtml(choice) +
+        (tags ? '<span class="choice-tags">' + tag
+s + "</span>" : "") +
+        "</span>" +
+        "</button>";
+    });
+
+    return html;
+  }
+
+  // 正解・不正解のフィードバック
+  // 状態（正解／不正解）を最初に大きく示し、その
+あとに寄り添う一言を置く。
+  // 判定位置へのスクロールは .verdict を目印にす
+る（scrollToFeedback）。
+  function judgementHtml(isCorrect, correctChoiceT
+ext) {
+  // ④ 正解画面 ／ ⑤ 不正解画面
+  function viewVerdict() {
+    var s = state.session;
+    var q = s.questions[s.currentIndex];
+    var isCorrect = s.selectedIndex === q.correct;
+
+    if (isCorrect) {
+      return (
+        '<div class="verdict verdict--correct" rol
+e="status">' +
+        '<div class="verdict-head"><span class="ve
+rdict-icon" aria-hidden="true">✓</span>' +
+        '<span class="verdict-title">正解です</spa
+n></div>' +
+        '<div class="verdict-body"><p class="verdi
+ct-msg">その判断でOKです。</p></div>' +
+        '<div class="screen screen--verdict screen
+--correct">' +
+        '<div class="verdict-mark verdict-mark--co
+rrect">' +
+        '<span class="spark spark--1"></span><span
+ class="spark spark--2"></span><span class="spark
+spark--3"></span><span class="spark spark--4"></sp
+an>' +
+        '<span class="verdict-circle">' +
+        ICONS.check +
+        "</span>" +
+        "</div>" +
+        '<h1 class="verdict-title verdict-title--c
+orrect">正解！</h1>' +
+        '<p class="verdict-text">いいですね。<br>
+ちゃんと理解できています 👍</p>' +
+        '<button class="btn-pill btn-pill--wide" d
+ata-action="show-explanation">解説を見る <span ari
+a-hidden="true">→</span></button>' +
+        michitoTalkHtml("ミチトのひとこと", "その
+調子です！\nこのまま進めていきましょう。") +
+        '<div class="ground-scene ground-scene--so
+ft">' +
+        sceneSvg("ground") +
+        "</div>" +
+        "</div>"
+      );
+    }
+    return (
+      '<div class="verdict verdict--incorrect" rol
+e="status">' +
+      '<div class="verdict-head"><span class="verd
+ict-icon" aria-hidden="true">✕</span>' +
+      '<span class="verdict-title">不正解</span></
+div>' +
+      '<div class="verdict-body">' +
+      '<p class="verdict-lead">ここがポイントです<
+/p>' +
+      '<p class="verdict-msg">大丈夫。ここで覚えて
+おけばOKです。</p>' +
+      '<div class="verdict-answer"><span class="ve
+rdict-answer-label">正解</span>' +
+      '<span class="verdict-answer-text">' +
+      escapeHtml(correctChoiceText || "") +
+      "</span></div>" +
+      '<div class="screen screen--verdict screen--
+incorrect">' +
+      '<div class="verdict-mark verdict-mark--inco
+rrect">' +
+      '<span class="spark spark--1"></span><span c
+lass="spark spark--2"></span><span class="spark sp
+ark--3"></span><span class="spark spark--4"></span
+>' +
+      '<span class="verdict-circle">!</span>' +
+      "</div>" +
+      '<h1 class="verdict-title verdict-title--inc
+orrect">今回は惜しかったです。</h1>' +
+      '<p class="verdict-text">大丈夫。<br>ここで
+覚えておけばOKです。</p>' +
+      '<button class="btn-pill btn-pill--wide btn-
+pill--pink" data-action="show-explanation">解説を
+見る <span aria-hidden="true">→</span></button>' +
+      michitoTalkHtml("ミチトのひとこと", "間違え
+ることは、悪いことじゃありません。\n一緒に確認して
+いきましょう。") +
+      "</div>"
+    );
+  }
+
+  // 解説中の「数字＋単位」と「例外・条件を示す語
+」だけを控えめに強調する（すべては強調しない）
+  var EMPHASIS_PATTERN = new RegExp(
+    "((?:\\d{4}年)?\\d{1,2}月\\d{1,2}日" +
+      "|\\d+(?:\\.\\d+)?\\s*(?:km\\/h|キロメートル
+毎時|メートル|km|m|秒|分|時間|歳|年|か月|ヶ月|日|%
+|パーセント|センチ|cm|トン)" +
+      "|原則として|ただし|例外|を除く|を除き)",
+    "g"
+  );
+
+  function emphasizeExplanation(escapedText) {
+    return escapedText.replace(EMPHASIS_PATTERN, '
+<strong class="em-key">$1</strong>');
+  // ⑥ 解説画面
+  function viewExplain() {
+    var s = state.session;
+    var q = s.questions[s.currentIndex];
+    var isCorrect = s.selectedIndex === q.correct;
+    return (
+      '<div class="screen screen--explain">' +
+      '<h1 class="screen-title screen-title--left"
+>解説</h1>' +
+      explanationBodyHtml(q, isCorrect, s.selected
+Index) +
+      '<div class="pager">' +
+      '<button class="pager-btn" data-action="back
+-to-verdict">' +
+      ICONS.back +
+      "前へ</button>" +
+      '<button class="pager-btn pager-btn--next" d
+ata-action="show-reflection">次へ' +
+      ICONS.back +
+      "</button>" +
+      "</div>" +
+      "</div>"
+    );
+  }
+
+  // 「覚えておきたいこと」：問題データに専用項目
+がないため、正解の選択肢そのものを示す。
+  // 「誤っているものはどれ」形式の問題では正解の
+選択肢が誤った記述になるため表示しない。
+  function rememberItemsFor(questionText, correctC
+hoiceText) {
+    if (!correctChoiceText) return null;
+    if (/誤っている|誤り|適切でない|正しくない|不
+適切/.test(questionText || "")) return null;
+    return [correctChoiceText];
+  }
+
+  // 解説ブロック。rememberItems: 「覚えておきたい
+こと」（文字列の配列。null なら表示しない）
+  function explanationBlockHtml(explanation, remem
+berItems) {
+    var html = '<section class="explain-block">';
+    html += '<h2 class="explain-heading"><span cla
+ss="explain-tag">POINT</span>ここがポイント！</h2>
+';
+    html += '<div class="explanation-box">' + emph
+asizeExplanation(escapeHtml(explanation || "")) +
+"</div>";
+    if (Array.isArray(rememberItems) && rememberIt
+ems.length > 0) {
+      html += '<div class="remember-box"><div clas
+s="remember-heading">覚えておきたいこと</div><ul>'
+;
+      rememberItems.forEach(function (item) {
+        html += "<li>" + escapeHtml(item) + "</li>
+";
+      });
+      html += "</ul></div>";
+    }
+  // 解説本文（今日の10問・間違い問題の解き直しで
+共通）
+  function explanationBodyHtml(q, isCorrect, selec
+tedIndex) {
+    var correctLabel = (CHOICE_LETTERS[q.correct]
+|| q.correct + 1) + ". " + (q.choices[q.correct] |
+| "");
+    var html = '<section class="explain-section">'
+;
+    html += '<h2 class="explain-label">問題のポイ
+ント</h2>';
+    html += '<p class="explain-text">' + escapeHtm
+l(q.explanation || "") + "</p>";
+    html += "</section>";
+    html +=
+      '<div class="hint-box">' +
+      '<div class="hint-title"><span class="hint-i
+con">' +
+      ICONS.bulb +
+      "</span>ミチトのひとこと</div>" +
+      '<p class="hint-text">正解は<strong>「' +
+      escapeHtml(correctLabel) +
+      "」</strong>です。" +
+      (isCorrect
+        ? "<br>この判断、しっかり覚えておきましょ
+う。"
+        : "<br>あなたの回答は「" +
+          escapeHtml((CHOICE_LETTERS[selectedIndex
+] || "") + ". " + (q.choices[selectedIndex] || "")
+) +
+          "」でした。ここを覚えておけば大丈夫です
+。") +
+      "</p>" +
+      "</div>";
+    return html;
+  }
+
+
+    return null;
+  }
+
+  // 振り返り（任意）。選ばずに「次の問題へ」を押
+した場合は従来の「スキップ」と同じ扱い。
+  function viewReflectionForm() {
+  // ⑦ 振り返り画面
+  function viewReflect() {
+    var s = state.session;
+    var chosen = s.reflectionChoice;
+    var isLast = s.currentIndex + 1 >= s.questions
+.length;
+
+    var html = '<section class="reflect-card">';
+    html += '<div class="reflect-title">振り返り<s
+pan class="reflect-optional">任意</span></div>';
+    html += '<div class="reflect-intro">今回の問題
+、どうでしたか？</div>';
+    html += '<div class="reflect-grid">';
+
+    var html = '<div class="screen screen--reflect
+">';
+    html += '<h1 class="screen-title screen-title-
+-left">振り返り</h1>';
+    html += '<p class="screen-lead screen-lead--le
+ft">今回の問題、どうでしたか？</p>';
+    html += '<div class="reflect-list">';
+    REFLECTION_OPTIONS.forEach(function (opt) {
+      var isSelected = chosen === opt.key;
+      var cls = "reflect-btn" + (isSelected ? " is
+-selected" : "");
+      var disabledAttr = chosen ? "disabled" : "";
+      var actionAttr = chosen ? "" : ' data-action
+="select-reflection" data-key="' + opt.key + '"';
+      html +=
+        "<button class=\"" +
+        cls +
+        "\"" +
+        actionAttr +
+        " " +
+        disabledAttr +
+        '<button class="reflect-item' +
+        (isSelected ? " is-selected" : "") +
+        '"' +
+        (chosen ? " disabled" : ' data-action="sel
+ect-reflection" data-key="' + opt.key + '"') +
+        ">" +
+        '<span class="reflect-emoji">' +
+        opt.emoji +
+
+        "</span>" +
+        "</button>";
+    });
+    html += "</div>";
+
+    html += "</div>"; // reflect-grid
+
+    if (chosen) {
+      var opt = findReflectionOption(chosen);
+      var replyHtml = opt ? escapeHtml(opt.reply).
+replace(/\n/g, "<br>") : "";
+      html += '<div class="zerodora-reply">' + rep
+lyHtml + "<br>今日も一歩進みました。</div>";
+      html +=
+        '<div class="reflect-reply">' +
+        '<span class="reflect-reply-icon">' +
+        appIconSvg("app-icon app-icon--mini") +
+        "</span>" +
+        '<span class="reflect-reply-text">' +
+        (opt ? nl2br(escapeHtml(opt.reply)) + "<br
+>" : "") +
+        "今日も一歩進みました。</span>" +
+        "</div>";
+      html +=
+        '<button class="btn-pill btn-pill--block m
+t-20" data-action="next-after-reflection">' +
+        (isLast ? "結果を見る" : "次の問題へ") +
+        ' <span aria-hidden="true">→</span></butto
+n>';
+    } else {
+      html +=
+        '<div class="reflect-reply reflect-reply--
+idle">' +
+        '<span class="reflect-reply-icon">' +
+        appIconSvg("app-icon app-icon--mini") +
+        "</span>" +
+        '<span class="reflect-reply-text">今日も一
+歩進みました。</span>' +
+        "</div>";
+      html +=
+        '<button class="text-link mt-20" data-acti
+on="skip-reflection">スキップして' +
+        (isLast ? "結果を見る" : "次の問題へ") +
+        " →</button>";
+    }
+
+    html += "</section>";
+    html += "</div>";
+    return html;
+  }
+
+
+    var s = state.session;
+    if (!s || s.reflectionChoice) return;
+    s.reflectionChoice = key;
+    // 画面遷移ではないため、スクロール位置を保っ
+たまま表示を更新する
+    render({ keepScroll: true });
+  }
+
+
+    proceedToNext({ rating: s.reflectionChoice, re
+asons: [], comment: "" });
+  }
+
+  // ---------- ビュー: 結果 ----------
+  // ---------- ⑨ 結果 ----------
+
+  function viewResult() {
+    var data = state.lastSession;
+
+    var timeText = minutes > 0 ? minutes + "分" +
+ seconds + "秒" : seconds + "秒";
+    var mistakeCount = data.mistakes.length;
+
+    // 優先順位：結果 → 次にやること → 主要CTA →
+詳細
+    var html =
+      '<header class="hero hero--result">' +
+      '<span class="hero-chip">今日のあなたに必要
+な10問</span>' +
+      '<h1 class="result-title">今日の10問、完了
+！</h1>' +
+      '<div class="score"><span class="score-num"
+>' +
+      s.correctCount +
+      '</span><span class="score-den"> / ' +
+      s.count +
+      "</span></div>" +
+      '<div class="score-meta"><span class="score
+-pill">正答率 ' +
+      s.accuracy +
+      '%</span><span class="score-time">学習時間
+' +
+      timeText +
+      "</span></div>" +
+      '<p class="result-message">今日も一歩、前に
+進みました。</p>' +
+      "</header>";
+    var html = '<div class="screen screen--result
+">';
+    html += '<h1 class="result-heading">今日の10
+問 終了！</h1>';
+    html += ringHtml(s.correctCount, s.count, "ri
+ng--result");
+    html += '<div class="result-accuracy">正答率
+' + s.accuracy + "%</div>";
+    html += '<p class="result-time">学習時間 ' +
+timeText + "</p>";
+    html += '<p class="result-message">今日もお疲
+れさまでした。<br>少しずつでも、ちゃんと前に進ん
+でいます。</p>';
+
+    if (mistakeCount > 0) {
+      html +=
+        '<section class="next-card">' +
+        '<span class="next-card-label">次にやるこ
+と</span>' +
+        '<h2 class="next-card-title">もう一度、こ
+こだけ。</h2>' +
+        '<p class="next-card-sub">間違えた' +
+        '<div class="retry-card">' +
+        '<div class="retry-card-top">' +
+        '<span class="retry-card-icon">' +
+        appIconSvg("app-icon app-icon--mini") +
+        "</span>" +
+        '<span class="retry-card-title">間違えた
+問題を<br>もう一度</span>' +
+        "</div>" +
+        '<p class="retry-card-sub">あと' +
+        mistakeCount +
+        "問を、もう一度確認しましょう。</p>" +
+        '<button class="btn btn-review" data-acti
+on="open-mistakes">復習する <span aria-hidden="tr
+ue">→</span></button>' +
+        "</section>";
+      html += backHomeButtonHtml();
+
+      html += '<section class="home-section">';
+      html += '<h2 class="section-label section-l
+abel--minor">今回間違えた問題</h2>';
+      html += '<div class="mistake-list">';
+      data.mistakes.forEach(function (m) {
+        html += '<div class="mistake-item">' + es
+capeHtml(m.question) + "</div>";
+      });
+      html += "</div></section>";
+        "問、一緒に確認してみよう。</p>" +
+        "</div>" +
+        '<button class="btn-pill btn-pill--wide"
+data-action="open-mistakes">もう一度チャレンジ <s
+pan aria-hidden="true">→</span></button>';
+    } else {
+      html +=
+        '<section class="next-card next-card--cle
+ar">' +
+        '<span class="next-card-label">すべて正解
+</span>' +
+        '<h2 class="next-card-title">🎉 10問すべ
+て正解です！</h2>' +
+        '<p class="next-card-sub">この調子で、ま
+た明日も10問。</p>' +
+        '<button class="btn btn-primary" data-act
+ion="go-home">HOMEへ戻る</button>' +
+        "</section>";
+        '<div class="retry-card retry-card--clear
+">' +
+        '<span class="retry-card-title">🎉 10問す
+べて正解！</span>' +
+        '<p class="retry-card-sub">この調子で、ま
+た明日も10問。</p>' +
+        "</div>";
+    }
+
+    html += '<button class="text-link" data-actio
+n="go-home">ホームへ戻る</button>';
+    html += "</div>";
+    return html;
+  }
+
+  function backHomeButtonHtml() {
+    return '<div class="btn-block-group mt-16"><b
+utton class="btn btn-ghost" data-action="go-home"
+>HOMEへ戻る</button></div>';
+    return '<button class="text-link" data-action
+="go-home">ホームへ戻る</button>';
+  }
+
+  // ---------- ビュー: もう一度、ここだけ。（一
+覧） ----------
+  // ---------- ⑨ 間違い問題 ----------
+
+  function viewMistakes() {
+    var data = state.lastSession;
+    var mistakes = data ? data.mistakes : [];
+    var all = data ? data.mistakeAll : [];
+    var total = data ? data.mistakeTotal || 0 : 0
+;
+    var remaining = mistakes.length;
+    var remaining = data ? data.mistakes.length :
+ 0;
+    var cleared = total - remaining;
+
+    var extra = "";
+    if (total > 0 && remaining > 0) {
+      extra =
+        '<div class="review-progress">' +
+        '<span class="mistake-progress">' +
+        total +
+        "問中 " +
+        cleared +
+        "問クリア</span>" +
+        '<div class="review-progress-bar" aria-hi
+dden="true"><div class="review-progress-fill" sty
+le="width:' +
+        Math.round((cleared / total) * 100) +
+        '%"></div></div>' +
+        '<p class="mistake-progress-sub">あと' +
+        remaining +
+        "問です。ミチトと一緒に、もう一度やってみ
+ましょう。</p>" +
+        "</div>";
+    }
+    var html = pageHeaderHtml("もう一度、ここだけ
+。", "間違えた問題を、もう一度。", extra);
+    var html = '<div class="screen screen--list">
+';
+    html += topBackHtml("go-home");
+    html += '<h1 class="screen-title screen-title
+--left">間違い問題</h1>';
+    html += '<p class="screen-lead screen-lead--l
+eft">間違えた問題を、もう一度。</p>';
+
+    if (total === 0) {
+      html +=
+        '<div class="card"><div class="empty-stat
+e">直近のセッションで間違えた問題はありません。<b
+r>「今日の10問」を解くと、ここに表示されます。</d
+iv></div>';
+    } else if (remaining === 0) {
+      html +=
+        '<div class="card text-center clear-card"
+>' +
+        '<div class="clear-emoji">🎉</div>' +
+        '<div class="clear-title">すべてクリア！<
+/div>' +
+        "<p>間違えた問題を全部解決しました。<br>
+いい感じです！</p>" +
+        "</div>";
+    } else {
+      html += '<div class="mistake-list">';
+      mistakes.forEach(function (m, idx) {
+        var preview = m.question.length > 28 ? m.
+question.slice(0, 28) + "…" : m.question;
+        '<div class="panel"><div class="empty-sta
+te">直近のセッションで間違えた問題はありません。<
+br>「今日の10問」を解くと、ここに表示されます。</
+div></div>';
+      html += michitoTalkHtml("", "まずは今日の10
+問から。\n一緒に始めましょう。");
+      html += backHomeButtonHtml();
+      html += "</div>";
+      return html;
+    }
+
+    html +=
+      '<div class="panel progress-panel">' +
+      '<div class="progress-panel-row"><span clas
+s="mistake-progress">' +
+      total +
+      "問中 " +
+      cleared +
+      "問クリア</span>" +
+      '<span class="progress-panel-rest">' +
+      (remaining > 0 ? "あと" + remaining + "問"
+: "すべてクリア") +
+      "</span></div>" +
+      '<div class="line-progress"><div class="lin
+e-progress-fill" style="width:' +
+      Math.round((cleared / total) * 100) +
+      '%"></div></div>' +
+      "</div>";
+
+    html += '<h2 class="list-label">直近の学習</h
+2>';
+    html += '<div class="panel mistake-list">';
+    all.forEach(function (m, idx) {
+      var preview = m.question.length > 26 ? m.qu
+estion.slice(0, 26) + "…" : m.question;
+      var badge = m.cleared
+        ? '<span class="status-badge status-badge
+--clear">✓ クリア</span>'
+        : '<span class="status-badge status-badge
+--todo">' + (m.retryNeeded ? "もう一度" : "未クリ
+ア") + "</span>";
+      var inner =
+        '<span class="mistake-num">' +
+        (idx + 1) +
+        "</span>" +
+        '<span class="mistake-body"><span class="
+mistake-title">第' +
+        (m.questionNumber || idx + 1) +
+        '問</span><span class="mistake-item-previ
+ew">' +
+        escapeHtml(preview) +
+        "</span></span>" +
+        badge +
+        '<span class="menu-chevron" aria-hidden="
+true">›</span>';
+      if (m.cleared) {
+        html += '<div class="mistake-item is-clea
+red">' + inner + "</div>";
+      } else {
+        html +=
+          '<button class="mistake-item' +
+          (m.retryNeeded ? " is-retry" : "") +
+          '" data-action="open-mistake-solve" dat
+a-index="' +
+          idx +
+          '">' +
+          '<span class="mistake-item-top">' +
+          '<span class="mistake-item-id">' +
+          escapeHtml(m.questionId) +
+          "</span>" +
+          (m.retryNeeded ? '<span class="mistake-
+retry-badge">もう一度チャレンジ</span>' : "") +
+          "</span>" +
+          '<span class="mistake-item-preview">' +
+          escapeHtml(preview) +
+          "</span>" +
+          '<span class="mistake-item-cta">もう一
+度解く →</span>' +
+          inner +
+          "</button>";
+      });
+      html += "</div>";
+    }
+      }
+    });
+    html += "</div>";
+
+    html += michitoTalkHtml(
+      "",
+      remaining > 0
+        ? "あと" + remaining + "問です。\nミチト
+と一緒に、もう一度やってみましょう。"
+        : "全部クリアしました！\nいい感じです。"
+    );
+    html += backHomeButtonHtml();
+    html += "</div>";
+    return html;
+  }
+
+  // ---------- ビュー: もう一度、ここだけ。（解
+き直し） ----------
+
+  // 間違い問題の解き直し（選ぶ → 回答する → その
+場で判定と解説）
+  function viewMistakeSolve() {
+    var m = state.mistakeSolveSnapshot;
+    var remaining = state.lastSession ? state.las
+tSession.mistakes.length : 0;
+    var html = '<div class="screen screen--questi
+on">';
+    html += topBackHtml("open-mistakes");
+    html += '<div class="question-number">第' + (
+m.questionNumber || "") + "問（復習）</div>";
+    html += '<p class="question-text">' + escapeH
+tml(m.question) + "</p>";
+
+    var html =
+      '<header class="hero hero--compact hero--re
+view">' +
+      '<div class="quiz-head-row">' +
+      '<span class="quiz-head-title">もう一度、こ
+こだけ。</span>' +
+      '<span class="quiz-head-count">残り <span c
+lass="quiz-head-now">' +
+      remaining +
+      "</span>問</span>" +
+      "</div>" +
+      "</header>";
+    html += questionPanelHtml("復習", m.question,
+ false);
+    html += '<div class="choice-hint">答えを1つ選
+んでください</div>';
+    html += choiceListHtml(m.choices, m.correct,
+state.mistakeAnswered, state.mistakeSelected, "se
+lect-mistake-choice");
+
+    if (state.mistakeAnswered) {
+      var isCorrect = state.mistakeSelected === m
+.correct;
+      html += judgementHtml(isCorrect, m.choices[
+m.correct]);
+      html += explanationBlockHtml(m.explanation,
+ rememberItemsFor(m.question, m.choices[m.correct
+]));
+
+      if (isCorrect) {
+        html +=
+          '<p class="mistake-clear-note">いいです
+ね！ 👍 ちゃんと理解できましたね。<br>この問題は
+一覧から外れました。</p>';
+      } else {
+        html +=
+          '<p class="mistake-retry-note">大丈夫で
+す。もう一度だけ、一緒にやってみましょう。<br>こ
+の問題は引き続き一覧に残ります。</p>';
+      }
+    if (!state.mistakeAnswered) {
+      html += choiceListHtml(m.choices, state.mis
+takePending, "pick-mistake-choice");
+      html +=
+        '<div class="answer-bar"><button class="b
+tn-pill btn-pill--block" data-action="submit-mist
+ake-answer"' +
+        (state.mistakePending === null ? " disabl
+ed" : "") +
+        ">回答する</button></div>";
+      html += "</div>";
+      return html;
+    }
+
+    html += '<div class="btn-block-group mt-16">'
+;
+    html += '<button class="btn btn-review" data-
+action="open-mistakes">一覧に戻る</button>';
+    html += '<button class="btn btn-ghost" data-a
+ction="go-home">HOMEへ戻る</button>';
+    var isCorrect = state.mistakeSelected === m.c
+orrect;
+    html +=
+      '<div class="inline-verdict ' +
+      (isCorrect ? "inline-verdict--correct" : "i
+nline-verdict--incorrect") +
+      '">' +
+      '<span class="inline-verdict-icon">' +
+      (isCorrect ? ICONS.check : "!") +
+      "</span>" +
+      '<span class="inline-verdict-title">' +
+      (isCorrect ? "正解！" : "今回は惜しかったで
+す。") +
+      "</span>" +
+      "</div>";
+    html += explanationBodyHtml(m, isCorrect, sta
+te.mistakeSelected);
+    if (isCorrect) {
+      html +=
+        '<p class="mistake-clear-note">いいですね
+！ 👍 ちゃんと理解できましたね。<br>この問題はク
+リアになりました。</p>';
+    } else {
+      html +=
+        '<p class="mistake-retry-note">大丈夫です
+。もう一度だけ、一緒にやってみましょう。<br>この
+問題は引き続き一覧に残ります。</p>';
+    }
+    html += '<button class="btn-pill btn-pill--bl
+ock mt-20" data-action="open-mistakes">一覧に戻る
+</button>';
+    html += backHomeButtonHtml();
+    html += "</div>";
+
+    return html;
+  }
+
+  // ---------- ビュー: 教習メモ ----------
+  // ---------- ① トレーニングメモ ----------
+
+  var TRAINING_ACTIVITIES = ["発進", "停止", "右
+左折", "車線変更", "駐車", "その他"];
+  var TRAINING_MOODS = [
+
+
+  function viewTrainingNotes() {
+    selectedMood = null;
+    var html = pageHeaderHtml("トレーニングメモ",
+ "今日気づいたことや、覚えておきたいことを残して
+おこう。");
+    html += '<div class="card">';
+    var html = '<div class="screen screen--memo">
+';
+    html += '<h1 class="screen-title screen-title
+--left">トレーニングメモ</h1>';
+    html += '<p class="screen-lead screen-lead--l
+eft">今日気づいたことや、覚えておきたいことを残し
+ておこう。</p>';
+
+    html += '<div class="memo-editor">';
+    html +=
+      '<textarea id="training-comment" class="com
+ment-input" maxlength="' +
+      NOTE_MAX_LENGTH +
+      '" placeholder="メモを入力してください...">
+</textarea>';
+    html += '<div class="memo-counter"><span id="
+memo-count">0</span>/' + NOTE_MAX_LENGTH + "</div
+>";
+    html += "</div>";
+
+    // 既存の記録項目（今日やったこと・今日の感想
+）は任意の追加項目として残す
+    html += '<details class="memo-extra">';
+    html += "<summary>今日やったこと・感想も記録
+する（任意）</summary>";
+    html += '<div class="feedback-title">今日やっ
+たこと（複数選択可）</div>';
+    html += '<div class="checkbox-grid">';
+    TRAINING_ACTIVITIES.forEach(function (a) {
+
+        "</label>";
+    });
+    html += "</div>";
+
+    html += '<div class="feedback-title">今日の感
+想</div>';
+    html += '<div class="mood-row">';
+    TRAINING_MOODS.forEach(function (m) {
+
+        "</button>";
+    });
+    html += "</div>";
+    html += "</details>";
+
+    html += '<div class="feedback-title">一言（任
+意）</div>';
+    html += '<textarea id="training-comment" clas
+s="comment-input" placeholder="自由にどうぞ"></te
+xtarea>';
+    html += '<button class="btn-pill btn-pill--bl
+ock" data-action="submit-training-note">保存する<
+/button>';
+
+    html += '<button class="btn btn-primary" data
+-action="submit-training-note">入力完了</button>'
+;
+    html += "</div>";
+    // 最近のメモ（新しい順に3件）
+    var notes = getLocal(STORAGE_KEYS.TRAINING_NO
+TES, []).slice().reverse();
+    if (notes.length > 0) {
+      html += '<h2 class="list-label">最近のメモ<
+/h2>';
+      html += '<div class="history-list">';
+      notes.slice(0, 3).forEach(function (n) {
+        html += trainingNoteItemHtml(n);
+      });
+      html += "</div>";
+      html +=
+        '<button class="text-link" data-action="o
+pen-training-note-history">過去のトレーニングメモ
+をすべて見る →</button>';
+    }
+
+    html += '<div class="link-row">';
+    html += '<button data-action="open-training-n
+ote-history">過去のトレーニングメモを見る</button
+>';
+    html += "</div>";
+
+    html += backHomeButtonHtml();
+    return html;
+  }
+
+
+    render();
+  }
+
+  // ---------- ビュー: 過去の教習メモ ----------
+  function trainingNoteItemHtml(n) {
+    var mood = findTrainingMood(n.mood);
+    var html = '<div class="training-note-item">'
+;
+    html += '<div class="training-note-date">' +
+escapeHtml(formatNoteTimestamp(n.timestamp)) + "<
+/div>";
+    if (n.comment) {
+      html += '<div class="training-note-comment"
+>' + escapeHtml(n.comment) + "</div>";
+    }
+    if (n.activities && n.activities.length > 0)
+{
+      html += '<div class="training-note-activiti
+es">' + escapeHtml(n.activities.join("・")) + "</
+div>";
+    }
+    if (mood) {
+      html += '<div class="training-note-mood">'
++ mood.emoji + " " + escapeHtml(mood.label) + "</
+div>";
+    }
+    html += "</div>";
+    return html;
+  }
+
+  // ---------- 過去のトレーニングメモ ----------
+
+  function viewTrainingNoteHistory() {
+    // 日付が変わっても記録は消えず、新しい順に一
+覧表示する
+    // （次の教習の待ち時間などに見返せるようにす
+るための画面）
+    var notes = getLocal(STORAGE_KEYS.TRAINING_NO
+TES, []).slice().reverse();
+    var html = pageHeaderHtml("過去のトレーニング
+メモ", "これまでの教習の記録です。");
+    var html = '<div class="screen screen--memo">
+';
+    html += topBackHtml("open-training-notes");
+    html += '<h1 class="screen-title screen-title
+--left">過去のトレーニングメモ</h1>';
+
+    if (notes.length === 0) {
+      html +=
+        '<div class="card"><div class="empty-stat
+e">まだトレーニングメモがありません。<br>「トレー
+ニングメモ」から記録すると、ここに一覧で表示され
+ます。</div></div>';
+        '<div class="panel"><div class="empty-sta
+te">まだトレーニングメモがありません。<br>「トレ
+ーニングメモ」から記録すると、ここに一覧で表示さ
+れます。</div></div>';
+    } else {
+      html += '<div class="card"><div class="hist
+ory-list">';
+      html += '<div class="history-list">';
+      notes.forEach(function (n) {
+        var mood = findTrainingMood(n.mood);
+        html += '<div class="training-note-item">
+';
+        html += '<div class="training-note-date">
+' + escapeHtml(formatNoteTimestamp(n.timestamp))
++ "</div>";
+
+        if (n.activities && n.activities.length >
+ 0) {
+          html +=
+            '<div class="training-note-activities
+">' +
+            escapeHtml(n.activities.join("・")) +
+            "</div>";
+        }
+
+        if (mood) {
+          html +=
+            '<div class="training-note-mood">' +
+            mood.emoji +
+            " " +
+            escapeHtml(mood.label) +
+            "</div>";
+        }
+
+        if (n.comment) {
+          html += '<div class="training-note-comm
+ent">' + escapeHtml(n.comment) + "</div>";
+        }
+
+        html += "</div>"; // training-note-item
+        html += trainingNoteItemHtml(n);
+      });
+      html += "</div></div>";
+      html += "</div>";
+    }
+
+    html += '<div class="btn-block-group">';
+    html += '<button class="btn btn-secondary" da
+ta-action="open-training-notes">トレーニングメモ
+を書く</button>';
+    html += '<button class="btn btn-ghost" data-a
+ction="go-home">ホームへ</button>';
+    html += "</div>";
+
+    return html;
+  }
+
+  // ---------- ビュー: 学習履歴 ----------
+  // ---------- 学習履歴 ----------
+
+  function viewHistory() {
+    var stats = computeHomeStats();
+    var history = getLocal(STORAGE_KEYS.HISTORY,
+[]).slice().reverse();
+    var html = pageHeaderHtml("あなたの成長", "こ
+れまでの歩みを振り返ってみよう。");
+    var html = '<div class="screen screen--histor
+y">';
+    html += '<h1 class="screen-title screen-title
+--left">学習履歴</h1>';
+    html += '<p class="screen-lead screen-lead--l
+eft">これまでの歩みを確認する。</p>';
+
+    html +=
+      '<div class="stats-grid">' +
+      '<div class="stat-box"><div class="stat-val
+ue">' +
+      stats.todayCount +
+      " / " +
+      SESSION_SIZE +
+      '</div><div class="stat-label">今日の学習</
+div></div>' +
+      '<div class="stat-box"><div class="stat-val
+ue">' +
+      stats.totalCount +
+      '</div><div class="stat-label">累計</div></
+div>' +
+      '<div class="stat-box"><div class="stat-val
+ue">' +
+      stats.accuracyText +
+      '</div><div class="stat-label">正答率</div>
+</div>' +
+      "</div>";
+
+    if (history.length === 0) {
+      html += '<div class="card"><div class="empt
+y-state">まだ学習履歴がありません。</div></div>';
+      html += '<div class="panel"><div class="emp
+ty-state">まだ学習履歴がありません。</div></div>'
+;
+    } else {
+      html += '<div class="card"><div class="hist
+ory-list">';
+      html += '<div class="history-list">';
+      history.forEach(function (h) {
+        html +=
+          '<div class="history-item">' +
+          '<span class="history-date">' +
+          escapeHtml(h.date) +
+          "　" +
+          "</span>" +
+          '<span class="history-score">' +
+          h.correctCount +
+          "/" +
+          h.count +
+          "問正解（正答率" +
+          h.accuracy +
+          "%）</div>";
+          "%）</span>" +
+          "</div>";
+      });
+      html += "</div></div>";
+      html += "</div>";
+    }
+
+    html += backHomeButtonHtml();
+    html += "</div>";
+    return html;
+  }
+
+  // ---------- 下部タブバー ----------
+
+  var TAB_VIEWS = {
+    home: "home",
+    history: "history",
+    trainingNotes: "memo",
+    trainingNoteHistory: "memo"
+  };
+
+  function tabBarHtml(active) {
+    function tab(key, action, icon, label) {
+      return (
+        '<button class="tab' +
+        (active === key ? " is-active" : "") +
+        '" data-action="' +
+        action +
+        '"' +
+        (active === key ? ' aria-current="page"'
+: "") +
+        ">" +
+        icon +
+        "<span>" +
+        label +
+        "</span></button>"
+      );
+    }
+    return (
+      '<nav class="tabbar" aria-label="メインメニ
+ュー">' +
+      tab("home", "go-home", ICONS.tabHome, "ホー
+ム") +
+      tab("question", "open-start", ICONS.tabQues
+tion, "問題") +
+      tab("history", "open-history", ICONS.tabHis
+tory, "履歴") +
+      tab("memo", "open-training-notes", ICONS.ta
+bMemo, "メモ") +
+      "</nav>"
+    );
+  }
+
+  // ---------- レンダリング ----------
+
+  function render(options) {
+
+      case "home":
+        html = viewHome();
+        break;
+      case "start":
+        html = viewStart();
+        break;
+      case "question":
+        html = viewQuestion();
+        break;
+
+      default:
+        html = viewHome();
+    }
+
+    var activeTab = TAB_VIEWS[state.view];
+    if (activeTab) {
+      html += tabBarHtml(activeTab);
+    }
+    document.body.classList.toggle("has-tabbar",
+!!activeTab);
+
+    appEl.innerHTML = html;
+    if (options && options.scrollToFeedback) {
+      // 回答時のみ：画面上端へ戻さず、判定・解説
+が見える位置へ移動する
+      scrollToFeedback();
+    } else if (options && options.keepScroll) {
+      // 同じ画面内の表示更新（振り返りの選択など
+）：スクロール位置を保つ
+    } else {
+    if (!(options && options.keepScroll)) {
+      window.scrollTo(0, 0);
+    }
+  }
+
+  function scrollToFeedback() {
+    var el = appEl.querySelector(".verdict");
+    if (!el) return;
+    var top = el.getBoundingClientRect().top;
+    // 判定が画面の上側にすでに見えている場合（縦
+に広いPC画面など）は動かさない
+    if (top >= 0 && top <= window.innerHeight * 0
+.4) return;
+    var reduceMotion =
+      window.matchMedia && window.matchMedia("(pr
+efers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ block: "start", behavior:
+ reduceMotion ? "auto" : "smooth" });
+  }
+
+  // ---------- イベント委譲 ----------
+
+  appEl.addEventListener("click", function (event
+) {
+    var target = event.target.closest("[data-acti
+on]");
+    if (!target) return;
+    if (!target || target.disabled) return;
+    var action = target.getAttribute("data-action
+");
+
+    switch (action) {
+      case "open-start":
+        openStart();
+        break;
+      case "start-session":
+        startSession();
+        break;
+      case "select-choice":
+        selectChoice(parseInt(target.getAttribute
+("data-index"), 10));
+      case "pick-choice":
+        pickChoice(parseInt(target.getAttribute("
+data-index"), 10));
+        break;
+      case "submit-answer":
+        submitAnswer();
+        break;
+      case "show-explanation":
+        setPhase("explain");
+        break;
+      case "back-to-verdict":
+        setPhase("verdict");
+        break;
+      case "show-reflection":
+        setPhase("reflect");
+        break;
+      case "select-reflection":
+        selectReflection(target.getAttribute("dat
+a-key"));
+        break;
+
+      case "open-mistake-solve":
+        openMistakeSolve(parseInt(target.getAttri
+bute("data-index"), 10));
+        break;
+      case "select-mistake-choice":
+        selectMistakeChoice(parseInt(target.getAt
+tribute("data-index"), 10));
+      case "pick-mistake-choice":
+        pickMistakeChoice(parseInt(target.getAttr
+ibute("data-index"), 10));
+        break;
+      case "submit-mistake-answer":
+        submitMistakeAnswer();
+        break;
+      case "open-training-notes":
+        openTrainingNotes();
+        break;
+
+      case "select-mood":
+        handleSelectMood(target);
+        break;
+      case "open-settings":
+        showToast("設定は準備中です");
+        break;
+      default:
+        break;
+    }
+  });
+
+  // トレーニングメモの文字数表示
+  appEl.addEventListener("input", function (event
+) {
+    if (event.target && event.target.id === "trai
+ning-comment") {
+      var countEl = document.getElementById("memo
+-count");
+      if (countEl) countEl.textContent = String(e
+vent.target.value.length);
+    }
+  });
+
+  // ---------- 初期化 ----------
+
+  function init() {
+
+Now the stylesheet, rewritten to the light, airy look of the reference images with the measured palette:
+
+● Write(style.css)
+Added 1131 lines, removed 1139 lines
+/* style.css
+ * ミチト V4.0 STEP1 REVISION1
+ * ミチト V4.0 DESIGN-REFERENCE
+ * 基準：ミチトデザイン１.png（HOME・ブランド） /
+ミチトデザイン２.png（画面フロー）
+ *
+ * デザイン方針：「安心感 × 強い視認性 × iPhoneらし
+い洗練」
+ * - 濃紺（Deep Navy）の大きな面と白文字で、画面ご
+とに「最重要の情報」を1つ作る
+ * - ティールはブランドの主操作（10問はじめる）とア
+クセントに限定する
+ * - バイオレットは「もう一度、ここだけ。」の学習導
+線にだけ使う
+ * - 正解＝グリーン、不正解＝落ち着いたバーガンディ
+。状態は色・記号・言葉の3つで示す
+ * - 淡い背景に淡い文字を置かない。補助情報でも十分
+なコントラストを保つ
+ * - 白〜淡い空色の背景に、角丸の白カードとティール
+のピル型ボタン
+ * - 空・山・道路の風景、寄り添うキャラクター（いず
+れもインラインSVG）
+ * - 見出しはディープブルー、補助文はグレーブルー、
+操作はティール
+ * - 正解＝グリーン、不正解＝ピンク（画像の配色に合
+わせる）
+ */
+
+:root {
+  /* ブランドカラー */
+  --color-navy: #0A192F;
+  --color-navy-2: #13294A;
+  --color-teal: #0A8F9A;
+  --color-teal-hover: #087C86;
+  --color-teal-bright: #5ED3DB; /* 濃紺上のアクセン
+ト文字用 */
+  --color-teal-tint: #E3F4F5;
+  --teal: #0A8F9A;
+  --teal-dark: #087C86;
+  --teal-tint: #E4F5F7;
+  --navy: #0A192F;
+  --light: #F4F8FB;
+
+  --color-bg: #F4F8FB;
+  --color-surface: #ffffff;
+  --color-text: #0A192F;
+  --color-text-sub: #3A4C5F;
+  --color-text-muted: #56677A;
+  --bg-top: #EEF7FD;
+  --bg: #F4F8FB;
+  --surface: #FFFFFF;
+  --sky-tint: #E7F4FD;
+  --card-tint: #DFF2FC;
+
+  /* 互換（既存クラスで使用） */
+  --color-primary: var(--color-teal);
+  --color-primary-dark: var(--color-navy);
+  --color-primary-hover: var(--color-teal-hover);
+  --color-primary-tint: var(--color-teal-tint);
+  --color-primary-tint-strong: #CDEBEE;
+  --text: #0A192F;
+  --text-sub: #52667A;
+  --text-muted: #7A8B9C;
+  --border: #E1EAF0;
+  --border-strong: #CBD8E1;
+
+  /* 状態カラー */
+  --color-correct: #0F7A55;
+  --color-correct-dark: #0A5C40;
+  --color-correct-bg: #E6F5EE;
+  --color-correct-border: #7FC6A5;
+  --color-incorrect: #9A2F4B; /* calm burgundy */
+  --color-incorrect-bg: #FBEEF2;
+  --color-incorrect-border: #E1A7B7;
+  --pink: #F0436F;
+  --pink-dark: #D92F5B;
+  --pink-tint: #FDEAF0;
+  --blue: #2F7CF6;
+  --green: #22B36A;
+  --green-dark: #15885A;
+  --green-tint: #E6F6EE;
+  --progress: #0B2C72;
+
+  /* 「もう一度、ここだけ。」専用アクセント */
+  --color-review: #5B47C9;
+  --color-review-hover: #4C3AB2;
+  --color-review-tint: #EFECFB;
+
+  /* 境界線 */
+  --color-border: #D5E0E6;
+  --color-border-strong: #B4C4CE;
+
+  /* 角丸 */
+  --radius: 16px;
+  --radius-sm: 12px;
+  --radius-lg: 20px;
+  --radius-hero: 28px;
+  --radius: 16px;
+  --radius-lg: 22px;
+
+  /* 影 */
+  --shadow-sm: 0 1px 2px rgba(10, 25, 47, 0.08);
+  --shadow-md: 0 4px 14px rgba(10, 25, 47, 0.08), 0
+ 1px 3px rgba(10, 25, 47, 0.06);
+  --shadow-lg: 0 14px 34px rgba(10, 25, 47, 0.16),
+0 2px 6px rgba(10, 25, 47, 0.08);
+  --shadow-card: 0 6px 18px rgba(20, 60, 100, 0.08)
+, 0 1px 3px rgba(20, 60, 100, 0.05);
+  --shadow-soft: 0 2px 8px rgba(20, 60, 100, 0.06);
+  --shadow-cta: 0 8px 18px rgba(10, 143, 154, 0.3);
+
+  /* 余白 */
+  --space-section: 20px;
+  --app-pad-top: 16px;
+  --gutter: 16px;
+
+  --gutter: 20px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --pad-left: max(var(--gutter), var(--safe-left));
+  --pad-right: max(var(--gutter), var(--safe-right)
+);
+  --tabbar-h: 62px;
+}
+
+* {
+
+}
+
+html, body {
+  height: 100%;
+  min-height: 100%;
+}
+
+html {
+
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: -apple-system, BlinkMacSystemFont,
+"Hiragino Sans", "Yu Gothic",
+    "Segoe UI", sans-serif;
+  background: linear-gradient(180deg, var(--bg-top
+) 0%, var(--bg) 40%, var(--bg) 100%) fixed;
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont,
+"Hiragino Sans", "Hiragino Kaku Gothic ProN",
+    "Yu Gothic", "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  /* 横スクロール防止 */
+  overflow-x: hidden;
+}
+
+button, input, textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* safe-area は #app で一度だけ確保する（上下左右
+とも二重にしない） */
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+  position: relative;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: calc(var(--app-pad-top) + var(--safe-to
+p)) var(--pad-right) calc(32px + var(--safe-bottom
+))
+    var(--pad-left);
+  min-height: 100%;
+  padding: calc(14px + var(--safe-top)) var(--pad-
+right) calc(32px + var(--safe-bottom)) var(--pad-l
+eft);
+  min-height: 100vh;
+  overflow-wrap: break-word;
+}
+
+body.has-tabbar #app {
+  padding-bottom: calc(var(--tabbar-h) + 28px + va
+r(--safe-bottom));
+}
+
+button:focus-visible,
+textarea:focus-visible,
+input:focus-visible {
+  outline: 3px solid rgba(10, 143, 154, 0.55);
+input:focus-visible,
+summary:focus-visible {
+  outline: 3px solid rgba(10, 143, 154, 0.45);
+  outline-offset: 2px;
+}
+
+h1, h2, h3 {
+h1, h2, h3, p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+p {
+  margin: 0;
+  line-height: 1.7;
+  color: var(--color-text-sub);
+.mt-20 {
+  margin-top: 20px;
+}
+
+/* ===============================================
+=============
+ * 濃紺ヒーロー（各画面の最重要ブロック）
+ * 共通パーツ
+ * ===============================================
+============= */
+
+.hero {
+  position: relative;
+/* ティールのピル型ボタン（画像の「はじめる →」「
+回答する」等） */
+.btn-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 34px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #0C9AA6 0%,
+var(--teal) 100%);
+  color: #fff;
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(10,
+143, 154, 0.38) 0%, rgba(10, 143, 154, 0) 60%),
+    var(--color-navy);
+  /* #app の余白を打ち消して画面端まで広げる（safe
+-area 分も塗る） */
+  margin: calc(-1 * (var(--app-pad-top) + var(--sa
+fe-top))) calc(-1 * var(--pad-right)) 0
+    calc(-1 * var(--pad-left));
+  padding: calc(var(--safe-top) + 22px) calc(var(-
+-pad-right) + 6px) 28px calc(var(--pad-left) + 6px
+);
+  border-radius: 0 0 var(--radius-hero) var(--radi
+us-hero);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: var(--shadow-cta);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.15
+s ease, background-color 0.15s ease, opacity 0.15s
+ ease;
+}
+
+.hero p {
+  color: rgba(255, 255, 255, 0.88);
+.btn-pill:active {
+  transform: scale(0.98);
+  box-shadow: 0 3px 8px rgba(10, 143, 154, 0.28);
+}
+
+.hero-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 26px;
+.btn-pill[disabled] {
+  opacity: 0.4;
+  box-shadow: none;
+  cursor: default;
+  transform: none;
+}
+
+.brand-mark {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #fff;
+.btn-pill--wide {
+  display: flex;
+  width: min(100%, 290px);
+  margin: 0 auto;
+}
+
+.hero-chip {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 4px 12px;
+  white-space: nowrap;
+.btn-pill--block {
+  display: flex;
+  width: 100%;
+  min-height: 54px;
+}
+
+.hero-eyebrow {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--color-teal-bright);
+  margin-bottom: 8px;
+.btn-pill--pink {
+  background: linear-gradient(180deg, #F5557D 0%,
+var(--pink) 100%);
+  box-shadow: 0 8px 18px rgba(240, 67, 111, 0.3);
+}
+
+.hero-title {
+  font-size: 31px;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  color: #fff;
+@media (hover: hover) {
+  .btn-pill:not([disabled]):hover {
+    filter: brightness(1.05);
+  }
+}
+
+.hero-lead {
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 10px !important;
+.text-link {
+  display: block;
+  margin: 14px auto 0;
+  padding: 12px 16px;
+  min-height: 44px;
+  border: none;
+  background: none;
+  color: var(--teal);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.hero-progress {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 22px 0 22px;
+.top-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -6px 0 4px -12px;
+  border: none;
+  background: none;
+  color: var(--navy);
+  cursor: pointer;
+}
+
+.hero-progress-fill {
+  height: 100%;
+  background: var(--color-teal-bright);
+  border-radius: 999px;
+  transition: width 0.25s ease;
+.top-back svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* HOMEで最も目立つ操作対象 */
+.btn-hero {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 64px !important;
+  font-size: 19px !important;
+  font-weight: 800 !important;
+  color: #fff;
+  background: var(--color-teal);
+  border-radius: 18px !important;
+  box-shadow: 0 10px 26px rgba(10, 143, 154, 0.5),
+ inset 0 1px 0 rgba(255, 255, 255, 0.18);
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  padding: 16px;
+}
+
+.btn-hero:active {
+  background: var(--color-teal-hover);
+  box-shadow: 0 4px 12px rgba(10, 143, 154, 0.4);
+.screen-title {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+@media (hover: hover) {
+  .btn-hero:hover {
+    background: var(--color-teal-hover);
+  }
+.screen-title--left {
+  text-align: left;
+}
+
+/* 問題画面・解き直し画面のコンパクトなヘッダー */
+.hero--compact {
+  padding-bottom: 20px;
+  border-radius: 0 0 24px 24px;
+.screen-lead {
+  margin-top: 10px;
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--text-sub);
+}
+
+.quiz-head-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+.screen-lead--left {
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.quiz-head-title {
+.list-label {
+  margin: 24px 4px 10px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.88);
+  min-width: 0;
+  color: var(--text-sub);
+}
+
+.quiz-head-count {
+  flex: 0 0 auto;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.8);
+  white-space: nowrap;
+}
+/* ===============================================
+=============
+ * ① HOME
+ * ===============================================
+============= */
+
+.quiz-head-now {
+  font-size: 32px;
+  font-weight: 800;
+  color: #fff;
+.home-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.hero--compact .hero-progress {
+  margin: 14px 0 0;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.hero--review {
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(91,
+71, 201, 0.45) 0%, rgba(91, 71, 201, 0) 60%),
+    var(--color-navy);
+.app-icon {
+  flex: 0 0 auto;
+  width: 54px;
+  height: 54px;
+  border-radius: 13px;
+  box-shadow: 0 4px 10px rgba(11, 47, 110, 0.18);
+}
+
+/* 一覧・メモ・履歴などの画面見出し */
+.hero--page {
+  padding-bottom: 26px;
+  margin-bottom: 20px;
+.app-icon--mini {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.page-title {
+  font-size: 25px;
+.brand-name {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: #fff;
+  line-height: 1.2;
+  letter-spacing: 0.1em;
+  color: var(--navy);
+}
+
+.page-tagline {
+  font-size: 15px;
+  margin-top: 6px !important;
+.brand-tagline {
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--teal);
+}
+
+/* ===============================================
+=============
+ * ボタン
+ * ===============================================
+============= */
+
+.btn {
+  display: block;
+  width: 100%;
+  min-height: 56px;
+  padding: 15px 20px;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  border-radius: var(--radius);
+.icon-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -8px;
+  border: none;
+  background: none;
+  color: var(--navy);
+  cursor: pointer;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease, box-sha
+dow 0.15s ease, transform 0.1s ease;
+}
+
+.btn:active {
+  transform: scale(0.985);
+.icon-btn svg {
+  width: 26px;
+  height: 26px;
+}
+
+.btn-primary {
+  background: var(--color-teal);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(10, 143, 154, 0.32);
+/* 風景ビジュアル（画面幅いっぱい） */
+.home-hero {
+  position: relative;
+  height: 172px;
+  margin: 0 calc(-1 * var(--pad-right)) 0 calc(-1
+* var(--pad-left));
+  overflow: hidden;
+}
+
+.btn-primary:active {
+  background: var(--color-teal-hover);
+  box-shadow: none;
+.home-hero .scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-teal);
+  border: 2px solid var(--color-teal);
+/* 下端を背景色へなじませる */
+.home-hero::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26px;
+  background: linear-gradient(180deg, rgba(244, 24
+8, 251, 0), var(--bg));
+}
+
+.btn-secondary:active {
+  background: var(--color-teal-tint);
+.home-greeting {
+  position: relative;
+  z-index: 1;
+  padding: 26px calc(var(--pad-left) + 6px) 0;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+  color: var(--navy);
+}
+
+.btn-ghost {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1.5px solid var(--color-border-strong);
+  font-weight: 700;
+  font-size: 16px;
+/* 今日の10問カード */
+.today-card {
+  position: relative;
+  z-index: 1;
+  margin-top: -6px;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1.5px solid #FFFFFF;
+  background: linear-gradient(135deg, #D8F0FB 0%,
+#E9F7FD 55%, #F7FCFF 100%);
+  box-shadow: 0 10px 26px rgba(20, 90, 140, 0.13),
+ 0 1px 3px rgba(20, 60, 100, 0.06);
+}
+
+.btn-ghost:active {
+  background: #EBF1F5;
+.today-card-scene {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 46%;
+  -webkit-mask-image: linear-gradient(90deg, trans
+parent 0%, #000 45%);
+  mask-image: linear-gradient(90deg, transparent 0
+%, #000 45%);
+}
+
+/* 「もう一度、ここだけ。」の主要CTA */
+.btn-review {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--color-review);
+  color: #fff;
+  min-height: 60px;
+  font-size: 18px;
+  box-shadow: 0 8px 20px rgba(91, 71, 201, 0.35);
+.today-card-scene .scene {
+  width: 100%;
+  height: 100%;
+}
+
+.btn-review:active {
+  background: var(--color-review-hover);
+  box-shadow: none;
+.today-card-body {
+  position: relative;
+  padding: 20px 18px 22px;
+}
+
+/* 回答後の「次の問題へ」 */
+.btn-next {
+.today-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--color-navy);
+  color: #fff;
+  min-height: 60px;
+  font-size: 18px;
+  box-shadow: 0 8px 22px rgba(10, 25, 47, 0.35);
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--navy);
+}
+
+.btn-next:active {
+  background: var(--color-navy-2);
+.today-card-icon svg {
+  display: block;
+  width: 30px;
+  height: 30px;
+}
+
+@media (hover: hover) {
+  .btn-primary:hover { background: var(--color-tea
+l-hover); }
+  .btn-secondary:hover { background: var(--color-t
+eal-tint); }
+  .btn-ghost:hover { background: #EBF1F5; }
+  .btn-review:hover { background: var(--color-revi
+ew-hover); }
+  .btn-next:hover { background: var(--color-navy-2
+); }
+.today-card-sub {
+  margin-top: 8px;
+  font-size: 15px;
+  color: var(--navy);
+}
+
+.btn-block-group {
+.today-card .btn-pill {
+  margin-top: 18px;
+  min-width: 62%;
+  min-height: 54px;
+  font-size: 18px;
+}
+
+/* 間違い問題・学習履歴・トレーニングメモ */
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* ===============================================
+=============
+ * HOME
+ * ===============================================
+============= */
+
+.home-section {
+  margin-top: 28px;
+}
+
+.section-label {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--color-text);
+  margin: 0 4px 12px;
+}
+
+.section-label--minor {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-sub);
+  margin-bottom: 10px;
+}
+
+.entry-arrow {
+  flex: 0 0 auto;
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--color-text-muted);
+}
+
+/* ★★★★☆ もう一度、ここだけ。 */
+.review-entry {
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 88px;
+  padding: 18px 16px 18px 18px;
+  min-height: 76px;
+  padding: 14px 16px;
+  text-align: left;
+  background: var(--color-surface);
+  border: 1.5px solid #D6CFF4;
+  border-left: 6px solid var(--color-review);
+  background: var(--surface);
+  border: 1px solid #EEF3F7;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  color: var(--color-text);
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease, transfo
+rm 0.1s ease;
+  transition: transform 0.1s ease, background-colo
+r 0.15s ease;
+}
+
+.review-entry:active {
+  background: var(--color-review-tint);
+.menu-item:active {
+  transform: scale(0.99);
+  background: #F6FAFD;
+}
+
+.review-entry-icon {
+.menu-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: var(--color-review);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 800;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+}
+
+.review-entry-body {
+.menu-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.menu-icon--pink { background: var(--pink); }
+.menu-icon--blue { background: var(--blue); }
+.menu-icon--green { background: var(--green); }
+
+.menu-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  gap: 2px;
+}
+
+.review-entry-title {
+  font-size: 18px;
+.menu-title {
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: var(--navy);
+}
+
+.review-entry-sub {
+  font-size: 14px;
+.menu-sub {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-sub);
+  color: var(--text-sub);
+}
+
+.review-entry-count {
+.menu-badge {
+  flex: 0 0 auto;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--pink);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--color-review);
+  border-radius: 999px;
+  padding: 4px 10px;
+  line-height: 24px;
+  text-align: center;
+}
+
+.review-entry .entry-arrow {
+  color: var(--color-review);
+.menu-chevron {
+  flex: 0 0 auto;
+  font-size: 28px;
+  font-weight: 300;
+  line-height: 1;
+  color: #2F6FB5;
+}
+
+/* ★★★☆☆ あなたの成長 */
+.growth-entry,
+.plain-entry {
+/* キャラクター＋吹き出し */
+.home-talk {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+  margin-top: 18px;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--color-text);
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.growth-entry {
+  padding: 16px 16px 16px 18px;
+  min-height: 76px;
+  box-shadow: var(--shadow-sm);
+.character {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.growth-entry:active,
+.plain-entry:active {
+  background: #EBF1F5;
+.character--home {
+  width: 84px;
+  height: 100px;
+}
+
+.growth-body {
+.home-talk-bubble {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 74px;
+  margin-bottom: 10px;
+  padding: 14px 16px 14px 20px;
+  border-radius: var(--radius-lg);
+  background: var(--sky-tint);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.7;
+  color: var(--navy);
+}
+
+.growth-title {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+.home-talk-bubble::before {
+  content: "";
+  position: absolute;
+  left: -7px;
+  bottom: 18px;
+  border: 8px solid transparent;
+  border-right-color: var(--sky-tint);
+  border-left: 0;
+}
+
+.growth-stats {
+/* ===============================================
+=============
+ * 下部タブバー
+ * ===============================================
+============= */
+
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-sub);
+  justify-content: space-around;
+  padding: 6px max(8px, var(--safe-right)) calc(6p
+x + var(--safe-bottom)) max(8px, var(--safe-left))
+;
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 16px rgba(20, 60, 100, 0.05);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.growth-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-text);
+  margin-right: 2px;
+.tab {
+  flex: 1 1 0;
+  max-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 50px;
+  border: none;
+  background: none;
+  color: #5F758A;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* 補助：トレーニングメモ */
+.plain-entry {
+  flex-wrap: wrap;
+  padding: 14px 16px 14px 18px;
+  min-height: 60px;
+  background: transparent;
+  border-color: var(--color-border-strong);
+.tab svg {
+  width: 24px;
+  height: 24px;
+}
+
+.plain-entry-title {
+  font-size: 15px;
+  font-weight: 800;
+.tab.is-active {
+  color: var(--teal);
+}
+
+.plain-entry-sub {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--color-text-sub);
+/* ===============================================
+=============
+ * ② 今日の10問（開始）
+ * ===============================================
+============= */
+
+.screen {
+  position: relative;
+}
+
+/* 本番に備える（準備中：押せるボタンに見せない）
+*/
+.coming-soon-card {
+  border: 1.5px dashed var(--color-border-strong);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  background: rgba(255, 255, 255, 0.55);
+  cursor: default;
+.screen--start {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 60px - var(--safe-top)
+- var(--safe-bottom));
+}
+
+.coming-soon-top {
+.screen--start .screen-title {
+  margin-top: 6px;
+}
+
+.ring {
+  position: relative;
+  width: 170px;
+  height: 170px;
+  margin: 34px auto 30px;
+}
+
+.ring svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  color: var(--navy);
+}
+
+.coming-soon-title {
+  font-size: 16px;
+.ring-value {
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: 0.02em;
+}
+
+.coming-soon-badge,
+.minor-badge {
+  font-size: 12px;
+  font-weight: 800;
+  color: #7A5200;
+  background: #FFF1D6;
+  border-radius: 999px;
+  padding: 2px 10px;
+  white-space: nowrap;
+.ring-total {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-sub);
+  margin-left: 2px;
+  margin-top: 10px;
+}
+
+.coming-soon-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-sub);
+  margin-top: 6px;
+.ground-scene {
+  position: relative;
+  height: 170px;
+  margin: auto calc(-1 * var(--pad-right)) calc(-3
+2px - var(--safe-bottom)) calc(-1 * var(--pad-left
+));
+  padding-top: 24px;
+}
+
+/* ★★☆☆☆ もっと学ぶ（すべて準備中） */
+.minor-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--color-border);
+.ground-scene .scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.minor-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-sub);
+  border-bottom: 1px solid var(--color-border);
+.ground-scene::before {
+  content: "";
+  position: absolute;
+  top: 24px;
+  left: 0;
+  right: 0;
+  height: 50px;
+  z-index: 1;
+  background: linear-gradient(180deg, var(--bg), r
+gba(244, 248, 251, 0));
+}
+
+/* 今日のミチトのつぶやき */
+.murmur {
+  margin: 36px 8px 8px;
+  text-align: center;
+.ground-scene--soft {
+  opacity: 0.55;
+  height: 120px;
+}
+
+.murmur-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--color-teal-hover);
+/* ===============================================
+=============
+ * ③ 問題画面
+ * ===============================================
+============= */
+
+.quiz-progress {
+  padding-top: 6px;
+  margin-bottom: 22px;
+}
+
+.murmur-text {
+  margin-top: 6px !important;
+  font-size: 16px;
+.quiz-progress-label {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.8;
+  color: var(--color-text) !important;
+  color: var(--navy);
+}
+
+/* ===============================================
+=============
+ * 問題画面
+ * ===============================================
+============= */
+.quiz-progress-count {
+  margin-left: 12px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.question-panel {
+  margin-top: 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 22px 20px 24px;
+.quiz-progress-bar {
+  height: 5px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: #E1E9EF;
+  overflow: hidden;
+}
+
+.question-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+.quiz-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--progress);
+  transition: width 0.25s ease;
+}
+
+.question-number {
+  display: inline-block;
+  font-size: 14px;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: var(--color-navy);
+  border-radius: 8px;
+  padding: 3px 10px;
+  color: var(--navy);
+  margin-bottom: 12px;
+}
+
+.mock-badge {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #FFF3CD;
+  color: #7A5200;
+  font-size: 12px;
+  font-weight: 700;
+  color: #7A5200;
+  background: #FFF1D6;
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.question-text {
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.75;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.85;
+  letter-spacing: 0.02em;
+  color: var(--navy);
+  margin-bottom: 24px;
+}
+
+.choice-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-text-sub);
+  margin: 22px 4px 12px;
+}
+
+.choice-hint::before {
+  content: "";
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--color-teal);
+}
+
+.choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 選択肢：大きく明確なタップ対象 */
+.choice-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 70px;
+  padding: 16px 16px;
+  min-height: 58px;
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 17px;
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border-strong);
+  border-radius: 18px;
+  box-shadow: 0 3px 0 rgba(10, 25, 47, 0.08);
+  color: var(--navy);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.12s ease, border-
+color 0.12s ease, box-shadow 0.12s ease,
+    transform 0.08s ease;
+  transition: border-color 0.12s ease, background-
+color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.choice-num {
+.choice-letter {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #EAF0F4;
+  color: var(--color-text);
+  font-size: 17px;
+  font-weight: 800;
+  transition: background-color 0.12s ease, color 0
+.12s ease;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1.5px solid #9DB2C2;
+  font-size: 14px;
+  font-weight: 700;
+  color: #4B6378;
+  transition: background-color 0.12s ease, color 0
+.12s ease, border-color 0.12s ease;
+}
+
+.choice-text {
+
+  overflow-wrap: anywhere;
+}
+
+/* 指で押した瞬間に「ここを選んだ」と分かる */
+.choice-btn:not([disabled]):active {
+  background: var(--color-teal-tint);
+  border-color: var(--color-teal);
+  box-shadow: 0 0 0 4px rgba(10, 143, 154, 0.18);
+  transform: translateY(2px);
+.choice-btn:active {
+  background: #F2FAFB;
+}
+
+.choice-btn:not([disabled]):active .choice-num {
+  background: var(--color-teal);
+  color: #fff;
+}
+
+@media (hover: hover) {
+  .choice-btn:not([disabled]):hover {
+    border-color: var(--color-teal);
+  .choice-btn:hover {
+    border-color: var(--teal);
+  }
+}
+
+.choice-btn[disabled] {
+  cursor: default;
+/* 選択中（まだ回答していない） */
+.choice-btn.is-selected {
+  border: 2px solid var(--teal);
+  background: var(--teal-tint);
+  box-shadow: 0 0 0 3px rgba(10, 143, 154, 0.12);
+}
+
+/* 回答後：正解 */
+.choice-btn.is-correct {
+  background: var(--color-correct-bg);
+  border: 2.5px solid var(--color-correct);
+  color: var(--color-correct-dark);
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.choice-btn.is-correct .choice-num {
+  background: var(--color-correct);
+.choice-btn.is-selected .choice-letter {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #fff;
+}
+
+/* 回答後：選んだが正解でなかった */
+.choice-btn.is-incorrect {
+  background: var(--color-incorrect-bg);
+  border: 2.5px solid var(--color-incorrect);
+  color: var(--color-incorrect);
+  font-weight: 700;
+  box-shadow: none;
+/* 「回答する」：長い問題でも見えるよう画面下に留
+める */
+.answer-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin: 26px calc(-1 * var(--pad-right)) 0 calc
+(-1 * var(--pad-left));
+  padding: 14px var(--pad-right) calc(14px + var(
+--safe-bottom)) var(--pad-left);
+  background: linear-gradient(180deg, rgba(244, 2
+48, 251, 0) 0%, var(--bg) 35%);
+}
+
+.choice-btn.is-incorrect .choice-num {
+  background: var(--color-incorrect);
+  color: #fff;
+}
+/* ==============================================
+==============
+ * ④ 正解 ／ ⑤ 不正解
+ * ==============================================
+============== */
+
+/* 回答後：関係のない選択肢は下げる */
+.choice-btn[disabled]:not(.is-correct):not(.is-in
+correct) {
+  opacity: 0.5;
+  box-shadow: none;
+.screen--verdict {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: calc(100vh - 46px - var(--safe-top)
+ - var(--safe-bottom));
+  padding-top: 40px;
+  text-align: center;
+}
+
+.choice-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+.screen--incorrect::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, #FFFFFF 0%,
+ #FFF6F8 55%, #FDE9EF 100%);
+}
+
+.choice-tag {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.4;
+  border-radius: 999px;
+  padding: 3px 10px;
+.verdict-mark {
+  position: relative;
+  width: 120px;
+  height: 110px;
+  margin: 0 auto 14px;
+}
+
+.choice-tag--correct {
+.verdict-circle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  color: #fff;
+  background: var(--color-correct);
+  font-size: 48px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.choice-tag--mine {
+  color: var(--color-text);
+  background: #fff;
+  border: 1.5px solid currentColor;
+.verdict-circle svg {
+  width: 50px;
+  height: 50px;
+}
+
+.choice-btn.is-incorrect .choice-tag--mine {
+  color: var(--color-incorrect);
+.verdict-mark--correct .verdict-circle {
+  background: var(--green);
+  box-shadow: 0 10px 22px rgba(34, 179, 106, 0.35
+);
+}
+
+.choice-btn.is-correct .choice-tag--mine {
+  color: var(--color-correct-dark);
+.verdict-mark--incorrect .verdict-circle {
+  background: var(--pink);
+  box-shadow: 0 10px 22px rgba(240, 67, 111, 0.3)
+;
+}
+
+/* ==============================================
+==============
+ * 判定（正解／不正解）
+ * ==============================================
+============== */
+
+.verdict {
+  margin-top: 22px;
+  background: var(--color-surface);
+  border: 2px solid;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  /* 回答後に判定が見える位置へ移動したとき、上端
+に少し余白を残す */
+  scroll-margin-top: calc(12px + var(--safe-top))
+;
+}
+
+.verdict-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  color: #fff;
+}
+
+.verdict-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+.spark {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.verdict-mark--correct .spark { background: #3FC5
+86; }
+.verdict-mark--incorrect .spark { background: #C9
+D3DC; }
+.spark--1 { left: 4px; top: 30px; }
+.spark--2 { right: 2px; top: 24px; width: 6px; he
+ight: 6px; }
+.spark--3 { left: 14px; bottom: 16px; width: 5px;
+ height: 5px; }
+.spark--4 { right: 12px; bottom: 10px; }
+
+.verdict-title {
+  font-size: 26px;
+  font-weight: 800;
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+}
+
+.verdict-body {
+  padding: 16px 20px 18px;
+.verdict-title--correct {
+  color: var(--green-dark);
+  font-style: italic;
+}
+
+.verdict-lead {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--color-text) !important;
+.verdict-title--incorrect {
+  font-size: 24px;
+  color: var(--pink-dark);
+  letter-spacing: 0.02em;
+}
+
+.verdict-msg {
+  font-size: 15px;
+.verdict-text {
+  margin: 14px 0 28px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-sub);
+  line-height: 1.8;
+  color: var(--navy);
+}
+
+.verdict-lead + .verdict-msg {
+  margin-top: 2px;
+/* ミチトのひとこと（キャラクター＋吹き出し） */
+.michito-talk {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 30px;
+  text-align: left;
+}
+
+.verdict--correct {
+  border-color: var(--color-correct);
+.character--talk {
+  width: 72px;
+  height: 86px;
+}
+
+.verdict--correct .verdict-head {
+  background: var(--color-correct);
+.talk-bubble {
+  position: relative;
+  flex: 1 1 auto;
+  margin-bottom: 8px;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--sky-tint);
+}
+
+.verdict--correct .verdict-msg {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-correct-dark);
+.screen--incorrect .talk-bubble {
+  background: #FFFFFF;
+  box-shadow: var(--shadow-soft);
+}
+
+.verdict--incorrect {
+  border-color: var(--color-incorrect);
+.talk-bubble::before {
+  content: "";
+  position: absolute;
+  left: -7px;
+  bottom: 18px;
+  border: 8px solid transparent;
+  border-right-color: var(--sky-tint);
+  border-left: 0;
+}
+
+.verdict--incorrect .verdict-head {
+  background: var(--color-incorrect);
+.screen--incorrect .talk-bubble::before {
+  border-right-color: #FFFFFF;
+}
+
+.verdict-answer {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--color-correct-bg);
+  border: 1.5px solid var(--color-correct-border)
+;
+  border-radius: var(--radius-sm);
+}
+
+.verdict-answer-label {
+  flex: 0 0 auto;
+.talk-title {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: #fff;
+  background: var(--color-correct);
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin-top: 2px;
+  color: var(--navy);
+  margin-bottom: 4px;
+}
+
+.verdict-answer-text {
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.6;
+  color: var(--color-correct-dark);
+  overflow-wrap: anywhere;
+.talk-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-sub);
+}
+
+.screen--verdict .ground-scene {
+  margin-top: auto;
+}
+
+/* ==============================================
+==============
+ * 解説（ここがポイント！）
+ * ⑥ 解説
+ * ==============================================
+============== */
+
+.explain-block {
+  margin-top: 28px;
+.screen--explain {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 46px - var(--safe-top)
+ - var(--safe-bottom));
+  padding-top: 6px;
+}
+
+.explain-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 4px 12px;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-text);
+.explain-section {
+  margin-top: 22px;
+}
+
+.explain-tag {
+  font-size: 11px;
+.explain-label {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #fff;
+  background: var(--color-teal);
+  border-radius: 6px;
+  padding: 3px 7px;
+  color: var(--navy);
+  margin-bottom: 10px;
+}
+
+.explanation-box {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 5px solid var(--color-teal);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 20px 20px;
+  font-size: 17px;
+.explain-text {
+  font-size: 16px;
+  line-height: 1.95;
+  color: var(--color-text);
+  color: var(--navy);
+  white-space: pre-wrap;
+}
+
+/* 重要な数字・条件・例外だけのマーカー強調 */
+.em-key {
+  font-weight: 800;
+  color: var(--color-navy);
+  background: linear-gradient(transparent 58%, rg
+ba(10, 143, 154, 0.26) 58%);
+  padding: 0 1px;
+.hint-box {
+  margin-top: 24px;
+  padding: 16px 18px;
+  border-radius: var(--radius);
+  background: var(--sky-tint);
+}
+
+/* 覚えておきたいこと（まとめ） */
+.remember-box {
+  margin-top: 14px;
+  background: var(--color-navy);
+  color: #fff;
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+}
+
+.remember-heading {
+.hint-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--color-teal-bright);
+  margin-bottom: 8px;
+  color: var(--navy);
+  margin-bottom: 6px;
+}
+
+.remember-box ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+.hint-icon svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+
+.remember-box li {
+  position: relative;
+  padding-left: 26px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.7;
+.hint-text {
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--text-sub);
+  overflow-wrap: anywhere;
+}
+
+.remember-box li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-weight: 900;
+  color: var(--color-teal-bright);
+.hint-text strong {
+  color: var(--teal-dark);
+  font-weight: 800;
+}
+
+/* ==============================================
+==============
+ * 振り返り（任意）と「次の問題へ」
+ * ==============================================
+============== */
+.pager {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  margin: auto calc(-1 * var(--pad-right)) 0 calc
+(-1 * var(--pad-left));
+  padding: 10px var(--pad-right) calc(10px + var(
+--safe-bottom)) var(--pad-left);
+  background: rgba(244, 248, 251, 0.96);
+  border-top: 1px solid var(--border);
+}
+
+.reflect-card {
+  margin-top: 24px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+.screen--explain .hint-box {
+  margin-bottom: 28px;
+}
+
+.reflect-title {
+  display: flex;
+.pager-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  gap: 4px;
+  min-height: 48px;
+  padding: 0 10px;
+  border: none;
+  background: none;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-text);
+  font-weight: 700;
+  color: var(--navy);
+  cursor: pointer;
+}
+
+.reflect-optional {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-sub);
+  background: #EAF0F4;
+  border-radius: 999px;
+  padding: 1px 8px;
+.pager-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.reflect-intro {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-sub);
+  margin: 4px 0 12px;
+.pager-btn--next {
+  color: var(--teal);
+}
+
+.reflect-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+.pager-btn--next svg {
+  transform: rotate(180deg);
+}
+
+.reflect-btn {
+/* ==============================================
+==============
+ * ⑦ 振り返り
+ * ==============================================
+============== */
+
+.screen--reflect {
+  padding-top: 6px;
+}
+
+.screen--reflect .screen-lead--left {
+  font-size: 15px;
+}
+
+.reflect-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reflect-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 8px;
+  gap: 14px;
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 18px;
+  text-align: left;
+  background: var(--surface);
+  border: 1.5px solid #EEF3F7;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--color-border-strong);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  min-height: 78px;
+  min-width: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease, border
+-color 0.15s ease;
+  transition: border-color 0.12s ease, background
+-color 0.12s ease;
+}
+
+.reflect-btn:active {
+  background: var(--color-teal-tint);
+.reflect-item:active {
+  background: #F2FAFB;
+}
+
+.reflect-emoji {
+  font-size: 24px;
+  line-height: 1.2;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.reflect-label {
+  font-size: 13px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: center;
+  line-height: 1.4;
+  color: var(--navy);
+}
+
+.reflect-btn.is-selected {
+  border: 2px solid var(--color-teal);
+  background: var(--color-teal-tint);
+.reflect-item.is-selected {
+  border: 2px solid var(--teal);
+  background: var(--teal-tint);
+}
+
+.reflect-btn[disabled] {
+.reflect-item[disabled] {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.reflect-btn.is-selected[disabled] {
+  opacity: 1;
+.reflect-item[disabled]:not(.is-selected) {
+  opacity: 0.5;
+}
+
+.zerodora-reply {
+  background: var(--color-teal-tint);
+  border-radius: var(--radius);
+.reflect-reply {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--sky-tint);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-navy);
+  font-weight: 700;
+  line-height: 1.7;
+  margin-top: 14px;
+  color: var(--navy);
+}
+
+/* 回答後、常に画面下に見える次の行動 */
+.next-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin-top: 20px;
+  padding: 16px 0 calc(12px + var(--safe-bottom))
+;
+  background: linear-gradient(to top, var(--color
+-bg) 72%, rgba(244, 248, 251, 0));
+.reflect-reply-icon {
+  flex: 0 0 auto;
+}
+
+/* ==============================================
+==============
+ * 結果画面
+ * ⑨ 結果
+ * ==============================================
+============== */
+
+.hero--result {
+.screen--result {
+  padding-top: 18px;
+  text-align: center;
+  padding-bottom: 54px;
+}
+
+.result-title {
+  margin-top: 14px;
+  font-size: 26px;
+.result-heading {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: #fff;
+  letter-spacing: 0.04em;
+  color: var(--navy);
+}
+
+.score {
+  margin-top: 8px;
+  line-height: 1.1;
+  color: #fff;
+.ring--result {
+  width: 176px;
+  height: 176px;
+  margin: 22px auto 14px;
+}
+
+.score-num {
+  font-size: 64px;
+.result-accuracy {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--navy);
+}
+
+.score-den {
+  font-size: 28px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.8);
+.result-time {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.score-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 10px;
+.result-message {
+  margin: 12px 0 22px;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--text-sub);
+}
+
+.score-pill {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-navy);
+  background: var(--color-teal-bright);
+  border-radius: 999px;
+  padding: 4px 14px;
+.retry-card {
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border-radius: var(--radius);
+  background: var(--sky-tint);
+  text-align: left;
+}
+
+.score-time {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.82);
+.retry-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.result-message {
+  margin-top: 14px !important;
+  font-size: 17px;
+  font-weight: 800;
+  color: #fff !important;
+.retry-card-icon .app-icon--mini {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+/* 次にやること：ヒーローに少し重ねて、スクロール
+せずに見える位置へ */
+.next-card {
+  position: relative;
+  z-index: 1;
+  margin-top: -32px;
+  background: var(--color-surface);
+  border: 2px solid var(--color-review);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 18px 18px 18px;
+}
+
+.next-card-label {
+  display: inline-block;
+  font-size: 12px;
+.retry-card-title {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--color-review);
+  background: var(--color-review-tint);
+  border-radius: 999px;
+  padding: 2px 10px;
+  line-height: 1.45;
+  color: var(--navy);
+}
+
+.next-card-title {
+.retry-card-sub {
+  margin-top: 8px;
+  font-size: 21px;
+  font-weight: 800;
+  color: var(--color-text);
+  font-size: 14px;
+  color: var(--text-sub);
+}
+
+.next-card-sub {
+  font-size: 15px;
+  margin: 2px 0 14px !important;
+.retry-card--clear {
+  text-align: center;
+}
+
+.next-card--clear {
+  border-color: var(--color-teal);
+}
+
+.next-card--clear .next-card-label {
+  color: var(--color-teal-hover);
+  background: var(--color-teal-tint);
+}
+
+/* ==============================================
+==============
+ * 一覧（もう一度、ここだけ。／結果の詳細／履歴）
+ * ⑨ 間違い問題
+ * ==============================================
+============== */
+
+.review-progress {
+  margin-top: 16px;
+.screen--list {
+  padding-top: 0;
+}
+
+.progress-panel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mistake-progress {
+  display: inline-block;
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--color-review);
+  border-radius: 999px;
+  padding: 4px 14px;
+  color: var(--navy);
+}
+
+.review-progress-bar {
+.progress-panel-rest {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--pink-dark);
+}
+
+.line-progress {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.16);
+  margin-top: 10px;
+  border-radius: 999px;
+  background: #E1E9EF;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.review-progress-fill {
+.line-progress-fill {
+  height: 100%;
+  background: #A99BF0;
+  border-radius: 999px;
+  background: var(--teal);
+}
+
+.mistake-progress-sub {
+  font-size: 14px;
+  margin-top: 10px !important;
+}
+
+.mistake-list, .history-list {
+.mistake-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.mistake-item, .history-item {
+.mistake-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 14px;
+  font-size: 15px;
+  line-height: 1.6;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+  color: var(--navy);
+  cursor: pointer;
+}
+
+button.mistake-item {
+  width: 100%;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 3px 0 rgba(10, 25, 47, 0.06);
+  padding: 16px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease, border
+-color 0.15s ease;
+.mistake-list > .mistake-item:last-child {
+  border-bottom: none;
+}
+
+button.mistake-item:active {
+  background: var(--color-review-tint);
+  border-color: var(--color-review);
+  box-shadow: none;
+.mistake-item.is-cleared {
+  cursor: default;
+}
+
+@media (hover: hover) {
+  button.mistake-item:hover {
+    border-color: var(--color-review);
+  }
+.mistake-item.is-cleared .menu-chevron {
+  visibility: hidden;
+}
+
+.mistake-item.is-retry {
+  border-left: 5px solid var(--color-incorrect);
+button.mistake-item:active {
+  background: #F2FAFB;
+}
+
+.mistake-item-top {
+  display: flex;
+.mistake-num {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1.5px solid #9DB2C2;
+  font-size: 13px;
+  font-weight: 700;
+  color: #4B6378;
+}
+
+.mistake-item-id {
+  font-size: 12px;
+.mistake-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mistake-title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--color-text-sub);
+}
+
+.mistake-retry-badge {
+.mistake-item-preview {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-sub);
+}
+
+.status-badge {
+  flex: 0 0 auto;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-incorrect);
+  background: var(--color-incorrect-bg);
+  white-space: nowrap;
+}
+
+.status-badge--todo {
+  background: var(--pink-tint);
+  color: var(--pink-dark);
+}
+
+.status-badge--clear {
+  background: var(--teal-tint);
+  color: var(--teal-dark);
+}
+
+/* 解き直しの判定 */
+.inline-verdict {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+}
+
+.inline-verdict-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  padding: 2px 10px;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.mistake-item-preview {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.6;
+  color: var(--color-text);
+.inline-verdict-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.mistake-item-cta {
+  font-size: 15px;
+.inline-verdict-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-review);
+  align-self: flex-end;
+}
+
+.inline-verdict--correct {
+  background: var(--green-tint);
+  color: var(--green-dark);
+}
+
+.inline-verdict--correct .inline-verdict-icon {
+  background: var(--green);
+}
+
+.inline-verdict--incorrect {
+  background: var(--pink-tint);
+  color: var(--pink-dark);
+}
+
+.inline-verdict--incorrect .inline-verdict-icon {
+  background: var(--pink);
+}
+
+.mistake-clear-note,
+.mistake-retry-note {
+  font-size: 15px;
+  margin-top: 18px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.7;
+  text-align: center;
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin: 16px 0 0;
+}
+
+.mistake-clear-note {
+  color: var(--color-correct-dark);
+  background: var(--color-correct-bg);
+  background: var(--green-tint);
+  color: var(--green-dark);
+}
+
+.mistake-retry-note {
+  color: var(--color-text-sub);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-sub);
+}
+
+.clear-emoji {
+  font-size: 36px;
+}
+
+.clear-title {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 6px 0 6px;
+}
+
+/* ==============================================
+==============
+ * カード・フォーム（トレーニングメモ・履歴）
+ * ① トレーニングメモ・学習履歴
+ * ==============================================
+============== */
+
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+  padding: 20px;
+  margin-bottom: var(--space-section);
+.memo-editor {
+  position: relative;
+  margin-bottom: 14px;
+}
+
+.feedback-title {
+.comment-input {
+  display: block;
+  width: 100%;
+  min-height: 160px;
+  padding: 14px 16px 30px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.5;
+  color: var(--color-text);
+  margin-bottom: 10px;
+  line-height: 1.7;
+  color: var(--navy);
+  resize: vertical;
+}
+
+.link-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: var(--space-section);
+.comment-input::placeholder {
+  color: var(--text-muted);
+}
+
+.link-row button {
+  position: relative;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+.comment-input:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(10, 143, 154, 0.16);
+}
+
+.memo-counter {
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.memo-extra {
+  margin-bottom: 18px;
+  border-radius: var(--radius);
+  min-height: 56px;
+  padding: 14px 44px 14px 16px;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 0 16px;
+}
+
+.memo-extra summary {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--teal-dark);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  list-style: none;
+}
+
+.link-row button::after {
+.memo-extra summary::-webkit-details-marker {
+  display: none;
+}
+
+.memo-extra summary::after {
+  content: "›";
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--color-text-muted);
+  margin-left: auto;
+  font-size: 22px;
+  transform: rotate(90deg);
+}
+
+.link-row button:active {
+  background: #EBF1F5;
+.memo-extra[open] summary::after {
+  transform: rotate(-90deg);
+}
+
+.memo-extra[open] {
+  padding-bottom: 6px;
+}
+
+.feedback-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--navy);
+  margin: 4px 0 10px;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 22px;
+  margin-bottom: 16px;
+}
+
+.checkbox-grid label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 50px;
+  min-height: 46px;
+  min-width: 0;
+  padding: 8px 12px;
+  font-size: 15px;
+  font-weight: 700;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border-strong);
+  font-weight: 600;
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.checkbox-grid label:has(input:checked) {
+  border-color: var(--color-teal);
+  background: var(--color-teal-tint);
+  border-color: var(--teal);
+  background: var(--teal-tint);
+}
+
+.checkbox-grid input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: var(--color-teal);
+  accent-color: var(--teal);
+}
+
+/* 気分選択：絵文字＋文字ラベル */
+.mood-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 22px;
+  margin-bottom: 12px;
+}
+
+.emoji-btn {
+
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 54px;
+  padding: 10px 12px;
+  min-height: 50px;
+  padding: 8px 12px;
+  text-align: left;
+  color: var(--color-text);
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-border-strong);
+  background: var(--color-surface);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.emoji-btn.is-selected {
+  border: 2px solid var(--color-teal);
+  background: var(--color-teal-tint);
+  border: 2px solid var(--teal);
+  background: var(--teal-tint);
+}
+
+.mood-emoji {
+
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--navy);
+}
+
+/* iOSでフォーカス時に自動ズームしないよう16px以
+上 */
+.comment-input {
+  display: block;
+  width: 100%;
+  min-height: 96px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-border-strong);
+  background: var(--color-surface);
+  padding: 12px 14px;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--color-text);
+  resize: vertical;
+  margin-bottom: 20px;
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.comment-input::placeholder {
+  color: var(--color-text-muted);
+.training-note-item,
+.history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+}
+
+.comment-input:focus {
+  outline: none;
+  border-color: var(--color-teal);
+  box-shadow: 0 0 0 3px rgba(10, 143, 154, 0.2);
+.training-note-date,
+.history-date {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.training-note-item {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+.training-note-comment {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--navy);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.training-note-date {
+.training-note-activities {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-teal-hover);
+  color: var(--text-sub);
+}
+
+.training-note-activities {
+.training-note-mood {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-sub);
+  color: var(--navy);
+}
+
+.training-note-mood {
+.history-score {
+  font-size: 15px;
+  font-weight: 600;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.training-note-comment {
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.history-item {
+  font-weight: 600;
+.stat-box {
+  min-width: 0;
+  padding: 12px 4px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+}
+
+/* ==============================================
+==============
+ * ユーティリティ
+ * ==============================================
+============== */
+
+.text-center {
+  text-align: center;
+.stat-value {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--navy);
+}
+
+.mt-16 {
+  margin-top: 16px;
+.stat-label {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+/* ==============================================
+==============
+ * その他
+ * ==============================================
+============== */
+
+.empty-state {
+  padding: 20px 8px;
+  text-align: center;
+  color: var(--color-text-sub);
+  padding: 24px 8px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-sub);
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(96px + var(--safe-bottom));
+  transform: translateX(-50%);
+  z-index: 100;
+  max-width: calc(100% - 32px);
+  background: var(--color-navy);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--navy);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: var(--shadow-lg);
+  box-shadow: 0 10px 24px rgba(10, 25, 47, 0.25);
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 100;
+}
+
+.toast.is-visible {
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn, .choice-btn, .review-entry, .hero-progres
+s-fill {
+  .btn-pill, .choice-btn, .menu-item, .quiz-progr
+ess-fill {
+    transition: none;
+  }
+}
+
+/* ==============================================
+==============
+ * 狭い画面（iPhone SE 等）
+ * ==============================================
+============== */
+
+/* 狭い画面（iPhone SE 等） */
+@media (max-width: 360px) {
+  :root {
+    --gutter: 12px;
+    --gutter: 14px;
+  }
+
+  .hero-title {
+    font-size: 27px;
+  .brand-name {
+    font-size: 23px;
+  }
+
+  .question-panel {
+    padding: 18px 16px 20px;
+  .app-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .question-text {
+  .home-greeting {
+    font-size: 19px;
+  }
+
+  .choice-btn {
+    gap: 10px;
+    padding: 14px 12px;
+  .home-hero {
+    height: 156px;
+  }
+
+  .choice-num {
+    width: 34px;
+    height: 34px;
+  .today-card-title {
+    font-size: 20px;
+  }
+
+  .verdict-title {
+    font-size: 23px;
+  .menu-item {
+    gap: 12px;
+    padding: 12px 12px;
+  }
+
+  .explanation-box {
+    padding: 16px;
+  .character--home {
+    width: 72px;
+    height: 86px;
+  }
+
+  .score-num {
+    font-size: 56px;
+  .verdict-title {
+    font-size: 34px;
+  }
+
+  .card {
+    padding: 16px;
+  .verdict-title--incorrect {
+    font-size: 21px;
+  }
+
+  .emoji-btn {
+    gap: 6px;
+    padding: 10px 8px;
+  .ring,
+  .ring--result {
+    width: 150px;
+    height: 150px;
+  }
+
+  .mood-emoji {
+    font-size: 20px;
+  }
+
+  .mood-label {
+    font-size: 13px;
+  }
+}
+
+/* ==============================================
+==============
+ * PC表示：ヒーローは画面端まで広げず、角丸のブロ
+ックにする
+ * ==============================================
+============== */
+
+/* PC：スマホ画面幅のまま中央に表示し、タブバーも
+同じ幅にそろえる */
+@media (min-width: 768px) {
+  :root {
+    --app-pad-top: 32px;
+  }
+
+  #app {
+    max-width: 520px;
+    padding-top: 28px;
+  }
+
+  .hero {
+    margin: 0;
+    padding: 28px 28px 30px;
+    border-radius: var(--radius-hero);
+  .tabbar {
+    left: 50%;
+    right: auto;
+    width: 480px;
+    transform: translateX(-50%);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    border-radius: 18px 18px 0 0;
+  }
+
+  .hero--result {
+    padding-bottom: 54px;
+  }
+
+  .hero--page {
+    margin-bottom: 20px;
+  }
+}
+
+The iPhone has cache v4 from the last check, so the cache name needs to move to v5 for the new UI to reach it:
+
+● Update(service-worker.js)
+Added 1 line, removed 1 line
+//   このファイルではキャッシュ処理のみを扱う。
+// - バックエンド通信・外部APIは扱わない。
+
+const CACHE_NAME = "zerodora-cache-v4";
+const CACHE_NAME = "zerodora-cache-v5";
+
+const CORE_ASSETS = [
+  "./",
+
+Before rewriting the test suite, a quick screenshot pass of every screen at 390×844 (the iPhone size the mockup uses) to compare against the reference:
+
+  Made 1 scratchpad edit +68, ran 2 shell commands
+
+Only the script failed: the unanswered review screen has no "home" button, just the back arrow. All the main screens were captured, so I'm comparing HOME against image 1 first:
+
+  Read 1 file
+
+I'm nearly matching image 1, but noticed two gaps: the sky needs a soft blend into the header instead of a hard edge, and the character row is getting cut off by the tab bar. I'll check the other flow screens before fixing everything together.
+
+  Read 8 files
+
+The flow matches image 2 screen for screen. Now I'll fix the details: fit the HOME layout above the tab bar and blend the sky into the header, fill the empty gap on the start screen with the landscape, remove the stray dot on the progress ring at 0/10, and let the landscape fill the bottom of the correct screen.
+
+● Bash(cd "/c/Users/yoshi/OneDrive/ドキュメント/ドライビングスクールアプリ「ミチト」" && node - <<'EOF'
+      const fs = require("fs");…)
+ok
+JS_OK
+Updated app.js (+14 -8)
+      "<defs>" +
+      '<linearGradient id="' +
+      id +
+      's" x1="0" y1="0" x2="0" y2="1"><stop offset
+="0" stop-color="#BFE3F6"/><stop offset="0.7" stop
+-color="#EAF6FC"/><stop offset="1" stop-color="#F6
+FBFE"/></linearGradient>' +
+      's" x1="0" y1="0" x2="0" y2="1">' +
+      (variant === "hero"
+        ? '<stop offset="0" stop-color="#EEF7FD"/>
+<stop offset="0.4" stop-color="#CDE9F8"/><stop off
+set="0.72" stop-color="#E4F3FB"/><stop offset="1"
+stop-color="#F2F9FD"/>'
+        : '<stop offset="0" stop-color="#BFE3F6"/>
+<stop offset="0.7" stop-color="#EAF6FC"/><stop off
+set="1" stop-color="#F6FBFE"/>') +
+      "</linearGradient>" +
+      '<linearGradient id="' +
+      id +
+      'r" x1="0" y1="0" x2="0" y2="1"><stop offset
+="0" stop-color="#A8B3BE"/><stop offset="1" stop-c
+olor="#5D6B79"/></linearGradient>' +
+
+      '<circle cx="60" cy="60" r="' +
+      r +
+      '" fill="none" stroke="#E3EBF1" stroke-width
+="9"/>' +
+      '<circle cx="60" cy="60" r="' +
+      r +
+      '" fill="none" stroke="#0A8F9A" stroke-width
+="9" stroke-linecap="round" stroke-dasharray="' +
+      (c * ratio).toFixed(1) +
+      " " +
+      c.toFixed(1) +
+      '" transform="rotate(-90 60 60)"/>' +
+      (ratio > 0
+        ? '<circle cx="60" cy="60" r="' +
+          r +
+          '" fill="none" stroke="#0A8F9A" stroke-w
+idth="9" stroke-linecap="round" stroke-dasharray="
+' +
+          (c * ratio).toFixed(1) +
+          " " +
+          c.toFixed(1) +
+          '" transform="rotate(-90 60 60)"/>'
+        : "") +
+      "</svg>" +
+      '<div class="ring-label"><span class="ring-v
+alue">' +
+      value +
+Updated style.css (+23 -21)
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  margin-bottom: 4px;
+}
+
+.brand {
+
+/* 風景ビジュアル（画面幅いっぱい） */
+.home-hero {
+  position: relative;
+  height: 172px;
+  height: 150px;
+  margin: 0 calc(-1 * var(--pad-right)) 0 calc(-1
+* var(--pad-left));
+  overflow: hidden;
+}
+
+.home-greeting {
+  position: relative;
+  z-index: 1;
+  padding: 26px calc(var(--pad-left) + 6px) 0;
+  font-size: 22px;
+  padding: 18px calc(var(--pad-left) + 6px) 0;
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+
+
+.today-card-body {
+  position: relative;
+  padding: 20px 18px 22px;
+  padding: 16px 18px 18px;
+}
+
+.today-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  font-size: 21px;
+  font-weight: 800;
+… 88 more lines
+
+I'll anchor the start screen's landscape at its natural proportions so the road doesn't scale up oversized, then fix the screenshot script to navigate back via the list.
+
+● Bash(cd "/c/Users/yoshi/OneDrive/ドキュメント/ドライビングスクールアプリ「ミチト」" && node - <<'EOF'
+      const fs = require("fs");…)
+ok
+61:  await click('.top-back'); await click('[data-action="
+go-home"]'); await shot("01_home_after");
+… +4 lines
+Shell cwd was reset to C:\Users\yoshi\OneDrive\ドキュメント\ドライビングスクールアプリ「ミチト」
+Updated style.css (+11 -1)
+  padding-top: 24px;
+}
+
+/* 風景は本来の比率で下端に置き、上の空はグラデー
+ションでつなぐ */
+.ground-scene {
+  background: linear-gradient(180deg, var(--bg) 0%
+, #D9EEF9 100%);
+  overflow: hidden;
+}
+
+.ground-scene .scene {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  height: auto;
+  aspect-ratio: 400 / 160;
+}
+
+.ground-scene::before {
+(timeout 4m)
+
+No JS errors and no horizontal overflow at either width. Re-checking HOME side-by-side with image 1, plus the start screen:
+
+  Read 3 files
+
+The HOME layout now matches image 1's blended header, but the start screen still has a hard sky edge on the ground variant—I'll fix that by fading its sky in from transparent.
+
+● Bash(cd "/c/Users/yoshi/OneDrive/ドキュメント/ドライビングスクールアプリ「ミチト」" && node - <<'EOF'
+      const fs = require("fs");…)
+ok
+errors: none
+overflow: 0
+Shell cwd was reset to C:\Users\yoshi\OneDrive\ドキュメント\ドライビングスクールアプリ「ミチト」
+Updated app.js (+3 -1)
+      's" x1="0" y1="0" x2="0" y2="1">' +
+      (variant === "hero"
+        ? '<stop offset="0" stop-color="#EEF7FD"/>
+<stop offset="0.4" stop-color="#CDE9F8"/><stop off
+set="0.72" stop-color="#E4F3FB"/><stop offset="1"
+stop-color="#F2F9FD"/>'
+        : '<stop offset="0" stop-color="#BFE3F6"/>
+<stop offset="0.7" stop-color="#EAF6FC"/><stop off
+set="1" stop-color="#F6FBFE"/>') +
+        : variant === "ground"
+          ? '<stop offset="0" stop-color="#D3ECF9"
+ stop-opacity="0"/><stop offset="0.45" stop-color=
+"#D3ECF9"/><stop offset="1" stop-color="#EEF7FC"/>
+'
+          : '<stop offset="0" stop-color="#BFE3F6"
+/><stop offset="0.7" stop-color="#EAF6FC"/><stop o
+ffset="1" stop-color="#F6FBFE"/>') +
+      "</linearGradient>" +
+      '<linearGradient id="' +
+      id +
+Updated style.css (+0 -12)
+
+/* 風景は本来の比率で下端に置き、上の空はグラデー
+ションでつなぐ */
+.ground-scene {
+  background: linear-gradient(180deg, var(--bg) 0%
+, #D9EEF9 100%);
+  overflow: hidden;
+}
+
+
+  aspect-ratio: 400 / 160;
+}
+
+.ground-scene::before {
+  content: "";
+  position: absolute;
+  top: 24px;
+  left: 0;
+  right: 0;
+  height: 50px;
+  z-index: 1;
+  background: linear-gradient(180deg, var(--bg), r
+gba(244, 248, 251, 0));
+}
+
+.ground-scene--soft {
+  opacity: 0.55;
+  flex-basis: 120px;
+(timeout 3m)
+
+  Read 2 files
+
+Visuals are in place. Now I'm replacing the E2E suite with one written for the new flow (select → 回答する → verdict → explanation → reflection), keeping all the data-integrity checks:
+
+  Made 1 scratchpad edit +293, ran 1 shell command
+
+All 41 checks pass, and the 1,000,000-trial shuffle test shows 0 mismatches. Final check of Git state and the LAN server the iPhone uses:
+
+  Ran 1 shell command
+
+【PROJECT: MICHITO】
+【TASK: MICHITO-V4.0-DESIGN-REFERENCE-IMPLEMENTATION】
+【実装結果報告】
+
+■実装した内容
+：2 枚の画像を基準に UI を全面的に作り直し、画像 2 の画面フローも実装しました。自動テストは 41 項目すべて通り、選択肢シャッフルの 100 万回テストでも正誤判定の食い違いは 0 件でした。commit と push はしていません。
+
+- UI の作り直し：app.js の表示部分と style.css を作り直しました。背景は白〜淡い空色、カードは角丸の白、操作ボタンはティールのピル型です。
+- 画面の流れ（画像 2 どおり）：HOME → 今日の10問（開始） → 問題 → 正解／不正解 → 解説 → 振り返り → 次の問題 → … → 結果 → 間違い問題 → 解き直し。
+- 回答方式：「選択した瞬間に判定」から、画像 2 どおり「A〜D を選ぶ →『回答する』で判定」に変えました。選び直しもできます。
+- イラスト：アプリアイコン（道をかたどった M）、風景（空・雲・山・街並み・丘・木・道路）、キャラクター（キャップ・パーカー・リュックの青年）は、すべて SVG（コードで描いた図形）で描きました。外部素材は使っていません。
+- 下部タブバー：「ホーム／問題／履歴／メモ」を HOME・学習履歴・トレーニングメモの画面に表示しています。
+- ヘッダーの歯車（設定）：設定画面はまだないため、押すと「設定は準備中です」と表示します。
+
+■画像1との一致状況
+：HOME の要素は、画像にあるものをすべて同じ順序で再現しました。
+
+- 上から順に、アプリアイコン＋「ミチト」＋ティール色の「今日も、少しずつ。」＋右上の歯車です。
+- 続いて風景の帯に「こんにちは。今日も少しだけ進もう。」を重ねています。空はヘッダーの背景になじませました。
+- 「今日の10問」カードは、淡い水色のグラデーションに的のアイコン、「今日も10問、一緒にやろう。」、ピル型の「はじめる →」、右半分の道路の風景という構成です。
+- その下に、色付きの丸アイコンのリストを 3 つ並べました。
+  - 間違い問題（ピンク・!）「もう一度、一緒にやってみよう。」
+  - 学習履歴（青・グラフ）「これまでの歩みを確認する。」
+  - トレーニングメモ（緑・メモ）「今日の気づきを残しておこう。」
+- 最後にキャラクターと吹き出し「ミチトと一緒に、あなたのペースで。」、下部にタブバーです。
+- 画像と同じく、390×844（iPhone 標準サイズ）ではすべてがタブバーより上に収まります（キャラクター欄の下端 729px、タブバー上端 781px）。
+- ブランドの 3 色（#0A8F9A／#0A192F／#F4F8FB）は画像の指定どおりです。
+- 画像にない要素として、間違い問題が残っているときは、メニューにピンクの件数バッジを付けています。
+
+■画像2との一致状況
+：
+- ② 今日の10問：戻る「‹」、「今日の10問」「まずは10問。自分のペースで進めよう。」、今日の進み具合の円（0/10）、「ミチトと始める →」、下部の道路の風景。
+- ③ 問題画面：「今日の10問 3 / 10」、細い濃紺の進行バー、「第3問」、問題文、丸囲みの A〜D の選択肢（選ぶと枠がティールになります）、「回答する」。長い問題でも見えるよう、「回答する」は画面下に固定しています。
+- ④ 正解：緑の ✓ の円と周りの点、「正解！」（緑）、「いいですね。ちゃんと理解できています 👍」、「解説を見る →」、キャラクターと「ミチトのひとこと」、下部の淡い風景。
+- ⑤ 不正解：ピンクの「!」の円、「今回は惜しかったです。」（ピンク）、「大丈夫。ここで覚えておけばOKです。」、ピンクの「解説を見る →」、キャラクターのひとこと、背景は下に向かって淡いピンクになります。
+- ⑥ 解説：「解説」「問題のポイント」と本文、電球アイコンの「ミチトのひとこと」、下部に「‹ 前へ」「次へ ›」。
+- ⑦ 振り返り：縦に並んだ 4 択（絵文字＋文字）、選んだあとは「今日も一歩進みました。」と「次の問題へ →」を表示します。選ばずに進む「スキップ」もあります。
+- ⑨ 結果：「今日の10問 終了！」、ティールの円グラフ（5/10）、「正答率 50%」、「今日もお疲れさまでした。少しずつでも、ちゃんと前に進んでいます。」、「間違えた問題をもう一度」のカード、「もう一度チャレンジ →」（スクロールせずに見えます）、「ホームへ戻る」。
+- ⑨ 間違い問題：
+  - 上部に「5問中 1問クリア／あと4問」と進行バーを表示します。
+  - 一覧は「① 第3問」形式で、各問題に「未クリア」（ピンク）か「✓ クリア」（ティール）のバッジが付きます。
+  - 下部にキャラクターの「あと◯問です。ミチトと一緒に…」を置きました。
+  - 画像に合わせて、クリアした問題も一覧に残して表示するように変えました。これまでは一覧から消えていました。
+- ① トレーニングメモ：説明文、「メモを入力してください...」の入力欄と「0/500」の文字数表示、「保存する」、最近のメモ一覧。
+
+■変更ファイル
+：
+- app.js：画面表示を全面的に作り直し、回答方式を「選択 → 回答する」に変え、画面遷移と SVG イラストを追加しました。データ処理のロジックはそのままです。
+- style.css：全面的に書き直しました。
+- service-worker.js：キャッシュ名を v4 から v5 に変えました（1 行のみ）。
+  - 理由：iPhone は v4 で前回の UI を保存しています。名前を変えないと、新しい UI が iPhone に表示されません。
+
+■変更していない重要ファイル
+：
+- index.html／questions/questions.js／manifest.json／docs：変更していません。
+- デザイン画像 2 枚：変更も移動もしていません。
+- データ関係：localStorage のキーと保存形式、学習履歴・振り返り・メモの記録形式、選択肢シャッフルと正誤判定のロジック、APP_VERSION は変えていません。
+
+■テスト結果
+：実際の画面を操作する自動テスト 41 項目すべて通りました。
+- HOME：全要素、タブバーより上に収まること、設定の「準備中」表示
+- 開始画面：戻る、タブ「問題」からの移動
+- 問題〜振り返り（20 問）：
+  - 問題：A〜D の表示、選ぶまで「回答する」が押せないこと、選び直し、選んだだけでは判定されないこと
+  - 判定と解説：正解・不正解それぞれの画面と文言、解説に正解が正しく表示されること、「前へ」
+  - 振り返り：選択とスキップ、最後の問題で「結果を見る」になること
+- 結果画面：2 回とも正しく表示され、「もう一度チャレンジ」がスクロールせずに見えること
+- 保存データ：localStorage のキーと形式が変わっていないこと、保存された「選んだ選択肢」の番号が元データの番号と一致し、正誤も正しいこと
+- 間違い問題：一覧、解き直しで誤答すると残ること、正解すると「✓ クリア」になって押せなくなること、トースト表示、HOME の件数バッジ
+- 学習履歴・メモ：タブからの学習履歴、トレーニングメモの保存（形式が変わっていないこと）、文字数表示、最近のメモ、過去のメモ一覧
+- レイアウト：幅 320／375／390／414／1280px で横スクロールなし、タップ領域は最小 48px
+- その他：問題データが変わっていないこと、Service Worker が v5 で登録されること、JavaScript のエラーがないこと（以前からある favicon の 404 は除外）
+- シャッフル（100 万回）：正解の位置は①〜④がそれぞれ約 25%、食い違い 0 件
+- Chrome のスクリーンショットで画像と見比べた結果：HOME は同じ構成・配色・部品の形になっており、同じアプリのデザインに見えます。
+- LAN の確認用サーバー：http://192.168.1.23:8000/ で新しい UI（v5）が配信されていることを確認しました。
+
+■画像と完全一致できなかった箇所
+：
+1. イラストの描き込み：画像の風景・キャラクター・アイコンは、絵画のように細かく描き込まれています。こちらは SVG の平面的なイラストで近づけたもので、構図と色は合わせていますが、質感や細かさは異なります。
+2. ② 開始画面：画像では道路の風景が画面の下半分近くまで広がっていますが、こちらは下部の約 2 割で、「ミチトと始める」との間に余白があります。
+3. ⑤ 不正解画面：左上の戻る「‹」は付けていません。
+4. 解説の「ミチトのひとこと」：画像は問題ごとに内容の違う一言ですが、こちらは正解の選択肢と自分の回答を示す共通の文にしました。
+5. 正解の表示：画像の画面には「正解はどれだったか」を示す場所がないため、解説の「ミチトのひとこと」の中に正解を表示しています。
+6. ⑨ 間違い問題：画像にある「最近の学習 …日」の行と、メモの編集・削除アイコンは再現していません。
+7. 削除した要素：REVISION1 にあった「本番に備える（模試 準備中）」「あなたの成長」「もっと学ぶ」「今日のミチトのつぶやき」、濃紺のヘッダー、「もう一度、ここだけ。」という名称は、画像にないため外しました（名称は画像どおり「間違い問題」です）。
+8. トレーニングメモ：これまでの「今日やったこと」「今日の感想」は、画像にないため「今日やったこと・感想も記録する（任意）」として折りたたみました。機能と保存形式は残っています。
+9. フォント：画像のような丸みのある書体ではなく、iPhone の標準フォントです。
+
+■その理由
+：
+- 1・9：プロジェクト内に画像素材も専用フォントもありません。外部からの取得や、ライセンスが不明な素材の導入は禁止されているため、SVG と標準フォントで近づけました。デザイン画像から切り抜く方法も検討しましたが、風景には文字が重なっており、キャラクターは約 90px しかなく iPhone の高解像度画面ではぼやけるため、使えませんでした。正式なイラスト（PNG／SVG）をもらえれば差し替えます。
+- 2：風景を縦に引き伸ばすと道路が極端に大きくなり不自然になるため、本来の比率を保ちました。
+- 3：回答中に戻ると、その問題の回答や今回のセッションが失われる可能性があるため、入れていません。
+- 4・6：問題データに、一言や学習日数の項目がありません。問題データは変更禁止のため、既存のデータで表示できる内容にとどめました。メモの編集・削除は機能自体がまだありません。
+- 5：画像の流れのままだと正解を確認できず、学習アプリとして成り立たないため、補いました。
+- 7・8：画像を最優先するという指示に従いました。メモの記録項目は、既存の機能を失わないよう折りたたみ表示で残しています。
+
+■Git commit
+なし
+
+■Git push
+なし
+
+【iPhone実機確認待ち】
+
+iPhone の Safari で http://192.168.1.23:8000/ を開いてください。前回の画面が表示された場合は、ページを 1〜2 回再読み込みするか、タブを閉じて開き直してください（v5 への切り替えのため）。
+
+✻ Sautéed for 11m 48s · done 19:48 · 1 shell still running
+
+※ recap: ミチトのUIを2枚のデザイン画像に合わせて作り直し、テストは41項目すべて合格、commitとpushはしていません。次はiPhoneのSafariで http://192.168.1.23:8000/ を開いて実機確認してください。
