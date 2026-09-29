@@ -9,7 +9,7 @@
 //   このファイルではキャッシュ処理のみを扱う。
 // - バックエンド通信・外部APIは扱わない。
 
-const CACHE_NAME = "zerodora-cache-v2";
+const CACHE_NAME = "zerodora-cache-v7";
 
 const CORE_ASSETS = [
   "./",
@@ -23,7 +23,10 @@ const CORE_ASSETS = [
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(CORE_ASSETS);
+      // HTTPキャッシュを経由せずネットワークから取得し、新旧ファイルが同じキャッシュに混ざるのを防ぐ
+      return cache.addAll(
+        CORE_ASSETS.map((url) => new Request(url, { cache: "reload" }))
+      );
     })
   );
   self.skipWaiting();
@@ -34,7 +37,8 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) => {
       return Promise.all(
         keys
-          .filter((key) => key !== CACHE_NAME)
+          // 同一オリジン（github.io）の他アプリのキャッシュを消さないよう、自アプリの旧キャッシュのみ削除する
+          .filter((key) => key.startsWith("zerodora-cache-") && key !== CACHE_NAME)
           .map((key) => caches.delete(key))
       );
     })
@@ -47,7 +51,8 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
+    // 他アプリのキャッシュを参照しないよう、自アプリのキャッシュのみから照会する
+    caches.open(CACHE_NAME).then((cache) => cache.match(event.request)).then((cached) => {
       if (cached) return cached;
       return fetch(event.request)
         .then((response) => {

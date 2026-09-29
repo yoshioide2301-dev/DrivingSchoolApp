@@ -6,6 +6,21 @@
   <title>ミチト</title>
   <meta name="description" content="運転免許学科試験対策アプリ ミチト｜今日も、少しずつ。">
   <link rel="manifest" href="manifest.json">
+  <script>
+    // 保存済みテーマを style.css より先に適用し、起動時に初期テーマが一瞬見えるのを防ぐ。
+    // 許可値は app.js の THEME_OPTIONS と揃えること。未保存・破損・不正な値は初期テーマ（sora）。
+    (function () {
+      var theme = "sora";
+      try {
+        var raw = JSON.parse(localStorage.getItem("michito_settings"));
+        if (raw && typeof raw === "object" && !Array.isArray(raw) &&
+            (raw.theme === "sora" || raw.theme === "yawaraka" || raw.theme === "yoru")) {
+          theme = raw.theme;
+        }
+      } catch (e) {}
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
   <link rel="stylesheet" href="style.css">
   <!-- TODO: 本番用アイコンを icons/ に配置後、favicon等を設定 -->
   <!-- ブランド名「ミチト」のアイコン画像は現時点でプロジェクトに未配置のため、
