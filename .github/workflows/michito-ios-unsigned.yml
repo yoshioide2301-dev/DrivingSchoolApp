@@ -1,9 +1,6 @@
 name: Michito iOS unsigned validation
 on:
   workflow_dispatch:
-  push:
-    branches: [michito/ios-prep-20261003]
-    paths: [.github/workflows/michito-ios-unsigned.yml]
 permissions:
   contents: read
 concurrency:
