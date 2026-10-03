@@ -1,6 +1,6 @@
 {
-  "name": "ミチト",
-  "short_name": "ミチト",
+  "name": "ミチト ○×試用版",
+  "short_name": "ミチト試用",
   "description": "運転免許学科試験対策アプリ（開発中）",
   "start_url": "./index.html",
   "scope": "./",

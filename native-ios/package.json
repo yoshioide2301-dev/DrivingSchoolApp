@@ -1,0 +1,20 @@
+{
+  "name": "michito-ios-preparation",
+  "private": true,
+  "version": "0.15.0",
+  "scripts": {
+    "prepare:web": "node prepare-web.mjs",
+    "add:ios": "cap add ios",
+    "sync:ios": "npm run prepare:web && cap sync ios",
+    "open:ios": "cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/preferences": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "esbuild": "^0.25.0"
+  }
+}
