@@ -914,6 +914,21 @@ h1, h2, h3, p {
   margin-bottom: 12px;
 }
 
+/* V4.2確認版 R02: 問題位置と回答結果を文字・形・色で明示 */
+.question-position { text-align: left; font-size: calc(22px * var(--fs-head)); font-weight: 900; color: var(--navy); margin: 0 0 14px; }
+.question-position span { font-size: 0.7em; font-weight: 600; }
+.question-identity { align-self: stretch; text-align: left; display: block; padding: 2px 0; margin: 0 0 8px; color: var(--navy); font-size: clamp(12px, calc(12px * var(--fs-body, 1)), 15px); line-height: 1.5; font-weight: 400; }
+.question-identity strong { font-weight: 500; letter-spacing: 0.01em; }
+.answer-outcome { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 16px; margin-bottom: 22px; border: 3px solid currentColor; border-radius: 20px; }
+.answer-outcome--correct { color: #087443; background: #e7f7ed; }
+.answer-outcome--incorrect { color: #b02142; background: #fff0f3; }
+.answer-outcome-mark { font-size: 88px; font-weight: 900; line-height: 1; }
+.answer-outcome strong { font-size: calc(32px * var(--fs-head)); }
+.screen--correct .verdict-mark { width: 180px; height: 180px; }
+.screen--correct .verdict-circle { width: 152px; height: 152px; font-size: 112px; background: #087443; }
+.inline-verdict-icon { font-size: 56px; }
+@media (max-width: 360px) { .answer-outcome { gap: 12px; padding: 12px; } .answer-outcome-mark { font-size: 72px; } }
+
 .mock-badge {
   display: inline-block;
   margin-bottom: 10px;
@@ -979,6 +994,8 @@ h1, h2, h3, p {
   flex: 1 1 auto;
   min-width: 0;
   overflow-wrap: anywhere;
+  text-wrap: balance;
+  text-wrap: pretty;
 }
 
 .choice-btn:active {
@@ -1981,7 +1998,7 @@ button.mistake-item:active {
   .tabbar {
     left: 50%;
     right: auto;
-    width: min(100%, var(--app-max), 720px);
+    width: min(100%, var(--app-max));
     transform: translateX(-50%);
     border-left: 1px solid var(--border);
     border-right: 1px solid var(--border);
@@ -2171,6 +2188,9 @@ button.mistake-item:active {
   }
 }
 
+
+@media (max-width: 360px) { .mood-row { grid-template-columns: 1fr; } :root[data-font-size="xlarge"] .btn-pill { padding-left: 18px; padding-right: 18px; } }
+
 @media (min-width: 700px) {
   :root {
     --app-max: 640px;
@@ -2246,3 +2266,57 @@ button.mistake-item:active {
     margin-top: 22px;
   }
 }
+
+
+/* MCT 学習の中断・再開: 既存CSSは保全 */
+.session-home-bar { padding: 12px 16px 0; }
+.session-home-bar .text-link { margin: 0; min-height: 44px; }
+.session-survey { margin: 24px 0; text-align: left; }
+.session-survey summary { cursor: pointer; min-height: 44px; }
+.session-survey label { display: block; margin: 12px 0; }
+
+/* MCT ○×形式: ボタンを大きく、320pxの特大文字でも折り返せる */
+.choice-list--truefalse { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.choice-list--truefalse .choice-btn { min-height: 80px; justify-content: center; flex-wrap: wrap; }
+@media (max-width: 360px) {
+  :root[data-font-size="xlarge"] .choice-list--truefalse { grid-template-columns: 1fr; }
+}
+
+/* v0.12 仮免模試 */
+.mock-home{margin-top:16px}.mock-home .text-link{display:block;margin-top:14px}
+.mock-choices,.mock-navigation{display:flex;gap:12px;justify-content:space-between;margin:20px 0;flex-wrap:wrap}
+.mock-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.mock-choices button{min-width:0;min-height:76px;padding:10px 8px;display:flex;flex-direction:column;gap:2px;letter-spacing:normal}
+.mock-choice-symbol{font-size:24px;line-height:1.2}
+.mock-choice-status{font-size:13px;line-height:1.4;white-space:nowrap;visibility:hidden}
+.mock-choices [aria-pressed="true"]{outline:3px solid var(--teal-dark);outline-offset:3px}
+.mock-choices [aria-pressed="true"] .mock-choice-status{visibility:visible}
+.mock-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:16px 0}
+.mock-grid button{padding:12px 2px;border:1px solid #b8c6cc;background:#fff;border-radius:10px;color:#243b48;min-height:44px}
+.mock-grid [aria-current]{outline:2px solid #247458}.mock-review{padding:14px 0;border-bottom:1px solid #b8c6cc}.mock-review summary{cursor:pointer;min-height:44px;display:flex;align-items:center}
+
+/* v0.14 模試の成長を上段、学習記録を下段に配置 */
+.mock-history{margin-bottom:28px}
+.mock-history h2,.history-records h2{font-size:calc(20px * var(--fs-head));margin:0 0 12px}
+.mock-history-chart{display:block;width:100%;height:auto;margin:12px 0 0;overflow:visible}
+.mock-history-chart text{font-size:14px;font-family:inherit;fill:var(--text-sub)}
+.mock-history-chart .chart-grid{stroke:var(--border);stroke-width:1}
+.mock-history-chart .chart-target{stroke:var(--green-dark);stroke-width:1.5;stroke-dasharray:5 4}
+.mock-history-chart .chart-target-label{fill:var(--green-dark)}
+.mock-history-chart .chart-trend{fill:none;stroke:var(--teal-text);stroke-width:2.5;stroke-linejoin:round}
+.mock-history-chart .chart-point{fill:var(--teal-text);stroke:var(--surface);stroke-width:1.5}
+.chart-caption{color:var(--text-sub);font-size:calc(14px * var(--fs));margin:8px 0}
+.mock-growth{font-size:calc(16px * var(--fs));margin:12px 0 6px}
+/* v0.15 任意の投稿窓口 */
+.support-panel label{display:block;margin:16px 0;font-size:calc(16px * var(--fs))}
+.support-panel input:not([type="checkbox"]),.support-panel select,.support-panel textarea{display:block;width:100%;box-sizing:border-box;margin-top:8px;padding:12px;font:inherit;border:1px solid var(--border-strong);border-radius:10px;background:var(--surface);color:var(--text)}
+.support-panel .support-check,.support-panel .support-chip{display:flex;align-items:center;gap:10px;min-height:44px}
+.support-chip{padding:8px 12px;background:var(--teal-tint);border-radius:12px}
+.support-panel input[type="checkbox"]{width:20px;height:20px;flex-shrink:0;accent-color:var(--teal)}
+.support-panel fieldset{border:0;padding:0;margin:18px 0}
+.support-panel img{max-width:100%;height:auto;margin:10px 0}
+.support-panel [hidden]{display:none!important}
+.support-panel .support-honey{display:none}
+.support-panel code{overflow-wrap:anywhere;font-size:14px}
+.support-privacy{max-width:720px;margin:24px auto;line-height:1.8}
+.support-entry{display:block;margin:16px auto;text-align:center}

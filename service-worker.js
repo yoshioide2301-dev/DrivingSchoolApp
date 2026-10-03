@@ -9,13 +9,15 @@
 //   このファイルではキャッシュ処理のみを扱う。
 // - バックエンド通信・外部APIは扱わない。
 
-const CACHE_NAME = "zerodora-cache-v7";
+const CACHE_NAME = "michito-owner-preview-cache-v17";
 
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./style.css",
   "./app.js",
+  "./support.js",
+  "./privacy.html",
   "./manifest.json",
   "./questions/questions.js"
 ];
@@ -38,7 +40,7 @@ self.addEventListener("activate", (event) => {
       return Promise.all(
         keys
           // 同一オリジン（github.io）の他アプリのキャッシュを消さないよう、自アプリの旧キャッシュのみ削除する
-          .filter((key) => key.startsWith("zerodora-cache-") && key !== CACHE_NAME)
+          .filter((key) => key.startsWith("michito-owner-preview-cache-") && key !== CACHE_NAME)
           .map((key) => caches.delete(key))
       );
     })
@@ -49,6 +51,8 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   // 同一オリジンのGETリクエストのみキャッシュ対象とする（最小限のキャッシュ戦略）
   if (event.request.method !== "GET") return;
+  var path=new URL(event.request.url).pathname;
+  if(path.startsWith("/api/")||path==="/support-admin"||path==="/signin-with-chatgpt"||path==="/callback"||path==="/signout-with-chatgpt") return;
 
   event.respondWith(
     // 他アプリのキャッシュを参照しないよう、自アプリのキャッシュのみから照会する
