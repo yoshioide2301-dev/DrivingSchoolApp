@@ -1,0 +1,36 @@
+name: Michito iOS unsigned validation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: michito-ios-unsigned
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: native-ios
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: native-ios/package-lock.json
+      - run: npm ci
+      - run: npm run prepare:web
+      - run: npm run add:ios
+      - run: npm run sync:ios
+      - run: node install-ios-assets.mjs
+      - name: Compile without signing
+        run: |
+          xcodebuild -version
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: michito-unsigned-app
+          path: native-ios/build/Build/Products/Release-iphoneos/App.app
+          retention-days: 7
