@@ -2320,3 +2320,13 @@ button.mistake-item:active {
 .support-panel code{overflow-wrap:anywhere;font-size:14px}
 .support-privacy{max-width:720px;margin:24px auto;line-height:1.8}
 .support-entry{display:block;margin:16px auto;text-align:center}
+
+/* 著作権の表示（全画面の一番下） */
+.copyright {
+  margin: 24px 0 8px;
+  font-size: calc(11px * var(--fs));
+  line-height: 1.6;
+  text-align: center;
+  color: var(--text-sub, #888);
+  opacity: 0.8;
+}
