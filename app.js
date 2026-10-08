@@ -1777,7 +1777,7 @@
 
     if(state.view!=="support") html+='<button class="text-link support-entry" data-action="open-support">意見・不具合・アンケート</button>';
     // 著作権の表示（全画面の一番下に小さく出す）
-    html += '<p class="copyright">©2026 yoshioide</p>';
+    html += '<p class="copyright">© 2026 Yoshio Ide</p>';
     var activeTab = TAB_VIEWS[state.view];
     if (activeTab) {
       html += tabBarHtml(activeTab);
