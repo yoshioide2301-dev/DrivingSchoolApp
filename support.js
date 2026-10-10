@@ -1,28 +1,41 @@
 (function(){
-  var base=location.protocol==='capacitor:'?'https://michito-owner-truefalse-review.yoshio-ide2301.chatgpt.site':'', context={},busy=false,formToken=null;
+  // 意見・不具合・アンケートはメールで送る（ゼロナビと共通方式。サーバーなし）
+  var MAIL='zg.dev2301@gmail.com', context={};
   var choices=[['daily','今日の10問'],['exam','模試'],['explanation','解説'],['review','復習'],['graph','成長グラフ'],['stock','問題数'],['signs','標識・画像問題'],['operation','操作性']];
+  var categoryLabels={suggestion:'改善の提案',bug:'不具合・問題の誤り',question:'質問'};
+  var intentionLabels={yes:'また使いたい',unsure:'まだ分からない',no:'使い続けにくい'};
+  var sourceLabels={family:'家族・友人',store:'App Storeなどの検索',sns:'SNS',school:'教習所',college:'大学・学校',other:'その他',unknown:'覚えていない'};
+  var questionLabels={helpful:'役立ったものは？（複数選択可）',needs:'もっと良くしてほしいところは？（複数選択可）',continue:'またミチトを使いたいですか？'};
   function getQuestion(){try{var n=Number(localStorage.getItem('michito_support_survey_round')||0);return ['helpful','needs','continue'][n%3];}catch(e){return 'helpful';}}
   function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function view(){var q=getQuestion(),labels={helpful:'役立ったものは？（複数選択可）',needs:'もっと良くしてほしいところは？（複数選択可）',continue:'またミチトを使いたいですか？'};
-    return '<section class="panel support-panel"><h1>意見・不具合を送る</h1><p>ご協力は任意です。回答しなくても無料で使えます。</p><form id="support-form"><label>送る内容<select name="kind" id="support-kind"><option value="feedback">意見・不具合</option><option value="survey">かんたんアンケート</option></select></label><div id="support-feedback"><label>種類<select name="category"><option value="suggestion">改善の提案</option><option value="bug">不具合・問題の誤り</option><option value="question">質問・投稿の削除依頼</option></select></label><label>コメント（1,000文字まで）<textarea name="message" maxlength="1000" rows="4" placeholder="どの画面で、何が起きましたか？"></textarea></label><label>スクショ（任意・1枚・2MBまで）<input name="image" id="support-image" type="file" accept="image/jpeg,image/png,image/webp"></label><img id="support-preview" alt="送信する画像の確認" hidden><p class="settings-note">名前、通知、メールアドレスなど、見せたくない情報が写っていないか確認してください。</p><label class="support-check"><input name="replyRequested" id="support-reply" type="checkbox">メールでの返信を希望する</label><label id="support-email-label" hidden>返信先メールアドレス<input name="email" type="email" maxlength="254" autocomplete="email"></label></div><div id="support-survey" hidden><fieldset><legend>'+labels[q]+'</legend>'+(q==='continue'?'<select name="intention"><option value="">選んでください</option><option value="yes">また使いたい</option><option value="unsure">まだ分からない</option><option value="no">使い続けにくい</option></select>':choices.map(o=>'<label class="support-chip"><input type="checkbox" name="selected" value="'+o[0]+'">'+o[1]+'</label>').join(''))+'</fieldset><input name="surveyQuestion" type="hidden" value="'+q+'"></div><label id="support-source-label">ミチトを知ったきっかけ（任意）<select name="source"><option value="">選ばなくても送信できます</option><option value="family">家族・友人</option><option value="store">App Storeなどの検索</option><option value="sns">SNS</option><option value="school">教習所</option><option value="college">大学・学校</option><option value="other">その他</option><option value="unknown">覚えていない</option></select></label><p class="settings-note">送信する画面：'+esc(context.screen)+' ／ 問題ID：'+esc(context.questionId||'なし')+' ／ v'+esc(context.appVersion)+'</p><p class="settings-note"><a href="https://michito-owner-truefalse-review.yoshio-ide2301.chatgpt.site/privacy" target="_blank" rel="noopener">データの取り扱い</a>：選んだ回答・コメント・添付画像・上の画面情報を運営者へ送信します。返信を希望した場合のみメールアドレスも送信します。</p><label class="support-check"><input name="consent" type="checkbox" required>この内容を運営者に送信することに同意します</label><label class="support-honey" aria-hidden="true">ウェブサイト<input name="website" autocomplete="off" tabindex="-1"></label><p id="support-status" role="status" aria-live="polite"></p><button class="btn-pill" type="submit" id="support-send">送信する</button></form></section>';
+  function view(){var q=getQuestion();
+    return '<section class="panel support-panel"><h1>意見・不具合を送る</h1><p>ご協力は任意です。回答しなくても無料で使えます。</p><form id="support-form"><label>送る内容<select name="kind" id="support-kind"><option value="feedback">意見・不具合</option><option value="survey">かんたんアンケート</option></select></label><div id="support-feedback"><label>種類<select name="category"><option value="suggestion">改善の提案</option><option value="bug">不具合・問題の誤り</option><option value="question">質問</option></select></label><label>コメント（1,000文字まで）<textarea name="message" maxlength="1000" rows="4" placeholder="どの画面で、何が起きましたか？"></textarea></label><p class="settings-note">スクリーンショットを送りたいときは、開いたメールに添付してください。</p></div><div id="support-survey" hidden><fieldset><legend>'+questionLabels[q]+'</legend>'+(q==='continue'?'<select name="intention"><option value="">選んでください</option><option value="yes">また使いたい</option><option value="unsure">まだ分からない</option><option value="no">使い続けにくい</option></select>':choices.map(o=>'<label class="support-chip"><input type="checkbox" name="selected" value="'+o[0]+'">'+o[1]+'</label>').join(''))+'</fieldset><input name="surveyQuestion" type="hidden" value="'+q+'"></div><label id="support-source-label">ミチトを知ったきっかけ（任意）<select name="source"><option value="">選ばなくても送れます</option><option value="family">家族・友人</option><option value="store">App Storeなどの検索</option><option value="sns">SNS</option><option value="school">教習所</option><option value="college">大学・学校</option><option value="other">その他</option><option value="unknown">覚えていない</option></select></label><p class="settings-note">送る画面：'+esc(context.screen)+' ／ 問題ID：'+esc(context.questionId||'なし')+' ／ v'+esc(context.appVersion)+'</p><p class="settings-note"><a href="privacy.html">データの取り扱い</a>：「メールで送る」を押すと、内容を書き込んだメールが開きます。送信すると、内容と上の画面情報、あなたのメールアドレスが運営者に届きます。送らずに閉じることもできます。</p><p id="support-status" role="status" aria-live="polite"></p><button class="btn-pill" type="submit" id="support-send">メールで送る</button></form></section>';
   }
-  window.MctSupport={setContext:function(c){context=c;formToken=null;},view:view};
-  document.addEventListener('change',function(e){var f=document.getElementById('support-form');if(!f)return;
-    if(e.target.id==='support-kind'){var survey=e.target.value==='survey';document.getElementById('support-feedback').hidden=survey;document.getElementById('support-survey').hidden=!survey;f.elements.email.required=!survey&&f.elements.replyRequested.checked;}
-    if(e.target.id==='support-reply'){document.getElementById('support-email-label').hidden=!e.target.checked;f.elements.email.required=e.target.checked;}
-    if(e.target.id==='support-image'){var img=document.getElementById('support-preview');if(img.dataset.url)URL.revokeObjectURL(img.dataset.url);var file=e.target.files[0];img.hidden=!file;if(file){img.dataset.url=URL.createObjectURL(file);img.src=img.dataset.url;}}
+  window.MctSupport={setContext:function(c){context=c;},view:view};
+  document.addEventListener('change',function(e){if(!document.getElementById('support-form'))return;
+    if(e.target.id==='support-kind'){var survey=e.target.value==='survey';document.getElementById('support-feedback').hidden=survey;document.getElementById('support-survey').hidden=!survey;}
   });
-  document.addEventListener('submit',async function(e){if(e.target.id!=='support-form')return;e.preventDefault();if(busy)return;var f=e.target,status=document.getElementById('support-status'),button=document.getElementById('support-send');status.textContent='';
-    var values=new FormData(f),kind=String(values.get('kind')),file=values.get('image'),reply=kind==='feedback'&&values.has('replyRequested');
-    var data={kind:kind,category:values.get('category'),message:kind==='feedback'?values.get('message'):'',replyRequested:reply,email:reply?values.get('email'):'',source:values.get('source'),surveyQuestion:kind==='survey'?values.get('surveyQuestion'):null,selected:kind==='survey'?values.getAll('selected'):[],intention:kind==='survey'?values.get('intention'):null,consent:values.has('consent'),website:values.get('website'),context:context};
-    if(kind==='feedback'&&!String(data.message||'').trim()&&(!file||!file.size)){status.textContent='コメントか画像を追加してください。';return;}
-    if(kind==='survey'&&(data.surveyQuestion==='continue'?!data.intention:!data.selected.length)){status.textContent='該当する回答を選んでください。';return;}
-    if(kind==='feedback'&&file&&file.size>2*1024*1024){status.textContent='画像は2MB以下にしてください。';return;}
-    busy=true;button.disabled=true;status.textContent='送信しています…';
-    try{if(!formToken){var t=await fetch(base+'/api/support/token',{headers:{'Accept':'application/json'}}),tj=await t.json();if(!t.ok)throw Error(tj.error||'受付を利用できません。');formToken=tj.token;}data.token=formToken;var body=new FormData();body.set('data',JSON.stringify(data));if(kind==='feedback'&&file&&file.size)body.set('image',file);
-      var response=await fetch(base+'/api/support/submit',{method:'POST',body:body}),result=await response.json();if(!response.ok){if(response.status===400)formToken=null;throw Error(result.error||'送信できませんでした。');}
-      if(kind==='survey'){try{localStorage.setItem('michito_support_survey_round',String(Number(localStorage.getItem('michito_support_survey_round')||0)+1));}catch(e){}}
-      var panel=document.querySelector('.support-panel');panel.innerHTML='<h1>送信しました</h1><p>ご協力ありがとうございます。改善に役立てます。</p><p>受付番号：<br><code>'+esc(result.receipt)+'</code></p>'+(reply?'<p>運営者が内容を確認して、入力されたメールアドレスへ返信します。</p>':'<p>返信は不要として受け付けました。</p>')+'<button class="btn-pill" data-action="go-home">ホームへ戻る</button>';formToken=null;
-    }catch(error){status.textContent=error.message||'通信できませんでした。入力内容は残っています。時間をおいて再度お試しください。';button.disabled=false;}finally{busy=false;}
+  document.addEventListener('submit',function(e){if(e.target.id!=='support-form')return;e.preventDefault();
+    var f=e.target,status=document.getElementById('support-status'),values=new FormData(f),kind=String(values.get('kind'));status.textContent='';
+    var message=String(values.get('message')||'').trim(),q=String(values.get('surveyQuestion')||''),selected=values.getAll('selected'),intention=String(values.get('intention')||''),source=String(values.get('source')||'');
+    if(kind==='feedback'&&!message){status.textContent='コメントを入力してください。';return;}
+    if(kind==='survey'&&(q==='continue'?!intention:!selected.length)){status.textContent='該当する回答を選んでください。';return;}
+    var lines=[],subject;
+    if(kind==='survey'){
+      subject='【ミチト】アンケート';
+      lines.push('質問：'+questionLabels[q]);
+      lines.push('回答：'+(q==='continue'?intentionLabels[intention]:selected.map(v=>(choices.find(o=>o[0]===v)||[v,v])[1]).join('、')));
+    }else{
+      subject='【ミチト】'+categoryLabels[values.get('category')]+(context.questionId?' '+context.questionId:'');
+      lines.push('種類：'+categoryLabels[values.get('category')]);
+      lines.push('コメント：'+message);
+    }
+    lines.push('知ったきっかけ：'+(sourceLabels[source]||'（未回答）'));
+    lines.push('');
+    lines.push('画面：'+(context.screen||'')+' ／ 問題ID：'+(context.questionId||'なし')+' ／ ミチト v'+(context.appVersion||''));
+    lines.push('日時：'+new Date().toLocaleString('ja-JP'));
+    if(kind==='survey'){try{localStorage.setItem('michito_support_survey_round',String(Number(localStorage.getItem('michito_support_survey_round')||0)+1));}catch(e){}}
+    location.href='mailto:'+MAIL+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(lines.join('\n'));
+    var panel=document.querySelector('.support-panel');panel.innerHTML='<h1>メールを開きました</h1><p>メールアプリで送信すると、運営者に届きます。ご協力ありがとうございます。</p><button class="btn-pill" data-action="go-home">ホームへ戻る</button>';
   });
 })();
