@@ -25,7 +25,7 @@
 (function () {
   "use strict";
 
-  var APP_VERSION = "0.15";
+  var APP_VERSION = "1.0";
   var SESSION_SIZE = 10;
   var NOTE_MAX_LENGTH = 500;
 
@@ -1741,7 +1741,7 @@
     html += "</div>";
     html += "</section>";
 
-    html += '<p class="settings-note">ミチト 試用版 v' + escapeHtml(APP_VERSION) + '</p>';
+    html += '<p class="settings-note">ミチト v' + escapeHtml(APP_VERSION) + '</p>';
     html += '<p class="settings-note">設定はこの端末にだけ保存されます。学習履歴やメモには影響しません。</p>';
     html += backHomeButtonHtml();
     html += "</div>";
