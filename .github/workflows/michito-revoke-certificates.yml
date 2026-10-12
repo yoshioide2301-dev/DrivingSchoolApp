@@ -1,0 +1,25 @@
+# ミチト・ゼロナビ共通：CI が作った署名用の証明書を取り消す（上限に達したときの一回限りの掃除。本人承認 10/12）
+# 起動：タグ asc-certs-cleanup-* の push。取り消しても、TestFlight・App Store に出したアプリには影響しない（次のビルドで自動署名が作り直す）
+name: Revoke CI signing certificates
+on:
+  push:
+    tags:
+      - "asc-certs-cleanup-*"
+permissions:
+  contents: read
+jobs:
+  revoke:
+    runs-on: ubuntu-latest
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 証明書を取り消す
+        run: node .github/scripts/asc-certs.mjs revoke-all
