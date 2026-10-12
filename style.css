@@ -228,6 +228,8 @@
 
 html, body {
   min-height: 100%;
+  /* iOS で画面の端を越えて引っぱれる（上方向の無駄なスクロール）のを止める */
+  overscroll-behavior: none;
 }
 
 html {
@@ -262,6 +264,7 @@ button {
   margin: 0 auto;
   padding: calc(14px + var(--safe-top)) var(--pad-right) calc(32px + var(--safe-bottom)) var(--pad-left);
   min-height: 100vh;
+  min-height: 100dvh;
   overflow-wrap: break-word;
 }
 
