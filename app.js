@@ -1034,11 +1034,26 @@
     return '<div class="question-identity" aria-label="問題ID">問題ID：<strong>MCT:' + escapeHtml(q.id || q.questionId || '') + '</strong></div>';
   }
 
+  // 根拠となる法令（解説の下に右寄せで小さく表示）。ref（条・項・号まで確認済みの根拠）を優先し、無ければ source と sourceSection から作る
+  function legalBasisText(q) {
+    if (q.ref) return String(q.ref);
+    var src = String(q.source || "").replace(/（[^）]*）$/, "").trim();
+    var sec = String(q.sourceSection || "").trim();
+    if (!sec) return src;
+    return src && sec.indexOf(src) !== 0 ? src + " " + sec : sec;
+  }
+
+  function legalBasisHtml(q) {
+    var t = legalBasisText(q);
+    return t ? '<p class="legal-basis" aria-label="根拠となる法令">根拠：' + escapeHtml(t) + "</p>" : "";
+  }
+
   function explanationBodyHtml(q, isCorrect, selectedIndex) {
     var correctLabel = q.type === "truefalse" ? q.choices[q.correct] + (q.correct === 0 ? "（正しい）" : "（誤り）") : (CHOICE_LETTERS[q.correct] || q.correct + 1) + ". " + (q.choices[q.correct] || "");
     var html = '<section class="explain-section">';
     html += '<h2 class="explain-label">問題のポイント</h2>';
     html += '<p class="explain-text">' + escapeHtml(q.explanation || "") + "</p>";
+    html += legalBasisHtml(q);
     html += "</section>";
     html +=
       '<div class="hint-box">' +
@@ -1885,7 +1900,7 @@
   function viewMockResult() {
     var r=state.mockResult||getLocal(MOCK_RESULT_KEY,null);if(!r)return '<section class="panel">模試の結果はまだありません。</section>';
     var html='<section class="panel"><h1>仮免模試 結果</h1><p>'+r.correctCount+'/50問正解（'+r.accuracy+'%）</p><h2>'+(r.correctCount>=45?'合格の目安に到達':'もう一度復習しよう')+'</h2><p>'+(r.reason==='timeout'?'制限時間になったため終了しました。':'模試を終了しました。')+'</p><p>未回答 '+r.answers.filter(function(a){return a===null;}).length+'問 ／ 45問以上正解が合格の目安</p><h2>全問の復習</h2>';
-    r.questions.forEach(function(q,i){var a=r.answers[i];html+='<details class="mock-review"><summary>第'+(i+1)+'問：'+(a===q.correct?'正解':a===null?'未回答':'不正解')+'</summary><p class="question-identity" aria-label="問題ID">問題ID：MCT:'+escapeHtml(q.id)+'</p><p>'+escapeHtml(q.question)+'</p><p>あなたの回答：'+(a===null?'未回答':q.choices[a])+' ／ 正解：'+q.choices[q.correct]+'</p><p>'+escapeHtml(q.explanation)+'</p><p class="settings-note">'+escapeHtml(q.sourceSection||q.source||'')+'</p></details>';});
+    r.questions.forEach(function(q,i){var a=r.answers[i];html+='<details class="mock-review"><summary>第'+(i+1)+'問：'+(a===q.correct?'正解':a===null?'未回答':'不正解')+'</summary><p class="question-identity" aria-label="問題ID">問題ID：MCT:'+escapeHtml(q.id)+'</p><p>'+escapeHtml(q.question)+'</p><p>あなたの回答：'+(a===null?'未回答':q.choices[a])+' ／ 正解：'+q.choices[q.correct]+'</p><p>'+escapeHtml(q.explanation)+'</p>'+legalBasisHtml(q)+'</details>';});
     return html+'<button class="btn-pill mt-20" data-action="mock-open">もう一度挑戦する</button></section>';
   }
 
