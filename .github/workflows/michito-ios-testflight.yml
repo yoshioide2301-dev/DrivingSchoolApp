@@ -4,6 +4,7 @@
 # - 必要な GitHub Secrets（この repo に登録）：ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_P8（.p8の本文） / APPLE_TEAM_ID
 # - 事前に App Store Connect でミチトのアプリ（Bundle ID com.yoshioide2301.michito）を登録しておくこと
 # - App Review への提出・公開は行わない（TestFlight に届くところまで）
+# - 対応端末は iPhone だけ（TARGETED_DEVICE_FAMILY=1。本人承認 10/13：最初のリリースは iPhone のみ）
 name: Michito iOS TestFlight upload
 
 on:
@@ -111,6 +112,7 @@ jobs:
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
+            TARGETED_DEVICE_FAMILY=1 \
             MARKETING_VERSION="$MARKETING_VERSION" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             archive
