@@ -1107,6 +1107,16 @@ h1, h2, h3, p {
 .spark--3 { left: 14px; bottom: 16px; width: 5px; height: 5px; }
 .spark--4 { right: 12px; bottom: 10px; }
 
+/* 正解のときは小さな点を ✨ にして、きらめかせる（本人の要望 10/12）。不正解は従来の点のまま */
+.verdict-mark--correct .spark { background: none; width: auto; height: auto; border-radius: 0; line-height: 1; font-size: 20px; animation: spark-twinkle 1.6s ease-in-out infinite; }
+.verdict-mark--correct .spark::before { content: "\2728"; }
+.verdict-mark--correct .spark--1 { left: -8px; top: 18px; font-size: 24px; animation-delay: 0s; }
+.verdict-mark--correct .spark--2 { right: -10px; top: 8px; font-size: 18px; animation-delay: 0.4s; }
+.verdict-mark--correct .spark--3 { left: 0; bottom: 4px; font-size: 16px; animation-delay: 0.8s; }
+.verdict-mark--correct .spark--4 { right: -4px; bottom: -2px; font-size: 22px; animation-delay: 1.2s; }
+@keyframes spark-twinkle { 0%, 100% { transform: scale(0.85); opacity: 0.75; } 50% { transform: scale(1.15); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .verdict-mark--correct .spark { animation: none; } }
+
 .verdict-title {
   font-size: calc(40px * var(--fs-head));
   font-weight: 900;

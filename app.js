@@ -36,7 +36,9 @@
     // V4.1: 表示設定（文字サイズ・テーマ）。学習履歴・メモのキー／形式とは独立させる
     SETTINGS: "michito_settings",
     SESSION: "michito_session",
-    SURVEY: "michito_session_survey"
+    SURVEY: "michito_session_survey",
+    // 間違えた問題（問題IDの配列）。今日の10問・仮免模試で間違えるたびに追加し、解き直しで正解したら外す
+    MISTAKES: "michito_mistakes"
   };
 
   var appEl = document.getElementById("app");
@@ -527,6 +529,38 @@
       questionId: q.id, selectedAnswer: toOriginalChoiceIndex(q, s.selectedIndex),
       correct: s.selectedIndex === q.correct, feedbackRating: null,
       feedbackReason: [], comment: "", appVersion: APP_VERSION });
+    if (s.selectedIndex !== q.correct) addMistakeIds([q.id]);
+  }
+
+  // ---------- 間違えた問題（端末に保存して積み上げる） ----------
+  function getMistakeIds() {
+    var ids = getLocal(STORAGE_KEYS.MISTAKES, []);
+    if (!Array.isArray(ids)) return [];
+    var valid = {};
+    getReviewedQuestions().forEach(function (q) { valid[q.id] = true; });
+    return ids.filter(function (id) { return valid[id]; });
+  }
+  function addMistakeIds(newIds) {
+    var ids = getLocal(STORAGE_KEYS.MISTAKES, []);
+    if (!Array.isArray(ids)) ids = [];
+    newIds.forEach(function (id) { if (ids.indexOf(id) === -1) ids.push(id); });
+    if (!setLocal(STORAGE_KEYS.MISTAKES, ids)) state.storageWarning = true;
+  }
+  function removeMistakeId(id) {
+    var ids = getLocal(STORAGE_KEYS.MISTAKES, []);
+    if (!Array.isArray(ids)) return;
+    if (!setLocal(STORAGE_KEYS.MISTAKES, ids.filter(function (x) { return x !== id; }))) state.storageWarning = true;
+  }
+  // 間違い問題の一覧を、保存された問題IDから作る（一覧を開いた時点の内容。正解したものは「クリア」と表示）
+  function buildMistakeView() {
+    var byId = {};
+    getReviewedQuestions().forEach(function (q) { byId[q.id] = q; });
+    var list = getMistakeIds().map(function (id, i) {
+      var q = byId[id];
+      return { questionId: q.id, id: q.id, type: q.type, question: q.question, choices: q.choices, correct: q.correct,
+        explanation: q.explanation, ref: q.ref, source: q.source, sourceSection: q.sourceSection, questionNumber: i + 1 };
+    });
+    return { mistakes: list.slice(), mistakeAll: list, mistakeTotal: list.length };
   }
 
   function saveProgress() {
@@ -682,12 +716,13 @@
   }
 
   function openMistakeList() {
+    if (state.view !== "mistakeSolve" || !state.mistakeView) state.mistakeView = buildMistakeView();
     state.view = "mistakes";
     render();
   }
 
   function openMistakeSolve(index) {
-    var data = state.lastSession;
+    var data = state.mistakeView;
     if (!data || !data.mistakeAll[index]) return;
     state.mistakeSolveSnapshot = data.mistakeAll[index];
     state.mistakeAnswered = false;
@@ -718,9 +753,10 @@
     var isCorrect = choiceIndex === m.correct;
     if (isCorrect) {
       // 正解した問題は「未クリアの間違い問題一覧」から外す
-      var list = state.lastSession.mistakes;
+      var list = state.mistakeView.mistakes;
       var idx = list.indexOf(m);
       if (idx !== -1) list.splice(idx, 1);
+      removeMistakeId(m.questionId);
       m.cleared = true;
       var remaining = list.length;
       if (remaining === 0) {
@@ -769,7 +805,7 @@
   // ---------- ① HOME ----------
 
   function viewHome() {
-    var remaining = state.lastSession ? state.lastSession.mistakes.length : 0;
+    var remaining = getMistakeIds().length;
 
     var html =
       '<header class="home-header">' +
@@ -805,7 +841,7 @@
       "</div>" +
       "</section>";
 
-    html += '<section class="panel mock-home"><h2>仮免模試（基礎）</h2><p>50問・30分。終わってから採点・復習。</p><button class="btn-pill" data-action="mock-open">模試に挑戦</button>' + (state.exam ? '<button class="text-link" data-action="mock-resume">模試の続きへ（時間は進みます）</button>' : '') + (getLocal(MOCK_RESULT_KEY,null) ? '<button class="text-link" data-action="mock-result">前回の模試結果</button>' : '') + '</section>';
+    html += '<section class="panel mock-home"><h2>仮免模試</h2><p>50問・30分。終わってから採点・復習。</p><button class="btn-pill" data-action="mock-open">模試に挑戦</button>' + (state.exam ? '<button class="text-link" data-action="mock-resume">模試の続きへ（時間は進みます）</button>' : '') + (getLocal(MOCK_RESULT_KEY,null) ? '<button class="text-link" data-action="mock-result">前回の模試結果</button>' : '') + '</section>';
     if (savedSession()) html += '<button class="btn-pill btn-pill--block" data-action="resume-session">続きから再開</button><p class="settings-note">「はじめる」は新しい10問を1問目から開始します。途中までの履歴は残りますが、再開先は新しい学習に切り替わります。</p>';
     html += '</div><div class="home-side">';
 
@@ -1255,7 +1291,7 @@
   // ---------- ⑨ 間違い問題 ----------
 
   function viewMistakes() {
-    var data = state.lastSession;
+    var data = state.mistakeView || buildMistakeView();
     var all = data ? data.mistakeAll : [];
     var total = data ? data.mistakeTotal || 0 : 0;
     var remaining = data ? data.mistakes.length : 0;
@@ -1268,7 +1304,7 @@
 
     if (total === 0) {
       html +=
-        '<div class="panel"><div class="empty-state">直近のセッションで間違えた問題はありません。<br>「今日の10問」を解くと、ここに表示されます。</div></div>';
+        '<div class="panel"><div class="empty-state">間違えた問題はありません。<br>「今日の10問」や「仮免模試」で間違えた問題が、ここにたまります。</div></div>';
       html += michitoTalkHtml("", "まずは今日の10問から。\n一緒に始めましょう。");
       html += backHomeButtonHtml();
       html += "</div>";
@@ -1290,7 +1326,7 @@
       '%"></div></div>' +
       "</div>";
 
-    html += '<h2 class="list-label">直近の学習</h2>';
+    html += '<h2 class="list-label">間違えた問題</h2>';
     html += '<div class="panel mistake-list">';
     all.forEach(function (m, idx) {
       var preview = m.question.length > 26 ? m.question.slice(0, 26) + "…" : m.question;
@@ -1852,6 +1888,7 @@
     var score=e.questions.filter(function(q,i){return e.answers[i]===q.correct;}).length;
     var r={sessionId:e.sessionId,date:todayDateString(),mode:'mock',count:50,correctCount:score,accuracy:score*2,completed:true,durationSec:Math.max(0,Math.round((Math.min(Date.now(),e.deadline)-e.startedAt)/1000)),reason:reason,questions:e.questions,answers:e.answers};
     var history=getLocal(STORAGE_KEYS.HISTORY,[]);if(!Array.isArray(history))history=[];history=history.filter(function(h){return h.sessionId!==r.sessionId;});history.push({sessionId:r.sessionId,date:r.date,mode:r.mode,count:50,correctCount:score,accuracy:r.accuracy,completed:true,durationSec:r.durationSec,reason:r.reason});
+    addMistakeIds(e.questions.filter(function(q,i){return e.answers[i]!==null&&e.answers[i]!==q.correct;}).map(function(q){return q.id;}));
     var resultSaved=setLocal(MOCK_RESULT_KEY,r),historySaved=setLocal(STORAGE_KEYS.HISTORY,history);
     state.storageWarning=(!resultSaved||!historySaved)||state.storageWarning;
     if(resultSaved&&historySaved) { try{localStorage.removeItem(MOCK_KEY);}catch(err){state.storageWarning=true;} }
@@ -1884,7 +1921,7 @@
     saveMock();render({keepScroll:action==='mock-answer'});
   }
   function viewMockSetup() {
-    return '<section class="panel"><h1>仮免模試（基礎）</h1><p>○×50問・30分。45問以上正解が合格の目安です。</p><p>途中の正誤表示はなく、終了後に採点・復習します。未回答は不正解として数えます。終了まで回答を変更できます。</p><p>HOMEへ戻ったり画面を閉じても、制限時間は進みます。</p><p class="settings-note">公式試験問題ではありません。基礎200問から50問ずつ出題します。同じ端末で保存が有効な場合、4回の開始で200問を一巡します（途中終了も1回）。試験範囲をすべて網羅した教材ではありません。</p><button class="btn-pill" data-action="mock-start">30分の模試を始める</button></section>';
+    return '<section class="panel"><h1>仮免模試</h1><p>○×50問・30分。45問以上正解が合格の目安です。</p><p>途中の正誤表示はなく、終了後に採点・復習します。未回答は不正解として数えます。終了まで回答を変更できます。</p><p>HOMEへ戻ったり画面を閉じても、制限時間は進みます。</p><p class="settings-note">公式試験問題ではありません。200問から50問ずつ出題します。同じ端末で保存が有効な場合、4回の開始で200問を一巡します（途中終了も1回）。試験範囲をすべて網羅した教材ではありません。</p><button class="btn-pill" data-action="mock-start">30分の模試を始める</button></section>';
   }
   function viewMock() {
     var e=state.exam;if(!e)return viewMockSetup();var q=e.questions[e.index];
