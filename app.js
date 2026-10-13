@@ -2124,7 +2124,7 @@
     saveMock();render({keepScroll:action==='mock-answer'});
   }
   function viewMockSetup() {
-    return '<section class="panel"><h1>仮免模試</h1><p>○×50問・30分。45問以上正解が合格の目安です。</p><p>途中の正誤表示はなく、終了後に採点・復習します。未回答は不正解として数えます。終了まで回答を変更できます。</p><p>HOMEへ戻ったり画面を閉じても、制限時間は進みます。</p><p class="settings-note">公式試験問題ではありません。200問から50問ずつ出題します。同じ端末で保存が有効な場合、4回の開始で200問を一巡します（途中終了も1回）。試験範囲をすべて網羅した教材ではありません。</p><button class="btn-pill" data-action="mock-start">30分の模試を始める</button></section>';
+    return '<section class="panel"><h1>仮免模試</h1><p>○×50問・30分。45問以上正解が合格の目安です。</p><p>途中の正誤表示はなく、終了後に採点・復習します。未回答は不正解として数えます。終了まで回答を変更できます。</p><p>HOMEへ戻ったり画面を閉じても、制限時間は進みます。</p><p class="settings-note">公式試験問題ではありません。' + getReviewedQuestions().length + '問から50問ずつ出題します。同じ端末で保存が有効な場合、まだ出ていない問題から順に出し、全部出し終えると一巡します（途中終了も1回と数えます）。試験範囲をすべて網羅した教材ではありません。</p><button class="btn-pill" data-action="mock-start">30分の模試を始める</button></section>';
   }
   function viewMock() {
     var e=state.exam;if(!e)return viewMockSetup();var q=e.questions[e.index];
