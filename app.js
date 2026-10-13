@@ -936,6 +936,7 @@
     var html = '<div class="screen screen--signs">' + topBackHtml("go-home") +
       '<h1 class="screen-title">標識一覧</h1>' +
       '<p class="screen-lead">本標識は4種類（案内・警戒・規制・指示）。<br>その下に付く補助標識もあります。</p>' +
+      (TIPS().pairs.length ? '<button class="btn-pill btn-pill--wide tips-entry" data-action="open-tips">覚え方のコツ（まちがえ兄弟） <span aria-hidden="true">→</span></button>' : '') +
       '<div class="sign-tabs" role="tablist">';
     SIGN_CATS.forEach(function (c) {
       html += '<button class="sign-tab' + (c === cat ? " is-active" : "") + '" role="tab" aria-selected="' + (c === cat) + '" data-action="sign-cat" data-cat="' + c + '">' + c.replace("標識", "") + '</button>';
@@ -965,6 +966,95 @@
     if (x.kq && x.kq.length) html += '<button class="btn-pill btn-pill--wide" data-action="sign-questions">この標識の問題を解く（' + Math.min(x.kq.length, SESSION_SIZE) + '問） <span aria-hidden="true">→</span></button>';
     html += '<button class="text-link" data-action="open-signs">一覧へ戻る</button></div>';
     return html;
+  }
+
+  // ---------- v1.1 試作：覚え方のコツ（形と色の地図 → まちがえ兄弟カード → すぐ1問 → 苦手な組をもう一度） ----------
+  var TIPS_KEY = "michito.signTips.v1";
+  function TIPS() { return typeof SIGN_TIPS !== "undefined" && SIGN_TIPS ? SIGN_TIPS : { pairs: [], map: [] }; }
+  function tipsRecord() { return getLocal(TIPS_KEY, {}) || {}; }
+  function tipsWeakIds() {
+    var rec = tipsRecord();
+    return TIPS().pairs.filter(function (p) { return rec[p.id] && rec[p.id].last === "w"; }).map(function (p) { return p.id; });
+  }
+  function tipsPair(id) { return TIPS().pairs.filter(function (p) { return p.id === id; })[0]; }
+  function startTips(onlyWeak) {
+    var weak = tipsWeakIds();
+    var ids = onlyWeak ? weak : weak.concat(TIPS().pairs.map(function (p) { return p.id; }).filter(function (id) { return weak.indexOf(id) < 0; }));
+    if (!ids.length) return;
+    state.tips = { order: ids, pos: 0, phase: "card", qi: 0, chosen: null };
+    state.view = "signTips"; render(); window.scrollTo(0, 0);
+  }
+
+  function viewSignTipsIntro() {
+    var weak = tipsWeakIds().length;
+    var html = '<div class="screen screen--tips">' + topBackHtml("open-signs") +
+      '<h1 class="screen-title">覚え方のコツ</h1>' +
+      '<p class="screen-lead">まず、形と色で種類をつかむ。<br>次に、まちがえやすい組を一言で見分ける。</p>' +
+      '<section class="panel tips-map"><h2>① 形と色の地図</h2><p class="settings-note">種類ごとに、形と色がそろっています。</p>';
+    TIPS().map.forEach(function (g) {
+      html += '<div class="tips-map-row"><span class="tips-map-cat">' + escapeHtml(g.cat.replace("標識", "")) + '</span><span class="tips-map-imgs">';
+      g.idx.forEach(function (i) { html += '<img src="' + signPic(SIGNS_DATA()[i])[0] + '" alt="' + escapeHtml(SIGNS_DATA()[i].name) + '" loading="lazy">'; });
+      html += '</span></div>';
+    });
+    html += '</section><section class="panel"><h2>② まちがえ兄弟</h2><p>似ている2つを並べて、違いを一言で。見たらすぐ1問。</p>' +
+      '<button class="btn-pill btn-pill--wide" data-action="tips-start">まちがえ兄弟を見る（' + TIPS().pairs.length + '組） <span aria-hidden="true">→</span></button>' +
+      (weak ? '<button class="btn-pill btn-pill--wide btn-pill--pink tips-weak-btn" data-action="tips-weak">苦手な組だけ（' + weak + '組）</button>' : '') +
+      '</section></div>';
+    return html;
+  }
+
+  function tipsSideHtml(side, one) {
+    var X = SIGNS_DATA()[side.idx];
+    return '<div class="tips-side"><img src="' + signPic(X)[0] + '" alt="">' +
+      '<span class="tips-one">' + escapeHtml(one || "") + '</span>' +
+      '<span class="tips-side-name">' + escapeHtml(side.name) + '<span class="sign-no">（' + escapeHtml(side.no) + '）</span></span></div>';
+  }
+
+  function viewSignTips() {
+    var t = state.tips;
+    if (!t) return viewSignTipsIntro();
+    var html = '<div class="screen screen--tips">' + topBackHtml("open-tips");
+    if (t.phase === "done") {
+      var weak = tipsWeakIds().length;
+      html += '<h1 class="screen-title">おつかれさま！</h1><p class="screen-lead">' + t.order.length + '組を見終わりました。</p>' +
+        (weak ? '<p class="tips-done">まだ苦手な組：<strong>' + weak + '組</strong></p><button class="btn-pill btn-pill--wide btn-pill--pink" data-action="tips-weak">苦手な組だけもう一度 <span aria-hidden="true">→</span></button>'
+              : '<p class="tips-done">全部の組で正解しました！</p>') +
+        '<button class="text-link" data-action="open-signs">標識一覧へ戻る</button></div>';
+      return html;
+    }
+    var p = tipsPair(t.order[t.pos]);
+    var one = p.one || {};
+    html += '<p class="tips-progress">まちがえ兄弟　' + (t.pos + 1) + ' / ' + t.order.length + '</p>' +
+      '<div class="tips-pair">' + tipsSideHtml(p.a, one.a) + tipsSideHtml(p.b, one.b) + '</div>';
+    if (t.phase === "card") {
+      html += '<p class="tips-head">' + escapeHtml(p.head) + '</p>' +
+        '<p class="tips-diff">' + escapeHtml(p.diff) + '</p>' +
+        '<details class="tips-quotes"><summary>法令の言葉で確かめる</summary>';
+      p.quotes.forEach(function (q) { html += '<p>「' + escapeHtml(q.quote) + '」<span class="sign-no">' + escapeHtml(q.source) + '</span></p>'; });
+      html += '<p class="settings-note">道路標識、区画線及び道路標示に関する命令（e-Gov、2026年9月1日施行版）</p></details>' +
+        (p.quiz.length ? '<button class="btn-pill btn-pill--wide" data-action="tips-quiz">すぐ1問 <span aria-hidden="true">→</span></button>'
+                       : '<button class="btn-pill btn-pill--wide" data-action="tips-next">次の組へ <span aria-hidden="true">→</span></button>');
+    } else {
+      var q = p.quiz[t.qi];
+      html += '<p class="tips-q-label">すぐ1問</p><p class="tips-q">' + escapeHtml(q.statement) + '</p>';
+      if (t.chosen === null) {
+        html += '<div class="tips-ox"><button class="tips-ox-btn" data-action="tips-answer" data-choice="○">○</button><button class="tips-ox-btn" data-action="tips-answer" data-choice="×">×</button></div>';
+      } else {
+        var ok = t.chosen === q.answer;
+        html += '<p class="tips-verdict ' + (ok ? "is-ok" : "is-ng") + '">' + (ok ? "正解！" : "ざんねん。答えは「" + q.answer + "」") + '</p>' +
+          '<p class="tips-diff">' + escapeHtml(q.explanation) + '</p>' +
+          '<p class="tips-cite">「' + escapeHtml(q.quote) + '」<span class="sign-no">' + escapeHtml(q.source) + '</span></p>' +
+          (ok ? '' : '<p class="settings-note">この組は「苦手な組」に入りました。あとでもう一度出てきます。</p>') +
+          '<button class="btn-pill btn-pill--wide" data-action="tips-next">' + (t.pos + 1 === t.order.length ? "まとめを見る" : "次の組へ") + ' <span aria-hidden="true">→</span></button>';
+      }
+    }
+    return html + '</div>';
+  }
+
+  function tipsNext() {
+    var t = state.tips;
+    t.pos++; t.phase = t.pos >= t.order.length ? "done" : "card"; t.chosen = null;
+    render(); window.scrollTo(0, 0);
   }
 
   // 指定した問題だけで「今日の5問」と同じ流れを始める（標識から問題へ）
@@ -1924,6 +2014,9 @@
       case "signDetail":
         html = viewSignDetail();
         break;
+      case "signTips":
+        html = viewSignTips();
+        break;
       case "settings":
         html = viewSettings();
         break;
@@ -2142,6 +2235,36 @@
         break;
       case "open-sign":
         state.signIndex = parseInt(target.getAttribute("data-index"), 10); state.view = "signDetail"; render(); window.scrollTo(0, 0);
+        break;
+      case "open-tips":
+        state.tips = null; state.view = "signTips"; render(); window.scrollTo(0, 0);
+        break;
+      case "tips-start":
+        startTips(false);
+        break;
+      case "tips-weak":
+        startTips(true);
+        break;
+      case "tips-quiz":
+        (function () {
+          var t = state.tips, p = tipsPair(t.order[t.pos]);
+          // 前回まちがえた組は、前と違う問題を出す
+          var rec = tipsRecord()[p.id];
+          t.qi = p.quiz.length > 1 ? (rec && typeof rec.qi === "number" ? 1 - rec.qi : Math.floor(Math.random() * p.quiz.length)) : 0;
+          t.phase = "quiz"; t.chosen = null; render();
+        })();
+        break;
+      case "tips-answer":
+        (function () {
+          var t = state.tips, p = tipsPair(t.order[t.pos]), q = p.quiz[t.qi];
+          t.chosen = target.getAttribute("data-choice");
+          var rec = tipsRecord();
+          rec[p.id] = { last: t.chosen === q.answer ? "r" : "w", qi: t.qi, at: Date.now() };
+          setLocal(TIPS_KEY, rec); render();
+        })();
+        break;
+      case "tips-next":
+        tipsNext();
         break;
       case "sign-questions":
         startSessionWithIds((SIGNS_DATA()[state.signIndex] || {}).kq || []);

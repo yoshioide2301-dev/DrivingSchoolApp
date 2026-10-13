@@ -1,6 +1,6 @@
 import {readFileSync,writeFileSync,mkdirSync,copyFileSync,readdirSync} from 'node:fs';
 import {build} from 'esbuild';
-const files=['app.js','support.js','style.css','manifest.json','privacy.html','questions/questions.js','signs/signs.js'];
+const files=['app.js','support.js','style.css','manifest.json','privacy.html','questions/questions.js','signs/signs.js','signs/tips.js'];
 mkdirSync('www/questions',{recursive:true});mkdirSync('www/signs/img',{recursive:true});mkdirSync('www/signs/color',{recursive:true});
 for(const f of readdirSync('../signs/img'))copyFileSync('../signs/img/'+f,'www/signs/img/'+f);
 for(const f of readdirSync('../signs/color'))copyFileSync('../signs/color/'+f,'www/signs/color/'+f);
