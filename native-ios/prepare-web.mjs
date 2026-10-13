@@ -1,7 +1,8 @@
-import {readFileSync,writeFileSync,mkdirSync,copyFileSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync,copyFileSync,readdirSync} from 'node:fs';
 import {build} from 'esbuild';
-const files=['app.js','support.js','style.css','manifest.json','privacy.html','questions/questions.js'];
-mkdirSync('www/questions',{recursive:true});
+const files=['app.js','support.js','style.css','manifest.json','privacy.html','questions/questions.js','signs/signs.js'];
+mkdirSync('www/questions',{recursive:true});mkdirSync('www/signs/img',{recursive:true});
+for(const f of readdirSync('../signs/img'))copyFileSync('../signs/img/'+f,'www/signs/img/'+f);
 for(const file of files)copyFileSync('../'+file,'www/'+file);
 let html=readFileSync('../index.html','utf8').replace('<script src="app.js"></script>','<script type="module" src="native-bootstrap.js"></script>');
 writeFileSync('www/index.html',html);

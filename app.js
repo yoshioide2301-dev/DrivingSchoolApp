@@ -386,6 +386,8 @@
   }
 
   var ICONS = {
+    sign:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M7.5 10h9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M12 17v5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
     gear:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4L10.6 6a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" transform="translate(-1 0)"/></svg>',
     target:
@@ -881,6 +883,7 @@
       "もう一度、一緒にやってみよう。",
       remaining > 0 ? '<span class="menu-badge">' + remaining + "</span>" : ""
     );
+    html += menuItemHtml("open-signs", "menu-icon--blue", ICONS.sign, "標識一覧", "形と色で、仕組みから覚えよう。", "");
     html += menuItemHtml("open-history", "menu-icon--blue", ICONS.chart, "学習履歴", "これまでの歩みを確認する。", "");
     html += menuItemHtml("open-training-notes", "menu-icon--green", ICONS.memo, "トレーニングメモ", "今日の気づきを残しておこう。", "");
     html += "</nav>";
@@ -916,6 +919,63 @@
       '<span class="menu-chevron" aria-hidden="true">›</span>' +
       "</button>"
     );
+  }
+
+  // ---------- v1.1：標識一覧（標識令 別表第一・第二の図と意味） ----------
+  var SIGN_CATS = ["規制標識", "指示標識", "警戒標識", "案内標識", "補助標識"];
+  function SIGNS_DATA() { return typeof SIGNS !== "undefined" && Array.isArray(SIGNS) ? SIGNS : []; }
+
+  function viewSigns() {
+    var cat = state.signCat || "規制標識";
+    var list = SIGNS_DATA().map(function (x, i) { return { x: x, i: i }; }).filter(function (o) {
+      return o.x.cat === cat && (!state.signOnlyQ || (o.x.kq && o.x.kq.length));
+    });
+    var html = '<div class="screen screen--signs">' + topBackHtml("go-home") +
+      '<h1 class="screen-title">標識一覧</h1>' +
+      '<p class="screen-lead">本標識は4種類（案内・警戒・規制・指示）。<br>その下に付く補助標識もあります。</p>' +
+      '<div class="sign-tabs" role="tablist">';
+    SIGN_CATS.forEach(function (c) {
+      html += '<button class="sign-tab' + (c === cat ? " is-active" : "") + '" role="tab" aria-selected="' + (c === cat) + '" data-action="sign-cat" data-cat="' + c + '">' + c.replace("標識", "") + '</button>';
+    });
+    html += '</div><button class="sign-filter' + (state.signOnlyQ ? " is-on" : "") + '" data-action="sign-only-q" aria-pressed="' + !!state.signOnlyQ + '">' +
+      (state.signOnlyQ ? "☑" : "☐") + ' ミチトの問題に出てくる標識だけ</button>';
+    if (!list.length) html += '<p class="empty-state">この種類には、問題に出てくる標識がありません。</p>';
+    html += '<div class="sign-grid">';
+    list.forEach(function (o) {
+      html += '<button class="sign-card" data-action="open-sign" data-index="' + o.i + '">' +
+        '<img src="' + o.x.img[0] + '" alt="" loading="lazy">' +
+        '<span class="sign-name">' + escapeHtml(o.x.name) + '<span class="sign-no">（' + escapeHtml(o.x.no) + '）</span></span>' +
+        (o.x.kq && o.x.kq.length ? '<span class="sign-badge">問題あり</span>' : '') + '</button>';
+    });
+    html += '</div><p class="settings-note sign-credit">図と意味：道路標識、区画線及び道路標示に関する命令 別表第一・第二（e-Gov 法令検索、2026年9月1日施行版）。図は法令の様式図（白黒・寸法入り）で、実物の標識は色が付いています。</p></div>';
+    return html;
+  }
+
+  function viewSignDetail() {
+    var x = SIGNS_DATA()[state.signIndex];
+    if (!x) return '<div class="empty-state">標識が見つかりません。</div>' + backHomeButtonHtml();
+    var html = '<div class="screen screen--sign-detail">' + topBackHtml("open-signs") +
+      '<p class="sign-cat-label">' + escapeHtml(x.cat) + '　（' + escapeHtml(x.no) + '）</p>' +
+      '<h1 class="screen-title">' + escapeHtml(x.name) + '</h1>';
+    x.img.forEach(function (src) { html += '<img class="sign-big" src="' + src + '" alt="' + escapeHtml(x.name) + 'の様式図">'; });
+    if (x.meaning) html += '<section class="panel sign-meaning"><h2>法令が定める意味</h2><p>' + escapeHtml(x.meaning) + '</p><p class="settings-note">標識令 別表第一「表示する意味」より（根拠の条を示す前置きは省略）。</p></section>';
+    if (x.kq && x.kq.length) html += '<button class="btn-pill btn-pill--wide" data-action="sign-questions">この標識の問題を解く（' + Math.min(x.kq.length, SESSION_SIZE) + '問） <span aria-hidden="true">→</span></button>';
+    html += '<button class="text-link" data-action="open-signs">一覧へ戻る</button></div>';
+    return html;
+  }
+
+  // 指定した問題だけで「今日の5問」と同じ流れを始める（標識から問題へ）
+  function startSessionWithIds(ids) {
+    var pool = getReviewedQuestions().filter(function (q) { return ids.indexOf(q.id) >= 0; });
+    if (!pool.length) return;
+    startSession(0);
+    if (!state.session) return;
+    state.session.questions = shuffle(pool).slice(0, SESSION_SIZE).map(function (q, idx) {
+      return Object.assign({}, q, withShuffledChoices(q), { _instanceKey: q.id + "_" + idx });
+    });
+    state.session.kyoshu = 3;
+    saveProgress();
+    render();
   }
 
   // ---------- ② 今日の10問（開始） ----------
@@ -1855,6 +1915,12 @@
       case "history":
         html = viewHistory();
         break;
+      case "signs":
+        html = viewSigns();
+        break;
+      case "signDetail":
+        html = viewSignDetail();
+        break;
       case "settings":
         html = viewSettings();
         break;
@@ -2061,6 +2127,21 @@
         break;
       case "open-history":
         openHistory();
+        break;
+      case "open-signs":
+        state.view = "signs"; render(); window.scrollTo(0, 0);
+        break;
+      case "sign-cat":
+        state.signCat = target.getAttribute("data-cat"); render();
+        break;
+      case "sign-only-q":
+        state.signOnlyQ = !state.signOnlyQ; render();
+        break;
+      case "open-sign":
+        state.signIndex = parseInt(target.getAttribute("data-index"), 10); state.view = "signDetail"; render(); window.scrollTo(0, 0);
+        break;
+      case "sign-questions":
+        startSessionWithIds((SIGNS_DATA()[state.signIndex] || {}).kq || []);
         break;
       case "go-home":
         goHome();
