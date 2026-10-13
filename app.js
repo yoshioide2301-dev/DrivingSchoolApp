@@ -883,7 +883,12 @@
       "もう一度、一緒にやってみよう。",
       remaining > 0 ? '<span class="menu-badge">' + remaining + "</span>" : ""
     );
-    html += menuItemHtml("open-signs", "menu-icon--blue", ICONS.sign, "標識一覧", "形と色で、仕組みから覚えよう。", "");
+    html += menuItemHtml("open-signs", "menu-icon--blue", ICONS.sign, "標識一覧", "203種類の標識と、法令が定める意味。", "");
+    if (TIPS().pairs.length) {
+      var weakPairs = tipsWeakIds().length;
+      html += menuItemHtml("open-tips-home", "menu-icon--pink", ICONS.sign, "標識の覚え方", "まちがえやすい組を一言で。すぐ1問。",
+        weakPairs > 0 ? '<span class="menu-badge">' + weakPairs + "</span>" : "");
+    }
     html += menuItemHtml("open-history", "menu-icon--blue", ICONS.chart, "学習履歴", "これまでの歩みを確認する。", "");
     html += menuItemHtml("open-training-notes", "menu-icon--green", ICONS.memo, "トレーニングメモ", "今日の気づきを残しておこう。", "");
     html += "</nav>";
@@ -936,7 +941,7 @@
     var html = '<div class="screen screen--signs">' + topBackHtml("go-home") +
       '<h1 class="screen-title">標識一覧</h1>' +
       '<p class="screen-lead">本標識は4種類（案内・警戒・規制・指示）。<br>その下に付く補助標識もあります。</p>' +
-      (TIPS().pairs.length ? '<button class="btn-pill btn-pill--wide tips-entry" data-action="open-tips">覚え方のコツ（まちがえ兄弟） <span aria-hidden="true">→</span></button>' : '') +
+      (TIPS().pairs.length ? '<button class="btn-pill btn-pill--wide tips-entry" data-action="open-tips">標識の覚え方（まちがえ兄弟） <span aria-hidden="true">→</span></button>' : '') +
       '<div class="sign-tabs" role="tablist">';
     SIGN_CATS.forEach(function (c) {
       html += '<button class="sign-tab' + (c === cat ? " is-active" : "") + '" role="tab" aria-selected="' + (c === cat) + '" data-action="sign-cat" data-cat="' + c + '">' + c.replace("標識", "") + '</button>';
@@ -987,8 +992,8 @@
 
   function viewSignTipsIntro() {
     var weak = tipsWeakIds().length;
-    var html = '<div class="screen screen--tips">' + topBackHtml("open-signs") +
-      '<h1 class="screen-title">覚え方のコツ</h1>' +
+    var html = '<div class="screen screen--tips">' + topBackHtml(state.tipsFrom || "open-signs") +
+      '<h1 class="screen-title">標識の覚え方</h1>' +
       '<p class="screen-lead">まず、形と色で種類をつかむ。<br>次に、まちがえやすい組を一言で見分ける。</p>' +
       '<section class="panel tips-map"><h2>① 形と色の地図</h2><p class="settings-note">種類ごとに、形と色がそろっています。</p>';
     TIPS().map.forEach(function (g) {
@@ -1019,7 +1024,7 @@
       html += '<h1 class="screen-title">おつかれさま！</h1><p class="screen-lead">' + t.order.length + '組を見終わりました。</p>' +
         (weak ? '<p class="tips-done">まだ苦手な組：<strong>' + weak + '組</strong></p><button class="btn-pill btn-pill--wide btn-pill--pink" data-action="tips-weak">苦手な組だけもう一度 <span aria-hidden="true">→</span></button>'
               : '<p class="tips-done">全部の組で正解しました！</p>') +
-        '<button class="text-link" data-action="open-signs">標識一覧へ戻る</button></div>';
+        (state.tipsFrom === "go-home" ? '<button class="text-link" data-action="go-home">ホームへ戻る</button>' : '<button class="text-link" data-action="open-signs">標識一覧へ戻る</button>') + '</div>';
       return html;
     }
     var p = tipsPair(t.order[t.pos]);
@@ -2236,7 +2241,11 @@
       case "open-sign":
         state.signIndex = parseInt(target.getAttribute("data-index"), 10); state.view = "signDetail"; render(); window.scrollTo(0, 0);
         break;
+      case "open-tips-home":
+        state.tipsFrom = "go-home"; state.tips = null; state.view = "signTips"; render(); window.scrollTo(0, 0);
+        break;
       case "open-tips":
+        if (state.view === "signs") state.tipsFrom = "open-signs";
         state.tips = null; state.view = "signTips"; render(); window.scrollTo(0, 0);
         break;
       case "tips-start":
