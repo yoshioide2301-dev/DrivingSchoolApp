@@ -25,8 +25,9 @@
 (function () {
   "use strict";
 
-  var APP_VERSION = "1.0";
-  var SESSION_SIZE = 10;
+  var APP_VERSION = "1.1";
+  var SESSION_SIZE = 5; // v1.1：教習番号（範囲）を選んで5問ずつ
+  var MAX_SAVED_SESSION = 10; // v1.0 の10問の途中保存も再開できるようにする
   var NOTE_MAX_LENGTH = 500;
 
   var STORAGE_KEYS = {
@@ -127,12 +128,33 @@
     });
   }
 
-  function buildSessionQuestions() {
-    var reviewedQuestions = getReviewedQuestions();
+  // v1.1：教習番号（学科教本 第1段階の1〜10）ごとの範囲。kyoshu が 0 のときは全範囲
+  function getChapters() {
+    var map = {};
+    getReviewedQuestions().forEach(function (q) {
+      if (!q.kyoshu) return;
+      if (!map[q.kyoshu]) map[q.kyoshu] = { kyoshu: q.kyoshu, name: q.kyoshuName || "", count: 0 };
+      map[q.kyoshu].count++;
+    });
+    return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return a.kyoshu - b.kyoshu; });
+  }
+
+  function chapterLabel(kyoshu) {
+    if (!kyoshu) return "全部の範囲";
+    var c = getChapters().find(function (x) { return x.kyoshu === kyoshu; });
+    return "教習番号" + kyoshu + (c && c.name ? "　" + c.name : "");
+  }
+
+  // avoidIds：直前に解いた問題。範囲の中でまだ解いていない問題を先に出す
+  function buildSessionQuestions(kyoshu, avoidIds) {
+    var reviewedQuestions = getReviewedQuestions().filter(function (q) { return !kyoshu || q.kyoshu === kyoshu; });
     if (reviewedQuestions.length === 0) {
       return [];
     }
-    var pool = [];
+    var avoid = Array.isArray(avoidIds) ? avoidIds : [];
+    var fresh = reviewedQuestions.filter(function (q) { return avoid.indexOf(q.id) < 0; });
+    var seen = reviewedQuestions.filter(function (q) { return avoid.indexOf(q.id) >= 0; });
+    var pool = shuffle(fresh).concat(shuffle(seen));
     while (pool.length < SESSION_SIZE) {
       pool = pool.concat(shuffle(reviewedQuestions));
     }
@@ -460,13 +482,15 @@
   }
 
   function openStart() {
-    startSession();
+    state.view = "start";
+    render();
   }
 
-  function startSession() {
+  function startSession(kyoshu, avoidIds) {
+    kyoshu = kyoshu || 0;
     state.view="home"; saveMock();
     saveProgress();
-    var sessionQuestions = buildSessionQuestions();
+    var sessionQuestions = buildSessionQuestions(kyoshu, avoidIds);
     if (sessionQuestions.length === 0) {
       // reviewStatus: "reviewed" の問題が1件もない場合のガード
       alert("現在、出題可能な問題がありません（reviewStatus: \"reviewed\" の問題が0件です）。");
@@ -475,6 +499,7 @@
     state.resumeNotice = null;
     state.session = {
       sessionId: generateSessionId(),
+      kyoshu: kyoshu,
       questions: sessionQuestions,
       currentIndex: 0,
       answers: [],
@@ -594,7 +619,7 @@
     var s = saved.session;
     var pool = getReviewedQuestions();
     if (typeof s.sessionId !== "string" || !Number.isFinite(s.startTime) ||
-        !Array.isArray(s.questions) || !s.questions.length || s.questions.length > SESSION_SIZE ||
+        !Array.isArray(s.questions) || !s.questions.length || s.questions.length > MAX_SAVED_SESSION ||
         !Number.isInteger(s.currentIndex) || s.currentIndex < 0 || s.currentIndex >= s.questions.length ||
         !Array.isArray(s.answers) || typeof s.answeredCurrent !== "boolean" ||
         s.answers.length !== s.currentIndex + (s.answeredCurrent ? 1 : 0) ||
@@ -682,7 +707,7 @@
     });
 
     var summary = {
-      sessionId: s.sessionId, completed: true,
+      sessionId: s.sessionId, completed: true, kyoshu: s.kyoshu || 0,
       date: s.date || todayDateString(),
       count: s.questions.length,
       correctCount: correctCount,
@@ -707,7 +732,9 @@
       mistakes: mistakes, // 現段階では画面遷移内でのみ保持し、localStorageへは保存しない
       // (正式問題投入後、間違い履歴の永続化を追加予定)
       mistakeTotal: mistakes.length, // 復習の進捗表示用（正解して一覧から消えても変化しない当初件数）
-      mistakeAll: mistakes.slice() // 一覧表示用（クリア済みも「クリア」として表示する）
+      mistakeAll: mistakes.slice(), // 一覧表示用（クリア済みも「クリア」として表示する）
+      kyoshu: s.kyoshu || 0,
+      questionIds: s.questions.map(function (q) { return q.id; }) // 「同じ範囲でもう5問」で重ならないように
     };
 
     state.session = null;
@@ -835,14 +862,14 @@
       '<div class="today-card-body">' +
       '<h2 class="today-card-title"><span class="today-card-icon">' +
       ICONS.target +
-      "</span>今日の10問</h2>" +
-      '<p class="today-card-sub">今日も10問、一緒にやろう。</p>' +
+      "</span>今日の5問</h2>" +
+      '<p class="today-card-sub">習った範囲を選んで、5問ずつ。</p>' +
       '<button class="btn-pill" data-action="open-start">はじめる <span aria-hidden="true">→</span></button>' +
       "</div>" +
       "</section>";
 
     html += '<section class="panel mock-home"><h2>仮免模試</h2><p>50問・30分。終わってから採点・復習。</p><button class="btn-pill" data-action="mock-open">模試に挑戦</button>' + (state.exam ? '<button class="text-link" data-action="mock-resume">模試の続きへ（時間は進みます）</button>' : '') + (getLocal(MOCK_RESULT_KEY,null) ? '<button class="text-link" data-action="mock-result">前回の模試結果</button>' : '') + '</section>';
-    if (savedSession()) html += '<button class="btn-pill btn-pill--block" data-action="resume-session">続きから再開</button><p class="settings-note">「はじめる」は新しい10問を1問目から開始します。途中までの履歴は残りますが、再開先は新しい学習に切り替わります。</p>';
+    if (savedSession()) html += '<button class="btn-pill btn-pill--block" data-action="resume-session">続きから再開</button><p class="settings-note">「はじめる」で範囲を選ぶと、新しい5問を1問目から開始します。途中までの履歴は残りますが、再開先は新しい学習に切り替わります。</p>';
     html += '</div><div class="home-side">';
 
     html += '<nav class="menu-list">';
@@ -894,19 +921,25 @@
   // ---------- ② 今日の10問（開始） ----------
 
   function viewStart() {
-    var stats = computeHomeStats();
-    return (
-      '<div class="screen screen--start">' +
+    var html = '<div class="screen screen--start screen--chapters">' +
       topBackHtml("go-home") +
-      '<h1 class="screen-title">今日の10問</h1>' +
-      '<p class="screen-lead">まずは10問。<br>自分のペースで進めよう。</p>' +
-      ringHtml(stats.todayCount, SESSION_SIZE, "ring--start") +
-      '<button class="btn-pill btn-pill--wide" data-action="start-session">ミチトと始める <span aria-hidden="true">→</span></button>' +
-      '<div class="ground-scene">' +
-      sceneSvg("ground") +
-      "</div>" +
-      "</div>"
-    );
+      '<h1 class="screen-title">今日の5問</h1>' +
+      '<p class="screen-lead">どの範囲を解く？<br>学科教本の教習番号で選べます。</p>' +
+      '<nav class="menu-list chapter-list">';
+    getChapters().forEach(function (c) {
+      html += '<button class="menu-item" data-action="start-chapter" data-kyoshu="' + c.kyoshu + '">' +
+        '<span class="menu-icon menu-icon--blue chapter-no">' + c.kyoshu + '</span>' +
+        '<span class="menu-body"><span class="menu-title">教習番号' + c.kyoshu + '　' + escapeHtml(c.name) + '</span>' +
+        '<span class="menu-sub">' + c.count + '問から5問</span></span>' +
+        '<span class="menu-chevron" aria-hidden="true">›</span></button>';
+    });
+    html += '<button class="menu-item" data-action="start-chapter" data-kyoshu="0">' +
+      '<span class="menu-icon menu-icon--green chapter-no">全</span>' +
+      '<span class="menu-body"><span class="menu-title">全部の範囲から</span>' +
+      '<span class="menu-sub">' + getReviewedQuestions().length + '問から5問</span></span>' +
+      '<span class="menu-chevron" aria-hidden="true">›</span></button>';
+    html += '</nav></div>';
+    return html;
   }
 
   // ---------- 今日の10問（○×回答 → 次問／任意解説 → 結果） ----------
@@ -938,7 +971,7 @@
       questionIdentityHtml(q) +
       '<div class="quiz-progress">' +
       '<div class="question-position">第' + (s.currentIndex + 1) + '問 <span>／全' + s.questions.length + '問</span></div>' +
-      '<div class="quiz-progress-label">今日の10問<span class="quiz-progress-count">' +
+      '<div class="quiz-progress-label">' + escapeHtml(s.kyoshu ? "教習番号" + s.kyoshu : "今日の5問") + '<span class="quiz-progress-count">' +
       (s.currentIndex + 1) +
       " / " +
       s.questions.length +
@@ -1235,7 +1268,8 @@
     var mistakeCount = data.mistakes.length;
 
     var html = '<div class="screen screen--result">';
-    html += '<h1 class="result-heading">今日の10問 終了！</h1>';
+    html += '<h1 class="result-heading">今日の5問 終了！</h1>';
+    html += '<p class="result-chapter">' + escapeHtml(chapterLabel(data.kyoshu)) + '</p>';
     html += ringHtml(s.correctCount, s.count, "ring--result");
     html += '<div class="result-accuracy">正答率 ' + s.accuracy + "%</div>";
     html += '<p class="result-time">学習時間 ' + timeText + "</p>";
@@ -1258,10 +1292,12 @@
     } else {
       html +=
         '<div class="retry-card retry-card--clear">' +
-        '<span class="retry-card-title">🎉 10問すべて正解！</span>' +
-        '<p class="retry-card-sub">この調子で、また明日も10問。</p>' +
+        '<span class="retry-card-title">🎉 ' + s.count + '問すべて正解！</span>' +
+        '<p class="retry-card-sub">この調子で、次の5問も一緒に。</p>' +
         "</div>";
     }
+    html += '<button class="btn-pill btn-pill--wide" data-action="start-same-chapter">同じ範囲でもう5問 <span aria-hidden="true">→</span></button>' +
+      '<button class="text-link" data-action="open-start">ほかの範囲を選ぶ</button>';
     if (!data.surveySubmitted) html += '<details class="session-survey"><summary>使い心地を伝える（任意）</summary>' +
       '<label for="session-survey-comment">気になったこと・改善してほしいこと</label>' +
       '<textarea id="session-survey-comment" class="comment-input" maxlength="500"></textarea>' +
@@ -1304,8 +1340,8 @@
 
     if (total === 0) {
       html +=
-        '<div class="panel"><div class="empty-state">間違えた問題はありません。<br>「今日の10問」や「仮免模試」で間違えた問題が、ここにたまります。</div></div>';
-      html += michitoTalkHtml("", "まずは今日の10問から。\n一緒に始めましょう。");
+        '<div class="panel"><div class="empty-state">間違えた問題はありません。<br>「今日の5問」や「仮免模試」で間違えた問題が、ここにたまります。</div></div>';
+      html += michitoTalkHtml("", "まずは今日の5問から。\n一緒に始めましょう。");
       html += backHomeButtonHtml();
       html += "</div>";
       return html;
@@ -1970,6 +2006,13 @@
         break;
       case "start-session":
         startSession();
+        break;
+      case "start-chapter":
+        startSession(parseInt(target.getAttribute("data-kyoshu"), 10) || 0);
+        break;
+      case "start-same-chapter":
+        if (state.lastSession) startSession(state.lastSession.kyoshu || 0, state.lastSession.questionIds);
+        else openStart();
         break;
       case "pick-choice":
         pickChoice(parseInt(target.getAttribute("data-index"), 10));

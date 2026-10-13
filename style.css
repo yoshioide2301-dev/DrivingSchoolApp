@@ -2335,3 +2335,11 @@ button.mistake-item:active {
 .support-panel code{overflow-wrap:anywhere;font-size:14px}
 .support-privacy{max-width:720px;margin:24px auto;line-height:1.8}
 .support-entry{display:block;margin:16px auto;text-align:center}
+
+/* v1.1：範囲（教習番号）を選ぶ画面と結果の範囲名 */
+.screen--chapters { text-align: left; }
+.screen--chapters .screen-title, .screen--chapters .screen-lead { text-align: center; }
+.chapter-list { margin-top: 16px; }
+.chapter-no { color: #fff; font-weight: 700; font-size: calc(18px * var(--fs)); }
+.result-chapter { margin: -4px 0 12px; text-align: center; color: var(--text-sub, inherit); font-weight: 600; }
+.screen--result .btn-pill + .btn-pill { margin-top: 12px; }
