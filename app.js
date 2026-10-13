@@ -925,6 +925,9 @@
   var SIGN_CATS = ["規制標識", "指示標識", "警戒標識", "案内標識", "補助標識"];
   function SIGNS_DATA() { return typeof SIGNS !== "undefined" && Array.isArray(SIGNS) ? SIGNS : []; }
 
+  // カラーの図（Commons）があればそれを、無ければ法令の様式図を使う
+  function signPic(x) { return x.cimg && x.cimg.length ? x.cimg : x.img; }
+
   function viewSigns() {
     var cat = state.signCat || "規制標識";
     var list = SIGNS_DATA().map(function (x, i) { return { x: x, i: i }; }).filter(function (o) {
@@ -943,11 +946,11 @@
     html += '<div class="sign-grid">';
     list.forEach(function (o) {
       html += '<button class="sign-card" data-action="open-sign" data-index="' + o.i + '">' +
-        '<img src="' + o.x.img[0] + '" alt="" loading="lazy">' +
+        '<img src="' + signPic(o.x)[0] + '" alt="" loading="lazy">' +
         '<span class="sign-name">' + escapeHtml(o.x.name) + '<span class="sign-no">（' + escapeHtml(o.x.no) + '）</span></span>' +
         (o.x.kq && o.x.kq.length ? '<span class="sign-badge">問題あり</span>' : '') + '</button>';
     });
-    html += '</div><p class="settings-note sign-credit">図と意味：道路標識、区画線及び道路標示に関する命令 別表第一・第二（e-Gov 法令検索、2026年9月1日施行版）。図は法令の様式図（白黒・寸法入り）で、実物の標識は色が付いています。</p></div>';
+    html += '</div><p class="settings-note sign-credit">意味：道路標識、区画線及び道路標示に関する命令 別表第一（e-Gov 法令検索、2026年9月1日施行版）。カラーの図：Wikimedia Commons（パブリックドメイン）。法令の様式図（別表第二）と1枚ずつ照らし合わせています。カラーの図が無いものは法令の様式図です。</p></div>';
     return html;
   }
 
@@ -957,7 +960,12 @@
     var html = '<div class="screen screen--sign-detail">' + topBackHtml("open-signs") +
       '<p class="sign-cat-label">' + escapeHtml(x.cat) + '　（' + escapeHtml(x.no) + '）</p>' +
       '<h1 class="screen-title">' + escapeHtml(x.name) + '</h1>';
-    x.img.forEach(function (src) { html += '<img class="sign-big" src="' + src + '" alt="' + escapeHtml(x.name) + 'の様式図">'; });
+    signPic(x).forEach(function (src) { html += '<img class="sign-big" src="' + src + '" alt="' + escapeHtml(x.name) + '">'; });
+    if (x.cimg && x.cimg.length) {
+      html += '<details class="sign-official"><summary>法令の様式図（別表第二）を見る</summary>';
+      x.img.forEach(function (src) { html += '<img class="sign-big" src="' + src + '" alt="' + escapeHtml(x.name) + 'の様式図">'; });
+      html += '</details>';
+    }
     if (x.meaning) html += '<section class="panel sign-meaning"><h2>法令が定める意味</h2><p>' + escapeHtml(x.meaning) + '</p><p class="settings-note">標識令 別表第一「表示する意味」より（根拠の条を示す前置きは省略）。</p></section>';
     if (x.kq && x.kq.length) html += '<button class="btn-pill btn-pill--wide" data-action="sign-questions">この標識の問題を解く（' + Math.min(x.kq.length, SESSION_SIZE) + '問） <span aria-hidden="true">→</span></button>';
     html += '<button class="text-link" data-action="open-signs">一覧へ戻る</button></div>';
