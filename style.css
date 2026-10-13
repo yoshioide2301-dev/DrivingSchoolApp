@@ -2359,6 +2359,3 @@ button.mistake-item:active {
 .sign-meaning p { overflow-wrap: anywhere; }
 .sign-credit { margin-top: 18px; }
 .sign-no { display: block; font-size: 11px; color: #6b7686; }
-.sign-official { margin: 4px 0 12px; }
-.sign-official summary { cursor: pointer; font-size: 14px; color: var(--muted, #8aa0c0); padding: 6px 0; }
-.sign-official .sign-big { max-width: 240px; }

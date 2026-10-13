@@ -961,11 +961,6 @@
       '<p class="sign-cat-label">' + escapeHtml(x.cat) + '　（' + escapeHtml(x.no) + '）</p>' +
       '<h1 class="screen-title">' + escapeHtml(x.name) + '</h1>';
     signPic(x).forEach(function (src) { html += '<img class="sign-big" src="' + src + '" alt="' + escapeHtml(x.name) + '">'; });
-    if (x.cimg && x.cimg.length) {
-      html += '<details class="sign-official"><summary>法令の様式図（別表第二）を見る</summary>';
-      x.img.forEach(function (src) { html += '<img class="sign-big" src="' + src + '" alt="' + escapeHtml(x.name) + 'の様式図">'; });
-      html += '</details>';
-    }
     if (x.meaning) html += '<section class="panel sign-meaning"><h2>法令が定める意味</h2><p>' + escapeHtml(x.meaning) + '</p><p class="settings-note">標識令 別表第一「表示する意味」より（根拠の条を示す前置きは省略）。</p></section>';
     if (x.kq && x.kq.length) html += '<button class="btn-pill btn-pill--wide" data-action="sign-questions">この標識の問題を解く（' + Math.min(x.kq.length, SESSION_SIZE) + '問） <span aria-hidden="true">→</span></button>';
     html += '<button class="text-link" data-action="open-signs">一覧へ戻る</button></div>';
