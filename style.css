@@ -2387,3 +2387,7 @@ button.mistake-item:active {
 .tips-verdict.is-ok { color: #1f9d55; }
 .tips-verdict.is-ng { color: var(--pink-dark, #c2254f); }
 .tips-done { text-align: center; font-size: calc(17px * var(--fs)); }
+/* 開発用：問題を番号で表示（設定の版数を5回押すと出る） */
+.dev-panel .dev-ids{display:block;width:100%;box-sizing:border-box;margin:8px 0;padding:12px;font:inherit;border:1px solid var(--border-strong);border-radius:10px;background:var(--surface);color:var(--text)}
+.dev-panel .text-link{display:block;margin-top:10px}
+.dev-card .question-text{margin:8px 0}

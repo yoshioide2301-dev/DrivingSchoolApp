@@ -1935,7 +1935,8 @@
     html += "</div>";
     html += "</section>";
 
-    html += '<p class="settings-note">ミチト v' + escapeHtml(APP_VERSION) + '</p>';
+    html += '<p class="settings-note" data-action="dev-tap">ミチト v' + escapeHtml(APP_VERSION) + '</p>';
+    if (isDevMode()) html += devSettingsHtml();
     html += '<p class="settings-note">設定はこの端末にだけ保存されます。学習履歴やメモには影響しません。</p>';
     html += backHomeButtonHtml();
     html += "</div>";
@@ -2025,6 +2026,9 @@
       case "settings":
         html = viewSettings();
         break;
+      case "devQuestions":
+        html = viewDevQuestions();
+        break;
       default:
         html = viewHome();
     }
@@ -2078,7 +2082,13 @@
     var deck=getLocal(MOCK_DECK_KEY,null), signature=poolIds.join(',');
     var remaining=deck && deck.signature===signature && Array.isArray(deck.remaining) && new Set(deck.remaining).size===deck.remaining.length && deck.remaining.every(function(id){return poolIds.indexOf(id)>=0;}) ? deck.remaining.slice() : [];
     if(remaining.length<50) remaining=remaining.concat(shuffle(poolIds.filter(function(id){return remaining.indexOf(id)<0;})));
-    var ids=remaining.splice(0,50), qs=ids.map(function(id){return pool.find(function(q){return q.id===id;});});
+    // 同じ論点の○×の裏返し（pairGroup が同じ問題）は、同じ回に入れず次の回へ回す（GPT の500問点検 10/15、本人OK）
+    var pairOf={}; pool.forEach(function(q){if(q.pairGroup)pairOf[q.id]=q.pairGroup;});
+    var ids=[], used={}, rest=[];
+    remaining.forEach(function(id){var g=pairOf[id]; if(ids.length<50&&!(g&&used[g])){ids.push(id);if(g)used[g]=1;} else rest.push(id);});
+    while(ids.length<50&&rest.length) ids.push(rest.shift());
+    remaining=rest;
+    var qs=ids.map(function(id){return pool.find(function(q){return q.id===id;});});
     state.storageWarning=!setLocal(MOCK_DECK_KEY,{signature:signature,remaining:remaining})||state.storageWarning;
     if(qs.length!==50) { alert('模試に必要な50問がそろっていません。');return; }
     if(state.exam) finishMock('restart');
@@ -2144,6 +2154,91 @@
     return html+'<button class="btn-pill mt-20" data-action="mock-open">もう一度挑戦する</button></section>';
   }
 
+  // ---------- 開発用：問題を番号で表示（本人の要望 10/15。利用者のメニューには出さない） ----------
+  // 設定の「ミチト v…」を3秒以内に5回押すと開発モードの切り替え。番号は ID（D-M080）でも元の番号（M7D-07-004）でもよく、「D-M264〜D-M308」のような範囲も使える。
+  var DEV_KEY = 'michito_dev_mode';
+  var devTaps = [];
+  function isDevMode() { return getLocal(DEV_KEY, false) === true; }
+  function latestVerifiedDate() {
+    return (questions || []).reduce(function (m, q) { return q.lastVerifiedDate && q.lastVerifiedDate > m ? q.lastVerifiedDate : m; }, '');
+  }
+  function devSettingsHtml() {
+    var d = latestVerifiedDate();
+    return '<section class="settings-group dev-panel"><h2 class="settings-label">開発用：問題を番号で表示</h2>' +
+      '<p class="settings-note">番号を空白か「,」で区切って入れます。ID（D-M080）でも元の番号（M7D-07-004）でもかまいません。範囲は「D-M264〜D-M308」。</p>' +
+      '<textarea id="dev-ids" class="dev-ids" rows="3" placeholder="D-C106 D-M080 M7F-01-005">' + escapeHtml(state.devQuery || '') + '</textarea>' +
+      '<button class="btn-pill" data-action="dev-show">表示する</button>' +
+      '<button class="text-link" data-action="dev-show" data-preset="latest">最近直した・入れた問題（' + escapeHtml(d) + '）</button>' +
+      '<button class="text-link" data-action="dev-show" data-preset="excluded">出題から外した問題</button>' +
+      '<button class="text-link" data-action="dev-off">開発モードを終える</button></section>';
+  }
+  function devNorm(s) {
+    return String(s).replace(/[Ａ-Ｚａ-ｚ０-９－]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }).toUpperCase().replace(/^MCT:/, '').trim();
+  }
+  function devFind(text) {
+    var all = questions || [], out = [], missing = [];
+    var add = function (q) { if (out.indexOf(q) < 0) out.push(q); };
+    devNorm(text).split(/[\s,、，]+/).filter(Boolean).forEach(function (tok) {
+      var r = tok.split(/[〜~～]/);
+      if (r.length === 2) {
+        var m1 = /^(.*?)(\d+)$/.exec(r[0]), m2 = /^(.*?)(\d+)$/.exec(r[1]);
+        if (m1 && m2 && m1[1] === m2[1]) {
+          for (var n = +m1[2]; n <= +m2[2]; n++) {
+            var id = m1[1] + String(n).padStart(m1[2].length, '0');
+            var q = all.find(function (x) { return x.id === id || x.draftId === id; });
+            if (q) add(q); else missing.push(id);
+          }
+          return;
+        }
+      }
+      var hit = all.filter(function (x) { return x.id === tok || x.draftId === tok; });
+      if (hit.length) hit.forEach(add); else missing.push(tok);
+    });
+    return { list: out, missing: missing };
+  }
+  function viewDevQuestions() {
+    var r = state.devResult || { list: [], missing: [] };
+    var html = '<div class="screen screen--settings">' + topBackHtml('open-settings');
+    html += '<h1 class="screen-title screen-title--left">問題の確認（開発用）</h1>';
+    html += '<p class="screen-lead screen-lead--left">' + r.list.length + '問' + (r.missing.length ? ' ／ 見つからない番号：' + escapeHtml(r.missing.join(' ')) : '') + '</p>';
+    r.list.forEach(function (q) {
+      var out = q.reviewStatus !== REVIEWED_STATUS;
+      html += '<section class="panel dev-card">' +
+        '<p class="question-identity">ID：<strong>' + escapeHtml(q.id) + '</strong>' + (q.draftId ? ' ／ 元の番号：' + escapeHtml(q.draftId) : '') + (q.kyoshu ? ' ／ 教習' + q.kyoshu : '') + (out ? ' ／ <strong>出題しない（' + escapeHtml(q.reviewStatus) + '）</strong>' : '') + '</p>' +
+        '<p class="question-text">' + escapeHtml(q.question) + '</p>' +
+        '<p class="explain-text"><strong>答え：' + escapeHtml(q.choices[q.correct] || '') + '</strong></p>' +
+        '<p class="explain-text">' + escapeHtml(q.explanation || '') + '</p>' +
+        legalBasisHtml(q) +
+        (q.quote ? '<p class="settings-note">引用：' + escapeHtml(q.quote) + '</p>' : '') +
+        (q.excludedReason ? '<p class="settings-note">外した理由：' + escapeHtml(q.excludedReason) + '</p>' : '') +
+        (q.lastVerifiedDate ? '<p class="settings-note">最終確認日：' + escapeHtml(q.lastVerifiedDate) + '</p>' : '') +
+        '</section>';
+    });
+    html += '<button class="btn-pill" data-action="open-settings">番号を入れ直す</button></div>';
+    return html;
+  }
+  function devAction(action, target) {
+    if (action === 'dev-tap') {
+      var now = Date.now();
+      devTaps = devTaps.filter(function (t) { return now - t < 3000; }).concat(now);
+      if (devTaps.length >= 5) {
+        devTaps = [];
+        setLocal(DEV_KEY, !isDevMode());
+        alert(isDevMode() ? '開発モードにしました（問題を番号で表示できます）' : '開発モードを終えました');
+        render({ keepScroll: true });
+      }
+      return;
+    }
+    if (action === 'dev-off') { setLocal(DEV_KEY, false); render(); return; }
+    if (action === 'dev-show') {
+      var preset = target.getAttribute('data-preset');
+      if (preset === 'latest') { var d = latestVerifiedDate(); state.devResult = { list: questions.filter(function (q) { return q.lastVerifiedDate === d; }), missing: [] }; }
+      else if (preset === 'excluded') state.devResult = { list: questions.filter(function (q) { return q.reviewStatus !== REVIEWED_STATUS && q.reviewStatus !== 'mock'; }), missing: [] };
+      else { var el = document.getElementById('dev-ids'); state.devQuery = el ? el.value : ''; state.devResult = devFind(state.devQuery); }
+      state.view = 'devQuestions'; render();
+    }
+  }
+
   // ---------- イベント委譲 ----------
 
   appEl.addEventListener("click", function (event) {
@@ -2158,6 +2253,7 @@
     }
 
     if(action.indexOf("mock-")===0){mockAction(action,target);return;}
+    if(action.indexOf("dev-")===0){devAction(action,target);return;}
     switch (action) {
       case "open-start":
         openStart();

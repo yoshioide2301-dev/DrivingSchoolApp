@@ -494,7 +494,8 @@ const questions = [
     "kyoshuName": "通行するところ",
     "ref": "道路交通法 第20条第1項",
     "sourceURL": "https://laws.e-gov.go.jp/law/335AC0000000105",
-    "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）"
+    "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
+    "pairGroup": "P12"
   },
   {
     "id": "D-C015",
@@ -1626,7 +1627,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 4,
     "kyoshuName": "通行するところ",
-    "ref": "道路交通法 第20条第2項"
+    "ref": "道路交通法 第20条第2項",
+    "pairGroup": "P11"
   },
   {
     "id": "D-C062",
@@ -1654,7 +1656,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 4,
     "kyoshuName": "通行するところ",
-    "ref": "道路交通法 第20条第1項"
+    "ref": "道路交通法 第20条第1項",
+    "pairGroup": "P12"
   },
   {
     "id": "D-C063",
@@ -1686,7 +1689,7 @@ const questions = [
   },
   {
     "id": "D-C064",
-    "reviewStatus": "reviewed",
+    "reviewStatus": "excluded",
     "type": "truefalse",
     "category": "車両通行帯",
     "question": "車両通行帯のある道路で普通乗用車が追越しをするときは、直近の右側ではなく、一つ飛ばした右側の通行帯を使うのが原則である。",
@@ -1700,7 +1703,7 @@ const questions = [
     "sourceURL": "https://laws.e-gov.go.jp/law/335AC0000000105",
     "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
     "sourceSection": "道路交通法 第20条第3項",
-    "lastVerifiedDate": "2026-10-12",
+    "lastVerifiedDate": "2026-10-15",
     "stage": "first",
     "topic": "車両通行帯",
     "difficulty": 2,
@@ -1710,7 +1713,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 9,
     "kyoshuName": "優先・追越し・行き違い",
-    "ref": "道路交通法 第20条第3項"
+    "ref": "道路交通法 第20条第3項",
+    "excludedReason": "D-C063 とほぼ同じ問題（GPT の500問点検 10/15、本人OK）"
   },
   {
     "id": "D-C065",
@@ -1910,7 +1914,7 @@ const questions = [
   },
   {
     "id": "D-C072",
-    "reviewStatus": "reviewed",
+    "reviewStatus": "excluded",
     "type": "truefalse",
     "category": "速度",
     "question": "一般道路に最低速度の指定があっても、危険防止のためやむを得ない場合には、その速度を下回れる。",
@@ -1924,7 +1928,7 @@ const questions = [
     "sourceURL": "https://laws.e-gov.go.jp/law/335AC0000000105",
     "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
     "sourceSection": "道路交通法 第23条第1項",
-    "lastVerifiedDate": "2026-10-12",
+    "lastVerifiedDate": "2026-10-15",
     "stage": "first",
     "topic": "速度",
     "difficulty": 2,
@@ -1934,7 +1938,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 6,
     "kyoshuName": "速度と車間距離",
-    "ref": "道路交通法 第23条"
+    "ref": "道路交通法 第23条",
+    "excludedReason": "D-C071 とほぼ同じ問題（GPT の500問点検 10/15、本人OK）"
   },
   {
     "id": "D-C073",
@@ -2130,7 +2135,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 8,
     "kyoshuName": "安全確認・合図・進路変更",
-    "ref": "道路交通法 第25条の2第2項"
+    "ref": "道路交通法 第25条の2第2項",
+    "pairGroup": "P15"
   },
   {
     "id": "D-C080",
@@ -2383,7 +2389,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 9,
     "kyoshuName": "優先・追越し・行き違い",
-    "ref": "道路交通法 第28条第3項"
+    "ref": "道路交通法 第28条第3項",
+    "pairGroup": "P13"
   },
   {
     "id": "D-C089",
@@ -2411,7 +2418,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 9,
     "kyoshuName": "優先・追越し・行き違い",
-    "ref": "道路交通法 第28条第4項"
+    "ref": "道路交通法 第28条第4項",
+    "pairGroup": "P02"
   },
   {
     "id": "D-C090",
@@ -2439,7 +2447,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 9,
     "kyoshuName": "優先・追越し・行き違い",
-    "ref": "道路交通法 第28条第4項"
+    "ref": "道路交通法 第28条第4項",
+    "pairGroup": "P02"
   },
   {
     "id": "D-C091",
@@ -2635,7 +2644,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 7,
     "kyoshuName": "歩行者の保護",
-    "ref": "道路交通法 第31条"
+    "ref": "道路交通法 第31条",
+    "pairGroup": "P14"
   },
   {
     "id": "D-C098",
@@ -3562,7 +3572,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 2,
     "kyoshuName": "信号",
-    "ref": "道路交通法施行令 第2条第1項"
+    "ref": "道路交通法施行令 第2条第1項",
+    "pairGroup": "P04"
   },
   {
     "id": "D-C152",
@@ -3590,7 +3601,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 2,
     "kyoshuName": "信号",
-    "ref": "道路交通法施行令 第2条第1項"
+    "ref": "道路交通法施行令 第2条第1項",
+    "pairGroup": "P03"
   },
   {
     "id": "D-C153",
@@ -3650,7 +3662,7 @@ const questions = [
   },
   {
     "id": "D-C155",
-    "reviewStatus": "reviewed",
+    "reviewStatus": "excluded",
     "type": "truefalse",
     "category": "信号",
     "question": "歩行者用信号が青色点滅でも、歩行者は急いで渡り切れると判断すれば、新たに横断を始めてよい。",
@@ -3664,7 +3676,7 @@ const questions = [
     "sourceURL": "https://laws.e-gov.go.jp/law/335CO0000000270",
     "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
     "sourceSection": "道路交通法施行令 第2条第1項",
-    "lastVerifiedDate": "2026-10-12",
+    "lastVerifiedDate": "2026-10-15",
     "stage": "first",
     "topic": "信号",
     "difficulty": 2,
@@ -3674,7 +3686,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 2,
     "kyoshuName": "信号",
-    "ref": "道路交通法施行令 第2条第1項"
+    "ref": "道路交通法施行令 第2条第1項",
+    "excludedReason": "D-M033 とほぼ同じ問題（GPT の500問点検 10/15、本人OK）"
   },
   {
     "id": "D-C156",
@@ -3846,7 +3859,7 @@ const questions = [
   },
   {
     "id": "D-C162",
-    "reviewStatus": "reviewed",
+    "reviewStatus": "excluded",
     "type": "truefalse",
     "category": "合図の時期",
     "question": "車線を変える合図は、変更しようとする地点の30m手前に達したときに出す決まりである。",
@@ -3860,7 +3873,7 @@ const questions = [
     "sourceURL": "https://laws.e-gov.go.jp/law/335CO0000000270",
     "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
     "sourceSection": "道路交通法施行令 第21条第1項",
-    "lastVerifiedDate": "2026-10-12",
+    "lastVerifiedDate": "2026-10-15",
     "stage": "first",
     "topic": "合図の時期",
     "difficulty": 2,
@@ -3870,7 +3883,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 8,
     "kyoshuName": "安全確認・合図・進路変更",
-    "ref": "道路交通法施行令 第21条第1項"
+    "ref": "道路交通法施行令 第21条第1項",
+    "excludedReason": "D-C163 とほぼ同じ問題（GPT の500問点検 10/15、本人OK）"
   },
   {
     "id": "D-C163",
@@ -3954,7 +3968,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 6,
     "kyoshuName": "速度と車間距離",
-    "ref": "道路交通法 第2条第1項第20号"
+    "ref": "道路交通法 第2条第1項第20号",
+    "pairGroup": "P05"
   },
   {
     "id": "D-C166",
@@ -3982,7 +3997,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 6,
     "kyoshuName": "速度と車間距離",
-    "ref": "道路交通法 第2条第1項第20号"
+    "ref": "道路交通法 第2条第1項第20号",
+    "pairGroup": "P05"
   },
   {
     "id": "D-C169",
@@ -4010,7 +4026,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 9,
     "kyoshuName": "優先・追越し・行き違い",
-    "ref": "道路交通法 第2条第1項第21号"
+    "ref": "道路交通法 第2条第1項第21号",
+    "pairGroup": "P06"
   },
   {
     "id": "D-C170",
@@ -4098,7 +4115,7 @@ const questions = [
   },
   {
     "id": "D-C173",
-    "reviewStatus": "reviewed",
+    "reviewStatus": "excluded",
     "type": "truefalse",
     "category": "仮免許",
     "question": "仮免許で練習するとき、所定の指導者は運転者席の横の座席に同乗する。",
@@ -4112,7 +4129,7 @@ const questions = [
     "sourceURL": "https://laws.e-gov.go.jp/law/335AC0000000105",
     "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
     "sourceSection": "道路交通法 第87条第2項",
-    "lastVerifiedDate": "2026-10-12",
+    "lastVerifiedDate": "2026-10-15",
     "stage": "first",
     "topic": "仮免許",
     "difficulty": 2,
@@ -4122,7 +4139,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 10,
     "kyoshuName": "運転免許制度",
-    "ref": "道路交通法 第87条第2項"
+    "ref": "道路交通法 第87条第2項",
+    "excludedReason": "D-C172 とほぼ同じ問題（GPT の500問点検 10/15、本人OK）"
   },
   {
     "id": "D-C174",
@@ -4346,7 +4364,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 7,
     "kyoshuName": "歩行者の保護",
-    "ref": "道路交通法 第71条第1号"
+    "ref": "道路交通法 第71条第1号",
+    "pairGroup": "P01"
   },
   {
     "id": "D-C182",
@@ -4374,7 +4393,8 @@ const questions = [
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
     "kyoshu": 7,
     "kyoshuName": "歩行者の保護",
-    "ref": "道路交通法 第71条第1号"
+    "ref": "道路交通法 第71条第1号",
+    "pairGroup": "P01"
   },
   {
     "id": "D-C183",
@@ -4998,7 +5018,8 @@ const questions = [
       "第1段階"
     ],
     "type": "truefalse",
-    "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）"
+    "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
+    "pairGroup": "P07"
   },
   {
     "id": "D-N009",
@@ -5317,7 +5338,8 @@ const questions = [
       "第1段階"
     ],
     "type": "truefalse",
-    "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）"
+    "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
+    "pairGroup": "P08"
   },
   {
     "id": "D-N020",
@@ -5607,7 +5629,8 @@ const questions = [
       "第1段階"
     ],
     "type": "truefalse",
-    "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）"
+    "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
+    "pairGroup": "P07"
   },
   {
     "id": "D-N030",
@@ -5723,7 +5746,8 @@ const questions = [
       "第1段階"
     ],
     "type": "truefalse",
-    "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）"
+    "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）",
+    "pairGroup": "P09"
   },
   {
     "id": "D-N034",
@@ -6097,7 +6121,7 @@ const questions = [
   },
   {
     "id": "D-M012",
-    "reviewStatus": "reviewed",
+    "reviewStatus": "excluded",
     "stage": "first",
     "kyoshu": 1,
     "kyoshuName": "運転者の心得",
@@ -6116,7 +6140,7 @@ const questions = [
     "sourceURL": "https://laws.e-gov.go.jp/law/335AC0000000105",
     "sourceSection": "道路交通法 第71条第5号の3",
     "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
-    "lastVerifiedDate": "2026-10-14",
+    "lastVerifiedDate": "2026-10-15",
     "difficulty": 1,
     "tags": [
       "運転者の心得",
@@ -6124,7 +6148,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7-01-012",
-    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）"
+    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）",
+    "excludedReason": "D-C191 とほぼ同じ問題（GPT の500問点検 10/15、本人OK）"
   },
   {
     "id": "D-M013",
@@ -6868,7 +6893,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7-02-011",
-    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）"
+    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）",
+    "pairGroup": "P03"
   },
   {
     "id": "D-M037",
@@ -6899,7 +6925,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7-02-012",
-    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）"
+    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）",
+    "pairGroup": "P04"
   },
   {
     "id": "D-M038",
@@ -7675,7 +7702,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7C-03-001",
-    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）"
+    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）",
+    "pairGroup": "P15"
   },
   {
     "id": "D-M063",
@@ -7985,7 +8013,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7-04-006",
-    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）"
+    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）",
+    "pairGroup": "P11"
   },
   {
     "id": "D-M073",
@@ -8452,7 +8481,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7-05-001",
-    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）"
+    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）",
+    "pairGroup": "P10"
   },
   {
     "id": "D-M088",
@@ -8948,7 +8978,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7B-05-009",
-    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）"
+    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）",
+    "pairGroup": "P10"
   },
   {
     "id": "D-M104",
@@ -9263,7 +9294,7 @@ const questions = [
   },
   {
     "id": "D-M114",
-    "reviewStatus": "reviewed",
+    "reviewStatus": "excluded",
     "stage": "first",
     "kyoshu": 6,
     "kyoshuName": "速度と車間距離",
@@ -9282,7 +9313,7 @@ const questions = [
     "sourceURL": "https://laws.e-gov.go.jp/law/335AC0000000105",
     "sourceSection": "道路交通法 第70条",
     "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
-    "lastVerifiedDate": "2026-10-14",
+    "lastVerifiedDate": "2026-10-15",
     "difficulty": 1,
     "tags": [
       "速度と車間距離",
@@ -9290,7 +9321,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7B-06-002",
-    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）"
+    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）",
+    "excludedReason": "D-C043 とほぼ同じ問題（GPT の500問点検 10/15、本人OK）"
   },
   {
     "id": "D-M115",
@@ -9791,7 +9823,7 @@ const questions = [
   },
   {
     "id": "D-M131",
-    "reviewStatus": "reviewed",
+    "reviewStatus": "excluded",
     "stage": "first",
     "kyoshu": 7,
     "kyoshuName": "歩行者の保護",
@@ -9810,7 +9842,7 @@ const questions = [
     "sourceURL": "https://laws.e-gov.go.jp/law/335CO0000000270",
     "sourceSection": "道路交通法施行令 第8条第1項",
     "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
-    "lastVerifiedDate": "2026-10-14",
+    "lastVerifiedDate": "2026-10-15",
     "difficulty": 1,
     "tags": [
       "歩行者の保護",
@@ -9818,7 +9850,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7B-07-006",
-    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）"
+    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）",
+    "excludedReason": "D-M303 とほぼ同じ問題（GPT の500問点検 10/15、本人OK）"
   },
   {
     "id": "D-M132",
@@ -10163,7 +10196,7 @@ const questions = [
   },
   {
     "id": "D-M143",
-    "reviewStatus": "reviewed",
+    "reviewStatus": "excluded",
     "stage": "first",
     "kyoshu": 8,
     "kyoshuName": "安全確認・合図・進路変更",
@@ -10182,7 +10215,7 @@ const questions = [
     "sourceURL": "https://laws.e-gov.go.jp/law/335CO0000000270",
     "sourceSection": "道路交通法施行令 第21条第1項表",
     "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
-    "lastVerifiedDate": "2026-10-14",
+    "lastVerifiedDate": "2026-10-15",
     "difficulty": 1,
     "tags": [
       "安全確認・合図・進路変更",
@@ -10190,7 +10223,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7B-08-004",
-    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）"
+    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）",
+    "excludedReason": "D-C163 とほぼ同じ問題（GPT の500問点検 10/15、本人OK）"
   },
   {
     "id": "D-M144",
@@ -10439,7 +10473,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7-09-001",
-    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）"
+    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）",
+    "pairGroup": "P13"
   },
   {
     "id": "D-M152",
@@ -10568,7 +10603,7 @@ const questions = [
   },
   {
     "id": "D-M156",
-    "reviewStatus": "reviewed",
+    "reviewStatus": "excluded",
     "stage": "first",
     "kyoshu": 9,
     "kyoshuName": "優先・追越し・行き違い",
@@ -10587,7 +10622,7 @@ const questions = [
     "sourceURL": "https://laws.e-gov.go.jp/law/335AC0000000105",
     "sourceSection": "道路交通法 第40条第1項",
     "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
-    "lastVerifiedDate": "2026-10-14",
+    "lastVerifiedDate": "2026-10-15",
     "difficulty": 1,
     "tags": [
       "優先・追越し・行き違い",
@@ -10595,7 +10630,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7-09-006",
-    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）"
+    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）",
+    "excludedReason": "D-C115 とほぼ同じ問題（GPT の500問点検 10/15、本人OK）"
   },
   {
     "id": "D-M157",
@@ -10688,7 +10724,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7B-09-003",
-    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）"
+    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）",
+    "pairGroup": "P06"
   },
   {
     "id": "D-M160",
@@ -10781,7 +10818,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7B-09-007",
-    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）"
+    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）",
+    "pairGroup": "P14"
   },
   {
     "id": "D-M163",
@@ -11184,7 +11222,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7-10-014",
-    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）"
+    "reviewMethod": "M7：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → 本人が取捨（2026-10-13）／M7 独立照合（GPT、2026-10-14）を受けて引用・根拠欄・設問を直す（本人OK）",
+    "pairGroup": "P09"
   },
   {
     "id": "D-M176",
@@ -13018,7 +13057,7 @@ const questions = [
   },
   {
     "id": "D-M235",
-    "reviewStatus": "reviewed",
+    "reviewStatus": "excluded",
     "stage": "first",
     "kyoshu": 5,
     "kyoshuName": "交差点・踏切",
@@ -13037,7 +13076,7 @@ const questions = [
     "sourceURL": "https://laws.e-gov.go.jp/law/335AC0000000105",
     "sourceSection": "道路交通法 第34条第4項",
     "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
-    "lastVerifiedDate": "2026-10-14",
+    "lastVerifiedDate": "2026-10-15",
     "difficulty": 1,
     "tags": [
       "交差点・踏切",
@@ -13045,7 +13084,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7E-05-002",
-    "reviewMethod": "M7 第4・5弾：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → GPT の独立照合（別チャット）→ 本人OK（2026-10-14）"
+    "reviewMethod": "M7 第4・5弾：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → GPT の独立照合（別チャット）→ 本人OK（2026-10-14）",
+    "excludedReason": "D-M236 とほぼ同じ問題（GPT の500問点検 10/15、本人OK）"
   },
   {
     "id": "D-M236",
@@ -13169,7 +13209,8 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7E-05-006",
-    "reviewMethod": "M7 第4・5弾：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → GPT の独立照合（別チャット）→ 本人OK（2026-10-14） ／ 10/15 本人の例文をもとに書き直し（照合3・本人の Excel の判断）"
+    "reviewMethod": "M7 第4・5弾：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → GPT の独立照合（別チャット）→ 本人OK（2026-10-14） ／ 10/15 本人の例文をもとに書き直し（照合3・本人の Excel の判断）",
+    "pairGroup": "P08"
   },
   {
     "id": "D-M240",
@@ -15039,7 +15080,7 @@ const questions = [
     "kyoshuName": "歩行者の保護",
     "category": "歩行者の保護",
     "topic": "歩行者の保護",
-    "question": "普通自転車通行指定部分に歩行者がいないときは、歩道の状況に応じた安全な速度と方法で通行できる。",
+    "question": "普通自転車通行指定部分を通行中または通行予定の歩行者がいなければ、歩道の状況に応じた安全な速度で進める。",
     "choices": [
       "○",
       "×"
@@ -15060,7 +15101,7 @@ const questions = [
     ],
     "type": "truefalse",
     "draftId": "M7F-07-003",
-    "reviewMethod": "M7 第6弾（○の新問題）：照合3：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → GPT の独立照合（別チャット）→ 本人の判断（2026-10-15）"
+    "reviewMethod": "M7 第6弾（○の新問題）：照合3：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → GPT の独立照合（別チャット）→ 本人の判断（2026-10-15） ／ 10/15 照合3の直した後の文に戻す（GPT の500問点検で D-M255 との食い違い、本人OK）"
   },
   {
     "id": "D-M301",
@@ -15309,5 +15350,129 @@ const questions = [
     "type": "truefalse",
     "draftId": "M7G-10-009",
     "reviewMethod": "M7 第7弾：照合4：GPT の下書き → 引用を条文と機械照合・Claude の読み合わせ → GPT の独立照合（別チャット）→ 本人の判断（2026-10-15）"
+  },
+  {
+    "id": "D-M309",
+    "reviewStatus": "reviewed",
+    "stage": "first",
+    "kyoshu": 3,
+    "kyoshuName": "標識・標示",
+    "category": "標識・標示",
+    "topic": "標識・標示",
+    "question": "「直角駐車」の標識は、道路の側端に対して直角に駐車することを指定する。",
+    "choices": [
+      "○",
+      "×"
+    ],
+    "correct": 0,
+    "explanation": "道路の側端を基準にして、車を直角に駐車します。",
+    "ref": "道路標識、区画線及び道路標示に関する命令 別表第一・直角駐車（３２７の１２）",
+    "quote": "直角駐車 | （３２７の１２） | ……車両が道路の側端に対し直角に駐車すべきこと……を指定すること。",
+    "source": "道路標識、区画線及び道路標示に関する命令",
+    "sourceURL": "https://laws.e-gov.go.jp/law/335M50004002003",
+    "sourceSection": "道路標識、区画線及び道路標示に関する命令 別表第一・直角駐車（３２７の１２）",
+    "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
+    "lastVerifiedDate": "2026-10-15",
+    "difficulty": 1,
+    "tags": [
+      "標識・標示",
+      "第1段階"
+    ],
+    "type": "truefalse",
+    "draftId": "M7I-03-008",
+    "reviewMethod": "M7 第9弾：照合6の直し案（500問点検で外した重複の補充、本人OK 2026-10-15）"
+  },
+  {
+    "id": "D-M310",
+    "reviewStatus": "reviewed",
+    "stage": "first",
+    "kyoshu": 3,
+    "kyoshuName": "標識・標示",
+    "category": "標識・標示",
+    "topic": "標識・標示",
+    "question": "「斜め駐車」の標識は、道路の側端に対して斜めに駐車することを指定する。",
+    "choices": [
+      "○",
+      "×"
+    ],
+    "correct": 0,
+    "explanation": "道路の側端を基準にして、車を斜めに駐車します。",
+    "ref": "道路標識、区画線及び道路標示に関する命令 別表第一・斜め駐車（３２７の１３）",
+    "quote": "斜め駐車 | （３２７の１３） | ……車両が道路の側端に対し斜めに駐車すべきこと……を指定すること。",
+    "source": "道路標識、区画線及び道路標示に関する命令",
+    "sourceURL": "https://laws.e-gov.go.jp/law/335M50004002003",
+    "sourceSection": "道路標識、区画線及び道路標示に関する命令 別表第一・斜め駐車（３２７の１３）",
+    "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
+    "lastVerifiedDate": "2026-10-15",
+    "difficulty": 1,
+    "tags": [
+      "標識・標示",
+      "第1段階"
+    ],
+    "type": "truefalse",
+    "draftId": "M7I-03-009",
+    "reviewMethod": "M7 第9弾：照合6の直し案（500問点検で外した重複の補充、本人OK 2026-10-15）"
+  },
+  {
+    "id": "D-M311",
+    "reviewStatus": "reviewed",
+    "stage": "first",
+    "kyoshu": 3,
+    "kyoshuName": "標識・標示",
+    "category": "標識・標示",
+    "topic": "標識・標示",
+    "question": "「車両の種類」の補助標識は、本標識の規制の対象となる車両を特定する。",
+    "choices": [
+      "○",
+      "×"
+    ],
+    "correct": 0,
+    "explanation": "本標識の規制がどの車両に適用されるかを示します。",
+    "ref": "道路標識、区画線及び道路標示に関する命令 別表第一・車両の種類（５０３―Ａ）",
+    "quote": "車両の種類 | （５０３―Ａ） | 本標識が表示する交通の規制の対象となる車両を特定するため必要な事項を示すこと。",
+    "source": "道路標識、区画線及び道路標示に関する命令",
+    "sourceURL": "https://laws.e-gov.go.jp/law/335M50004002003",
+    "sourceSection": "道路標識、区画線及び道路標示に関する命令 別表第一・車両の種類（５０３―Ａ）",
+    "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
+    "lastVerifiedDate": "2026-10-15",
+    "difficulty": 1,
+    "tags": [
+      "標識・標示",
+      "第1段階"
+    ],
+    "type": "truefalse",
+    "draftId": "M7I-03-011",
+    "reviewMethod": "M7 第9弾：照合6の直し案（500問点検で外した重複の補充、本人OK 2026-10-15）"
+  },
+  {
+    "id": "D-M312",
+    "reviewStatus": "reviewed",
+    "stage": "first",
+    "kyoshu": 3,
+    "kyoshuName": "標識・標示",
+    "category": "標識・標示",
+    "topic": "標識・標示",
+    "question": "施設の案内に付く「距離・区域」の補助標識は、その施設までの距離を示す。",
+    "choices": [
+      "○",
+      "×"
+    ],
+    "correct": 0,
+    "explanation": "案内されている施設まで、あとどのくらいの距離があるかを示します。",
+    "ref": "道路標識、区画線及び道路標示に関する命令 別表第一・距離・区域（５０１）",
+    "quote": "距離・区域 | （５０１） | 本標識が表示する施設若しくは場所までの距離、本標識が表示する交通の規制が行なわれている区間若しくは場所についての必要な距離又は本標識が表示する交通の規制が行なわれている区域を示すこと。",
+    "source": "道路標識、区画線及び道路標示に関する命令",
+    "sourceURL": "https://laws.e-gov.go.jp/law/335M50004002003",
+    "sourceSection": "道路標識、区画線及び道路標示に関する命令 別表第一・距離・区域（５０１）",
+    "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
+    "lastVerifiedDate": "2026-10-15",
+    "difficulty": 1,
+    "tags": [
+      "標識・標示",
+      "第1段階"
+    ],
+    "type": "truefalse",
+    "draftId": "M7I-03-013",
+    "reviewMethod": "M7 第9弾：照合6の直し案（500問点検で外した重複の補充、本人OK 2026-10-15）"
   }
 ];
