@@ -3,7 +3,7 @@
 # - 起動：タグ michito-ios-v* の push、または Actions 画面から手動実行
 # - 必要な GitHub Secrets（この repo に登録）：ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_P8（.p8の本文） / APPLE_TEAM_ID
 # - 事前に App Store Connect でミチトのアプリ（Bundle ID com.yoshioide2301.michito）を登録しておくこと
-# - App Review への提出・公開は行わない（TestFlight に届くところまで）
+# - App Review への提出・公開は行わない。TestFlight の外部グループ「モニター」への追加とベータ版の審査への提出だけ自動で行う（本人承認 10/14、asc-beta.mjs）
 # - 対応端末は iPhone だけ（TARGETED_DEVICE_FAMILY=1。本人承認 10/13：最初のリリースは iPhone のみ）
 name: Michito iOS TestFlight upload
 
@@ -23,7 +23,7 @@ concurrency:
 jobs:
   upload:
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 100
     defaults:
       run:
         working-directory: native-ios
@@ -128,6 +128,13 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
           echo "Uploaded build number $BUILD_NUMBER"
+
+      # 外部グループ「モニター」（QR の公開リンクで入る外の人）へ追加し、ベータ版の審査に出す。グループが無い・失敗してもビルドは成功のまま
+      - name: 外部グループ「モニター」へ追加
+        working-directory: .
+        timeout-minutes: 35
+        continue-on-error: true
+        run: node .github/scripts/asc-beta.mjs
 
       # 安全確認：ビルド前に無かった・開発用だけ・作られたばかり・2枚まで（asc-certs.mjs）。配布用やリリース中のアプリには触れない
       - name: この回に作った開発用の証明書を取り消す
