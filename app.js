@@ -565,6 +565,7 @@
   // ---------- v1.1：範囲（教習番号）ごとの理解度 ----------
   // 問題ごとに「最後に解いたときの正誤」だけを残す。前回の模試の結果が残っていれば、初回に取り込む
   function getProgress() {
+    if (getLocal(DEV_SAMPLE_KEY, false)) return devSampleProgress();
     var p = getLocal(STORAGE_KEYS.PROGRESS, null);
     if (p && typeof p === "object" && !Array.isArray(p)) return p;
     p = {};
@@ -576,7 +577,15 @@
     }
     return p;
   }
+  // 開発用の試しの記録。保存している本当の記録は変えず、表示だけ差し替える
+  function devSampleProgress() {
+    var plan = { 1: [20, 18], 2: [10, 5], 3: [30, 27], 4: [12, 7], 5: [2, 1], 7: [8, 8], 8: [15, 9] }, by = {}, p = {};
+    getReviewedQuestions().forEach(function (q) { (by[q.kyoshu] = by[q.kyoshu] || []).push(q.id); });
+    Object.keys(plan).forEach(function (k) { (by[k] || []).slice(0, plan[k][0]).forEach(function (id, i) { p[id] = { ok: i < plan[k][1], t: 0 }; }); });
+    return p;
+  }
   function recordProgress(items) {
+    if (getLocal(DEV_SAMPLE_KEY, false)) return;
     var p = getProgress();
     var now = Date.now();
     items.forEach(function (x) { p[x.id] = { ok: !!x.ok, t: now }; });
@@ -625,7 +634,7 @@
       label = "いま復習したい範囲";
       name = "教習番号" + weak.kyoshu + "　" + weak.name;
       sub = "正解 " + progressRate(weak) + "%（解いた" + weak.solved + "問）";
-      btn = '<button class="btn-pill btn-pill--pink btn-pill--block kp-focus-btn" data-action="start-chapter" data-kyoshu="' + weak.kyoshu + '">この範囲を5問 <span aria-hidden="true">→</span></button>';
+      btn = '<button class="btn-pill btn-pill--block kp-focus-btn" data-action="start-chapter" data-kyoshu="' + weak.kyoshu + '">この範囲を5問 <span aria-hidden="true">→</span></button>';
     } else if (untried) {
       label = "まだ解いていない範囲";
       name = "教習番号" + untried.kyoshu + "　" + untried.name;
@@ -640,27 +649,56 @@
     return '<div class="kp-focus' + (weak ? ' kp-focus--weak' : '') + '">' + characterSvg("character kp-focus-chara") +
       '<div class="kp-focus-body"><p class="kp-focus-label">' + label + '</p><p class="kp-focus-name">' + escapeHtml(name) + '</p><p class="kp-focus-sub">' + sub + '</p></div>' + btn + '</div>';
   }
+  // 時間帯のあいさつ（5〜10時：おはようございます、18時〜4時：こんばんは）
+  function greetingText() {
+    var h = new Date().getHours();
+    if (h >= 5 && h < 11) return "おはようございます。";
+    if (h >= 18 || h < 5) return "こんばんは。";
+    return "こんにちは。";
+  }
+  // ホームの形（試し）。A＝ホームに棒を出す、B＝入口だけ置き、次の画面で棒を出す。開発メニューで切り替える
+  var HOME_LAYOUT_KEY = "michito_dev_home_layout";
+  var DEV_SAMPLE_KEY = "michito_dev_sample_progress";
+  function homeLayout() { return getLocal(HOME_LAYOUT_KEY, "A") === "B" ? "B" : "A"; }
+  function colsHtml(list, action) {
+    var label = list.map(function (c) { var r = progressRate(c); return "教習番号" + c.kyoshu + " " + (r === null ? "未回答" : r + "パーセント"); }).join("、");
+    var html = action ? '<button class="kp-cols" data-action="' + action + '" aria-label="範囲ごとの正解の割合。' + escapeHtml(label) + '。くわしく見る">' : '<div class="kp-cols" role="img" aria-label="範囲ごとの正解の割合。' + escapeHtml(label) + '">';
+    list.forEach(function (c) {
+      html += '<span class="kp-col kp-bar--' + progressLevel(c).cls + '"><span class="kp-col-bar"><span class="kp-fill" style="height:' + (progressRate(c) || 0) + '%"></span></span><span class="kp-col-no">' + c.kyoshu + '</span></span>';
+    });
+    return html + (action ? '</button>' : '</div>');
+  }
+  function colsNote(any) {
+    return '<p class="kp-cols-note">' + (any ? '数字は教習番号。棒が高いほど正解が多い範囲です。' : '「今日の5問」や模試を解くと、教習番号ごとの正解の割合がここに出て、苦手な範囲が分かります。') + '</p>';
+  }
+  // 形B：ホームの入口（「今日の5問」と同じ重さのカード）
+  function homeProgressEntry() {
+    var list = chapterProgress(), weak = weakestChapter(list);
+    var sub = weak ? "いま復習したい範囲：教習番号" + weak.kyoshu + "　" + weak.name : list.some(function (c) { return c.solved; }) ? "範囲ごとの得意・苦手を見る。" : "解いた結果から、得意・苦手が分かります。";
+    return '<section class="panel kp-entry"><h2 class="kp-entry-title"><span class="kp-entry-icon">' + ICONS.chart + '</span>あなたの現在地</h2>' +
+      '<p class="kp-entry-sub">' + escapeHtml(sub) + '</p><button class="btn-pill" data-action="open-progress">見る <span aria-hidden="true">→</span></button></section>';
+  }
+  // 現在地の画面（形B の行き先。形A の「くわしく」からも）
+  function viewProgress() {
+    var list = chapterProgress(), any = list.some(function (c) { return c.solved; });
+    return '<div class="screen screen--history"><h1 class="screen-title screen-title--left">あなたの現在地</h1>' +
+      '<section class="panel">' + colsHtml(list, "") + colsNote(any) + progressFocusHtml(list) + '</section>' + chapterProgressPanel(true) + '</div>';
+  }
   // ホームの一番上「あなたの現在地」：範囲1〜10の縦の棒と、次にやること
   function homeProgressCard() {
     var list = chapterProgress();
     var any = list.some(function (c) { return c.solved; });
-    var label = list.map(function (c) { var r = progressRate(c); return "教習番号" + c.kyoshu + " " + (r === null ? "未回答" : r + "パーセント"); }).join("、");
-    var html = '<section class="panel kp-home"><div class="kp-home-head"><h2>あなたの現在地</h2>' +
-      '<button class="text-link kp-more" data-action="open-history">範囲ごとにくわしく ›</button></div>' +
-      '<button class="kp-cols" data-action="open-history" aria-label="範囲ごとの正解の割合。' + escapeHtml(label) + '。くわしく見る">';
-    list.forEach(function (c) {
-      html += '<span class="kp-col kp-bar--' + progressLevel(c).cls + '"><span class="kp-col-bar"><span class="kp-fill" style="height:' + (progressRate(c) || 0) + '%"></span></span><span class="kp-col-no">' + c.kyoshu + '</span></span>';
-    });
-    html += '</button><p class="kp-cols-note">' + (any ? '数字は教習番号。棒が高いほど正解が多い範囲です。' : '「今日の5問」や模試を解くと、教習番号ごとの正解の割合がここに出て、苦手な範囲が分かります。') + '</p>' + progressFocusHtml(list) + '</section>';
-    return html;
+    return '<section class="panel kp-home"><div class="kp-home-head"><h2>あなたの現在地</h2>' +
+      '<button class="text-link kp-more" data-action="open-progress">範囲ごとにくわしく ›</button></div>' +
+      colsHtml(list, "open-progress") + colsNote(any) + progressFocusHtml(list) + '</section>';
   }
   // 学習履歴の「範囲ごとの理解度」。行を押すと、その範囲の5問を始める
-  function chapterProgressPanel() {
+  function chapterProgressPanel(noFocus) {
     var list = chapterProgress();
     var html = '<section class="panel kp-panel"><h2>範囲ごとの理解度</h2>' +
       '<p class="chart-caption">棒の長さは、解いた問題のうち最後に正解した割合です。範囲を押すと、その範囲の5問を始めます。</p>';
-    var focus = progressFocusHtml(list);
-    if (focus) html += focus;
+    var focus = noFocus ? "" : progressFocusHtml(list);
+    if (focus || noFocus) html += focus;
     else if (!list.some(function (c) { return c.solved; })) html += '<p class="kp-weak-note">5問や模試を解くと、ここに範囲ごとの結果が出ます。</p>';
     html += '<div class="kp-list">';
     list.forEach(function (c) {
@@ -969,12 +1007,12 @@
     // iPad横向き・広いPCでは home-main（風景・今日の10問）と home-side（メニュー）を2列に並べる
     html += '<div class="home-layout"><div class="home-main">';
 
-    html += homeProgressCard();
     html +=
       '<section class="home-hero">' +
       sceneSvg("hero") +
-      '<h1 class="home-greeting">こんにちは。<br>今日も少しだけ進もう。</h1>' +
+      '<h1 class="home-greeting">' + greetingText() + '<br>今日も少しだけ進もう。</h1>' +
       "</section>";
+    if (homeLayout() === "A") html += homeProgressCard();
 
     html +=
       '<section class="today-card">' +
@@ -990,6 +1028,7 @@
       "</div>" +
       "</section>";
 
+    if (homeLayout() === "B") html += homeProgressEntry();
     html += '<section class="panel mock-home"><h2>仮免模試</h2><p>50問・30分。終わってから採点・復習。</p><button class="btn-pill" data-action="mock-open">模試に挑戦</button>' + (state.exam ? '<button class="text-link" data-action="mock-resume">模試の続きへ（時間は進みます）</button>' : '') + (getLocal(MOCK_RESULT_KEY,null) ? '<button class="text-link" data-action="mock-result">前回の模試結果</button>' : '') + '</section>';
     if (savedSession()) html += '<button class="btn-pill btn-pill--block" data-action="resume-session">続きから再開</button><p class="settings-note">「はじめる」で範囲を選ぶと、新しい5問を1問目から開始します。途中までの履歴は残りますが、再開先は新しい学習に切り替わります。</p>';
     html += '</div><div class="home-side">';
@@ -2150,6 +2189,9 @@
       case "settings":
         html = viewSettings();
         break;
+      case "progress":
+        html = viewProgress();
+        break;
       case "devQuestions":
         html = viewDevQuestions();
         break;
@@ -2295,6 +2337,10 @@
       '<button class="btn-pill" data-action="dev-show">表示する</button>' +
       '<button class="text-link" data-action="dev-show" data-preset="latest">最近直した・入れた問題（' + escapeHtml(d) + '）</button>' +
       '<button class="text-link" data-action="dev-show" data-preset="excluded">出題から外した問題</button>' +
+      '<h2 class="settings-label">開発用：ホームの形（試し）</h2>' +
+      '<p class="settings-note">いま：' + (homeLayout() === "A" ? "形A（ホームに棒）" : "形B（入口だけ・次の画面に棒）") + ' ／ 試しの記録：' + (getLocal(DEV_SAMPLE_KEY, false) ? "表示中（本当の記録は変わりません。解いても記録されません）" : "使っていない") + '</p>' +
+      '<button class="text-link" data-action="dev-layout">形を' + (homeLayout() === "A" ? "B" : "A") + 'に切り替える</button>' +
+      '<button class="text-link" data-action="dev-sample">試しの記録を' + (getLocal(DEV_SAMPLE_KEY, false) ? "やめる" : "表示する") + '</button>' +
       '<button class="text-link" data-action="dev-off">開発モードを終える</button></section>';
   }
   function devNorm(s) {
@@ -2354,6 +2400,8 @@
       }
       return;
     }
+    if (action === 'dev-layout') { setLocal(HOME_LAYOUT_KEY, homeLayout() === 'A' ? 'B' : 'A'); render({ keepScroll: true }); return; }
+    if (action === 'dev-sample') { setLocal(DEV_SAMPLE_KEY, !getLocal(DEV_SAMPLE_KEY, false)); render({ keepScroll: true }); return; }
     if (action === 'dev-off') { setLocal(DEV_KEY, false); render(); return; }
     if (action === 'dev-show') {
       var preset = target.getAttribute('data-preset');
@@ -2446,6 +2494,9 @@
         break;
       case "submit-training-note":
         submitTrainingNote();
+        break;
+      case "open-progress":
+        state.view = "progress"; render(); window.scrollTo(0, 0);
         break;
       case "open-history":
         openHistory();
