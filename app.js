@@ -357,6 +357,11 @@
       '<path d="M250 160 C282 146 318 128 350 111" fill="none" stroke="#fff" stroke-width="2.2" opacity="0.9"/>' +
       '<path d="M186 160 C250 142 305 126 344 111" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="9 8"/>' +
       '<path d="M0 138 C90 128 160 140 240 150 L260 160 H0Z" fill="#7DBD7C" opacity="0.85"/>' +
+      (variant === "goal"
+        ? '<path d="M262 140 V100" stroke="#5D6B79" stroke-width="2.4"/>' +
+          '<path d="M263 100 h22 v14 h-22z" fill="#fff" stroke="#5D6B79" stroke-width="1.2"/>' +
+          '<path d="M263 100h5.5v3.5h-5.5zM274 100h5.5v3.5h-5.5zM268.5 103.5h5.5v3.5h-5.5zM279.5 103.5h5.5v3.5h-5.5zM263 107h5.5v3.5h-5.5zM274 107h5.5v3.5h-5.5zM268.5 110.5h5.5v3.5h-5.5zM279.5 110.5h5.5v3.5h-5.5z" fill="#0A192F"/>'
+        : "") +
       (variant === "map"
         ? '<ellipse cx="232" cy="147" rx="11" ry="3.5" fill="#000" opacity="0.15"/>' +
           '<path d="M232 146 C224 134 216 126 216 116 A16 16 0 0 1 248 116 C248 126 240 134 232 146Z" fill="#0A8F9A" stroke="#fff" stroke-width="2"/>' +
@@ -410,6 +415,8 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="10.6" y="5" width="2.8" height="9.5" rx="1.4" fill="#fff"/><circle cx="12" cy="18.3" r="1.7" fill="#fff"/></svg>',
     chart:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="12" width="3" height="7" rx="1" fill="#fff"/><rect x="10.5" y="8" width="3" height="11" rx="1" fill="#fff"/><rect x="16" y="5" width="3" height="14" rx="1" fill="#fff"/></svg>',
+    timer:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7" fill="none" stroke="#fff" stroke-width="2.2"/><path d="M12 13.5V9.5M10 3.5h4M12 3.5v3" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>',
     memo:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="16" rx="2" fill="none" stroke="#fff" stroke-width="2"/><path d="M9 9h6M9 12.5h6M9 16h3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>',
     tabHome:
@@ -685,7 +692,7 @@
   function homeProgressEntry() {
     var list = chapterProgress(), weak = weakestChapter(list);
     var sub = weak ? "いま復習したい範囲：教習番号" + weak.kyoshu + "　" + weak.name : list.some(function (c) { return c.solved; }) ? "範囲ごとの得意・苦手を見る。" : "解いた結果から、得意・苦手が分かります。";
-    return '<section class="today-card today-card--progress"><div class="today-card-scene">' + sceneSvg("map") + '</div>' +
+    return '<section class="today-card today-card--more"><div class="today-card-scene">' + sceneSvg("map") + '</div>' +
       '<div class="today-card-body"><h2 class="today-card-title"><span class="kp-entry-icon">' + ICONS.chart + '</span>あなたの現在地</h2>' +
       '<p class="today-card-sub">' + escapeHtml(sub) + '</p>' +
       '<button class="btn-pill" data-action="open-progress">見る <span aria-hidden="true">→</span></button></div></section>';
@@ -1028,12 +1035,17 @@
       "</span>今日の5問</h2>" +
       '<p class="today-card-sub">習った範囲を選んで、5問ずつ。</p>' +
       '<button class="btn-pill" data-action="open-start">はじめる <span aria-hidden="true">→</span></button>' +
+      (savedSession() ? '<button class="text-link card-link" data-action="resume-session">途中の5問の続きから再開</button>' : "") +
       "</div>" +
       "</section>";
 
     html += homeProgressEntry();
-    html += '<section class="panel mock-home"><h2>仮免模試</h2><p>50問・30分。終わってから採点・復習。</p><button class="btn-pill" data-action="mock-open">模試に挑戦</button>' + (state.exam ? '<button class="text-link" data-action="mock-resume">模試の続きへ（時間は進みます）</button>' : '') + (getLocal(MOCK_RESULT_KEY,null) ? '<button class="text-link" data-action="mock-result">前回の模試結果</button>' : '') + '</section>';
-    if (savedSession()) html += '<button class="btn-pill btn-pill--block" data-action="resume-session">続きから再開</button><p class="settings-note">「はじめる」で範囲を選ぶと、新しい5問を1問目から開始します。途中までの履歴は残りますが、再開先は新しい学習に切り替わります。</p>';
+    html += '<section class="today-card today-card--more"><div class="today-card-scene">' + sceneSvg("goal") + '</div>' +
+      '<div class="today-card-body"><h2 class="today-card-title"><span class="kp-entry-icon">' + ICONS.timer + '</span>仮免模試</h2>' +
+      '<p class="today-card-sub">50問・30分。終わってから採点・復習。</p>' +
+      '<button class="btn-pill" data-action="mock-open">模試に挑戦 <span aria-hidden="true">→</span></button>' +
+      (state.exam ? '<button class="text-link card-link" data-action="mock-resume">模試の続きへ（時間は進みます）</button>' : '') +
+      (getLocal(MOCK_RESULT_KEY,null) ? '<button class="text-link card-link" data-action="mock-result">前回の模試結果</button>' : '') + '</div></section>';
     html += '</div><div class="home-side">';
 
     html += '<nav class="menu-list">';
