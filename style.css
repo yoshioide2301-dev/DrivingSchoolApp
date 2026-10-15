@@ -2443,3 +2443,7 @@ button.mistake-item:active {
 .kp-entry-icon { display: inline-flex; width: 32px; height: 32px; padding: 5px; box-sizing: border-box; border-radius: 50%; background: var(--teal); }
 .kp-entry-icon svg { width: 100%; height: 100%; }
 .kp-entry-sub { margin: 0 0 12px; color: var(--text-sub); }
+
+/* v1.1：ふりがな（本番の試験・教本と同じく、漢字の上に小さく） */
+ruby rt { font-size: 0.5em; font-weight: 400; color: var(--text-sub); letter-spacing: 0; }
+.question-text, .explain-text, .legal-basis { line-height: 2.1; }

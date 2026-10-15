@@ -9,7 +9,7 @@
 //   このファイルではキャッシュ処理のみを扱う。
 // - バックエンド通信・外部APIは扱わない。
 
-const CACHE_NAME = "michito-owner-preview-cache-v23";
+const CACHE_NAME = "michito-owner-preview-cache-v24";
 
 const CORE_ASSETS = [
   "./",
@@ -19,7 +19,8 @@ const CORE_ASSETS = [
   "./support.js",
   "./privacy.html",
   "./manifest.json",
-  "./questions/questions.js"
+  "./questions/questions.js",
+  "./questions/furigana.js"
 ];
 
 self.addEventListener("install", (event) => {

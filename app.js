@@ -230,7 +230,13 @@
     { value: "yoru", label: "よる", desc: "暗めの落ち着いた配色。夜の学習に。" }
   ];
 
-  var DEFAULT_SETTINGS = { fontSize: "standard", theme: "sora" };
+  // v1.1：ふりがな（本番の試験・教本と同じく、漢字に読みを振る。10/15 本人：必須）
+  var FURIGANA_OPTIONS = [
+    { value: "on", label: "あり" },
+    { value: "off", label: "なし" }
+  ];
+
+  var DEFAULT_SETTINGS = { fontSize: "standard", theme: "sora", furigana: "on" };
 
   function isValidOption(options, value) {
     for (var i = 0; i < options.length; i++) {
@@ -242,10 +248,11 @@
   // 保存値が壊れている・古い・不正な場合は、項目ごとに初期値へ戻す
   function loadSettings() {
     var raw = getLocal(STORAGE_KEYS.SETTINGS, null);
-    var settings = { fontSize: DEFAULT_SETTINGS.fontSize, theme: DEFAULT_SETTINGS.theme };
+    var settings = { fontSize: DEFAULT_SETTINGS.fontSize, theme: DEFAULT_SETTINGS.theme, furigana: DEFAULT_SETTINGS.furigana };
     if (raw && typeof raw === "object" && !Array.isArray(raw)) {
       if (isValidOption(FONT_SIZE_OPTIONS, raw.fontSize)) settings.fontSize = raw.fontSize;
       if (isValidOption(THEME_OPTIONS, raw.theme)) settings.theme = raw.theme;
+      if (isValidOption(FURIGANA_OPTIONS, raw.furigana)) settings.furigana = raw.furigana;
     }
     return settings;
   }
@@ -260,12 +267,12 @@
   applySettings(settings);
 
   function updateSetting(name, value) {
-    if (name !== "fontSize" && name !== "theme") return;
-    var options = name === "fontSize" ? FONT_SIZE_OPTIONS : THEME_OPTIONS;
+    if (name !== "fontSize" && name !== "theme" && name !== "furigana") return;
+    var options = name === "fontSize" ? FONT_SIZE_OPTIONS : name === "furigana" ? FURIGANA_OPTIONS : THEME_OPTIONS;
     if (!isValidOption(options, value)) return;
     settings[name] = value;
     applySettings(settings);
-    setLocal(STORAGE_KEYS.SETTINGS, { fontSize: settings.fontSize, theme: settings.theme });
+    setLocal(STORAGE_KEYS.SETTINGS, { fontSize: settings.fontSize, theme: settings.theme, furigana: settings.furigana });
     render({ keepScroll: true });
     // 再描画でフォーカスが外れるため、選んだ項目へ戻す（キーボード操作・読み上げ向け）
     var selected = appEl.querySelector('[data-setting="' + name + '"][data-value="' + value + '"]');
@@ -1303,7 +1310,7 @@
       "問</div>" +
       (q.reviewStatus === "mock" ? '<div class="mock-badge">仮問題（UI確認用）</div>' : "") +
       '<p class="question-text">' +
-      escapeHtml(q.question) +
+      furiganaHtml(q, "question") +
       "</p>" +
       "</div>" +
       '<div class="split-side">' +
@@ -1393,7 +1400,7 @@
       questionIdentityHtml(q) +
       '<div class="question-position">第' + (s.currentIndex + 1) + '問 <span>／全' + s.questions.length + '問</span></div>' +
       answerOutcomeHtml(isCorrect) +
-      '<section class="panel"><h2 class="explain-label">設問</h2><p class="question-text">' + escapeHtml(q.question) + '</p></section>' +
+      '<section class="panel"><h2 class="explain-label">設問</h2><p class="question-text">' + furiganaHtml(q, "question") + '</p></section>' +
       '<h1 class="screen-title screen-title--left">解説</h1>' +
       '<div class="split-layout split-layout--explain">' +
       explanationBodyHtml(q, isCorrect, s.selectedIndex) +
@@ -1420,6 +1427,21 @@
   }
 
   // 根拠となる法令（解説の下に右寄せで小さく表示）。ref（条・項・号まで確認済みの根拠）を優先し、無ければ source と sourceSection から作る
+  // ふりがな付きの文（HTML）。questions/furigana.js の「漢字《よみ》」を <ruby> にする。
+  // 設定が「なし」のとき・データが無いとき・もとの文と一致しないとき（作り直し忘れ）は、ふりがな無しで出す
+  function furiganaHtml(q, field) {
+    var text = String((q && q[field]) || "");
+    var id = q && (q.id || q.questionId);
+    var d = settings.furigana !== "off" && typeof FURIGANA !== "undefined" && FURIGANA && id && FURIGANA[id];
+    var r = d && d[field];
+    if (!r || r.replace(/《[^》]*》/g, "") !== text) return escapeHtml(text);
+    return escapeHtml(r).replace(/([^《》]+?)《([^》]*)》/g, function (m, base, read) {
+      var k = base.match(/[\u4e00-\u9fff々〆ヶ]+$/);
+      if (!k) return m;
+      return base.slice(0, base.length - k[0].length) + "<ruby>" + k[0] + "<rt>" + read + "</rt></ruby>";
+    });
+  }
+
   function legalBasisText(q) {
     if (q.ref) return String(q.ref);
     var src = String(q.source || "").replace(/（[^）]*）$/, "").trim();
@@ -1430,14 +1452,14 @@
 
   function legalBasisHtml(q) {
     var t = legalBasisText(q);
-    return t ? '<p class="legal-basis" aria-label="根拠となる法令">根拠：' + escapeHtml(t) + "</p>" : "";
+    return t ? '<p class="legal-basis" aria-label="根拠となる法令">根拠：' + (q.ref ? furiganaHtml(q, "ref") : escapeHtml(t)) + "</p>" : "";
   }
 
   function explanationBodyHtml(q, isCorrect, selectedIndex) {
     var correctLabel = q.type === "truefalse" ? q.choices[q.correct] + (q.correct === 0 ? "（正しい）" : "（誤り）") : (CHOICE_LETTERS[q.correct] || q.correct + 1) + ". " + (q.choices[q.correct] || "");
     var html = '<section class="explain-section">';
     html += '<h2 class="explain-label">問題のポイント</h2>';
-    html += '<p class="explain-text">' + escapeHtml(q.explanation || "") + "</p>";
+    html += '<p class="explain-text">' + furiganaHtml(q, "explanation") + "</p>";
     html += legalBasisHtml(q);
     html += "</section>";
     html +=
@@ -1731,7 +1753,7 @@
     html += '<div class="split-layout">';
     html += '<div class="split-main">';
     html += '<div class="question-number">第' + (m.questionNumber || "") + "問（復習）</div>";
-    html += '<p class="question-text">' + escapeHtml(m.question) + "</p>";
+    html += '<p class="question-text">' + furiganaHtml(m, "question") + "</p>";
     html += "</div>";
     html += '<div class="split-side">';
 
@@ -2064,6 +2086,18 @@
     html += "</section>";
 
     html += '<section class="settings-group">';
+    html += '<h2 class="settings-label" id="settings-furigana">ふりがな</h2>';
+    html += '<p class="settings-note">問題文・解説・根拠の漢字に、読みを小さく表示します。本番の試験と同じ形です。</p>';
+    html += '<div class="option-grid" role="group" aria-labelledby="settings-furigana">';
+    FURIGANA_OPTIONS.forEach(function (opt) {
+      html += settingOptionHtml("furigana", opt, settings.furigana,
+        '<span class="option-sample" aria-hidden="true">' + (opt.value === "on" ? '<ruby>道路<rt>どうろ</rt></ruby>' : '道路') + '</span>' +
+        '<span class="option-name">' + escapeHtml(opt.label) + "</span>");
+    });
+    html += "</div>";
+    html += "</section>";
+
+    html += '<section class="settings-group">';
     html += '<h2 class="settings-label" id="settings-theme">テーマ</h2>';
     html += '<div class="option-list" role="group" aria-labelledby="settings-theme">';
     THEME_OPTIONS.forEach(function (opt) {
@@ -2301,7 +2335,7 @@
   }
   function viewMock() {
     var e=state.exam;if(!e)return viewMockSetup();var q=e.questions[e.index];
-    var html='<section class="panel"><h1>仮免模試</h1><p>残り <strong id="mock-timer">'+mockTime()+'</strong> ／ 回答済み '+e.answers.filter(function(a){return a!==null;}).length+'/50問</p><p class="question-number">第'+(e.index+1)+'問 / 50</p><p class="question-identity" aria-label="問題ID">問題ID：MCT:'+escapeHtml(q.id)+'</p><p class="question-text">'+escapeHtml(q.question)+'</p><div class="mock-choices">';
+    var html='<section class="panel"><h1>仮免模試</h1><p>残り <strong id="mock-timer">'+mockTime()+'</strong> ／ 回答済み '+e.answers.filter(function(a){return a!==null;}).length+'/50問</p><p class="question-number">第'+(e.index+1)+'問 / 50</p><p class="question-identity" aria-label="問題ID">問題ID：MCT:'+escapeHtml(q.id)+'</p><p class="question-text">'+furiganaHtml(q,'question')+'</p><div class="mock-choices">';
     q.choices.forEach(function(c,i){var selected=e.answers[e.index]===i;html+='<button class="btn-pill" data-action="mock-answer" data-index="'+i+'" aria-pressed="'+selected+'" aria-label="'+escapeHtml(c)+(selected?' 選択中':'を選択')+'"><span class="mock-choice-symbol" aria-hidden="true">'+escapeHtml(c)+'</span><span class="mock-choice-status" aria-hidden="true">選択中</span></button>';});
     html+='</div><div class="mock-navigation">';
     if(e.index>0)html+='<button class="text-link" data-action="mock-jump" data-index="'+(e.index-1)+'">前の問題</button>';
@@ -2313,7 +2347,7 @@
   function viewMockResult() {
     var r=state.mockResult||getLocal(MOCK_RESULT_KEY,null);if(!r)return '<section class="panel">模試の結果はまだありません。</section>';
     var html='<section class="panel"><h1>仮免模試 結果</h1><p>'+r.correctCount+'/50問正解（'+r.accuracy+'%）</p><h2>'+(r.correctCount>=45?'合格の目安に到達':'もう一度復習しよう')+'</h2><p>'+(r.reason==='timeout'?'制限時間になったため終了しました。':'模試を終了しました。')+'</p><p>未回答 '+r.answers.filter(function(a){return a===null;}).length+'問 ／ 45問以上正解が合格の目安</p><h2>全問の復習</h2>';
-    r.questions.forEach(function(q,i){var a=r.answers[i];html+='<details class="mock-review"><summary>第'+(i+1)+'問：'+(a===q.correct?'正解':a===null?'未回答':'不正解')+'</summary><p class="question-identity" aria-label="問題ID">問題ID：MCT:'+escapeHtml(q.id)+'</p><p>'+escapeHtml(q.question)+'</p><p>あなたの回答：'+(a===null?'未回答':q.choices[a])+' ／ 正解：'+q.choices[q.correct]+'</p><p>'+escapeHtml(q.explanation)+'</p>'+legalBasisHtml(q)+'</details>';});
+    r.questions.forEach(function(q,i){var a=r.answers[i];html+='<details class="mock-review"><summary>第'+(i+1)+'問：'+(a===q.correct?'正解':a===null?'未回答':'不正解')+'</summary><p class="question-identity" aria-label="問題ID">問題ID：MCT:'+escapeHtml(q.id)+'</p><p class="question-text">'+furiganaHtml(q,'question')+'</p><p>あなたの回答：'+(a===null?'未回答':q.choices[a])+' ／ 正解：'+q.choices[q.correct]+'</p><p class="explain-text">'+furiganaHtml(q,'explanation')+'</p>'+legalBasisHtml(q)+'</details>';});
     return html+'<button class="btn-pill mt-20" data-action="mock-open">もう一度挑戦する</button></section>';
   }
 
@@ -2371,9 +2405,9 @@
       var out = q.reviewStatus !== REVIEWED_STATUS;
       html += '<section class="panel dev-card">' +
         '<p class="question-identity">ID：<strong>' + escapeHtml(q.id) + '</strong>' + (q.draftId ? ' ／ 元の番号：' + escapeHtml(q.draftId) : '') + (q.kyoshu ? ' ／ 教習' + q.kyoshu : '') + (out ? ' ／ <strong>出題しない（' + escapeHtml(q.reviewStatus) + '）</strong>' : '') + '</p>' +
-        '<p class="question-text">' + escapeHtml(q.question) + '</p>' +
+        '<p class="question-text">' + furiganaHtml(q, "question") + '</p>' +
         '<p class="explain-text"><strong>答え：' + escapeHtml(q.choices[q.correct] || '') + '</strong></p>' +
-        '<p class="explain-text">' + escapeHtml(q.explanation || '') + '</p>' +
+        '<p class="explain-text">' + furiganaHtml(q, "explanation") + '</p>' +
         legalBasisHtml(q) +
         (q.quote ? '<p class="settings-note">引用：' + escapeHtml(q.quote) + '</p>' : '') +
         (q.excludedReason ? '<p class="settings-note">外した理由：' + escapeHtml(q.excludedReason) + '</p>' : '') +
