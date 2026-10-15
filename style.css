@@ -2410,3 +2410,27 @@ button.mistake-item:active {
 .kp-level--weak { color: var(--pink-dark); font-weight: 600; }
 .kp-level--good { color: var(--green-dark); font-weight: 600; }
 .chapter-list .kp-bar { max-width: 220px; }
+/* v1.1：ホームの「あなたの現在地」と、次にやることの枠 */
+.kp-home { margin-bottom: 16px; }
+.kp-home-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.kp-home-head h2 { margin: 0; }
+.kp-more { font-size: calc(14px * var(--fs)); white-space: nowrap; }
+.kp-cols { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; width: 100%; margin-top: 12px; padding: 10px 8px 6px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); font: inherit; color: var(--text); cursor: pointer; }
+.kp-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.kp-col-bar { display: flex; align-items: flex-end; width: 100%; max-width: 22px; height: 72px; border-radius: 5px; background: var(--track); overflow: hidden; }
+.kp-col-bar .kp-fill { width: 100%; border-radius: 5px 5px 0 0; background: var(--teal); }
+.kp-col.kp-bar--mid .kp-fill { background: var(--blue); }
+.kp-col.kp-bar--weak .kp-fill { background: var(--pink); }
+.kp-col.kp-bar--few .kp-fill { background: var(--text-muted); }
+.kp-col-no { font-size: calc(12px * var(--fs)); font-weight: 700; color: var(--text-sub); }
+.kp-col.kp-bar--weak .kp-col-no { color: var(--pink-dark); }
+.kp-cols-note { margin: 6px 0 0; color: var(--text-sub); font-size: calc(12px * var(--fs)); }
+.kp-focus { display: grid; grid-template-columns: 64px 1fr; gap: 6px 12px; align-items: center; margin: 14px 0 12px; padding: 14px; border-radius: 16px; background: var(--teal-tint); border: 2px solid var(--teal); }
+.kp-focus--weak { background: var(--pink-tint); border-color: var(--pink); }
+.kp-focus-chara { width: 64px; height: 64px; }
+.kp-focus-body p { margin: 0; }
+.kp-focus-label { font-size: calc(13px * var(--fs)); font-weight: 700; color: var(--teal-text); }
+.kp-focus--weak .kp-focus-label { color: var(--pink-dark); }
+.kp-focus-name { font-size: calc(19px * var(--fs)); font-weight: 800; line-height: 1.35; margin-top: 2px !important; }
+.kp-focus-sub { font-size: calc(13px * var(--fs)); color: var(--text-sub); margin-top: 2px !important; }
+.kp-focus-btn { grid-column: 1 / -1; margin-top: 6px; }

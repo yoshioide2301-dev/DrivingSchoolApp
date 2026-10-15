@@ -615,13 +615,52 @@
     var rate = progressRate(c);
     return '<span class="kp-bar kp-bar--' + progressLevel(c).cls + '" aria-hidden="true"><span class="kp-fill" style="width:' + (rate || 0) + '%"></span></span>';
   }
+  // 次にやることを1つだけ、大きく示す（ホームと学習履歴で共通）。何も解いていなければ空
+  function progressFocusHtml(list) {
+    var weak = weakestChapter(list);
+    var untried = list.filter(function (c) { return !c.solved; })[0];
+    if (!list.some(function (c) { return c.solved; })) return "";
+    var label, name, sub, btn;
+    if (weak) {
+      label = "いま復習したい範囲";
+      name = "教習番号" + weak.kyoshu + "　" + weak.name;
+      sub = "正解 " + progressRate(weak) + "%（解いた" + weak.solved + "問）";
+      btn = '<button class="btn-pill btn-pill--pink btn-pill--block kp-focus-btn" data-action="start-chapter" data-kyoshu="' + weak.kyoshu + '">この範囲を5問 <span aria-hidden="true">→</span></button>';
+    } else if (untried) {
+      label = "まだ解いていない範囲";
+      name = "教習番号" + untried.kyoshu + "　" + untried.name;
+      sub = "ほかの範囲は、今のところよくできています。";
+      btn = '<button class="btn-pill btn-pill--block kp-focus-btn" data-action="start-chapter" data-kyoshu="' + untried.kyoshu + '">この範囲を5問 <span aria-hidden="true">→</span></button>';
+    } else {
+      label = "どの範囲もよくできています";
+      name = "本番と同じ50問で力試し";
+      sub = "仮免模試：50問・30分。";
+      btn = '<button class="btn-pill btn-pill--block kp-focus-btn" data-action="mock-open">模試に挑戦 <span aria-hidden="true">→</span></button>';
+    }
+    return '<div class="kp-focus' + (weak ? ' kp-focus--weak' : '') + '">' + characterSvg("character kp-focus-chara") +
+      '<div class="kp-focus-body"><p class="kp-focus-label">' + label + '</p><p class="kp-focus-name">' + escapeHtml(name) + '</p><p class="kp-focus-sub">' + sub + '</p></div>' + btn + '</div>';
+  }
+  // ホームの一番上「あなたの現在地」：範囲1〜10の縦の棒と、次にやること
+  function homeProgressCard() {
+    var list = chapterProgress();
+    var any = list.some(function (c) { return c.solved; });
+    var label = list.map(function (c) { var r = progressRate(c); return "教習番号" + c.kyoshu + " " + (r === null ? "未回答" : r + "パーセント"); }).join("、");
+    var html = '<section class="panel kp-home"><div class="kp-home-head"><h2>あなたの現在地</h2>' +
+      '<button class="text-link kp-more" data-action="open-history">範囲ごとにくわしく ›</button></div>' +
+      '<button class="kp-cols" data-action="open-history" aria-label="範囲ごとの正解の割合。' + escapeHtml(label) + '。くわしく見る">';
+    list.forEach(function (c) {
+      html += '<span class="kp-col kp-bar--' + progressLevel(c).cls + '"><span class="kp-col-bar"><span class="kp-fill" style="height:' + (progressRate(c) || 0) + '%"></span></span><span class="kp-col-no">' + c.kyoshu + '</span></span>';
+    });
+    html += '</button><p class="kp-cols-note">' + (any ? '数字は教習番号。棒が高いほど正解が多い範囲です。' : '「今日の5問」や模試を解くと、教習番号ごとの正解の割合がここに出て、苦手な範囲が分かります。') + '</p>' + progressFocusHtml(list) + '</section>';
+    return html;
+  }
   // 学習履歴の「範囲ごとの理解度」。行を押すと、その範囲の5問を始める
   function chapterProgressPanel() {
     var list = chapterProgress();
     var html = '<section class="panel kp-panel"><h2>範囲ごとの理解度</h2>' +
       '<p class="chart-caption">棒の長さは、解いた問題のうち最後に正解した割合です。範囲を押すと、その範囲の5問を始めます。</p>';
-    var weak = weakestChapter(list);
-    if (weak) html += '<p class="kp-weak-note">いま復習したい範囲：<strong>教習番号' + weak.kyoshu + '　' + escapeHtml(weak.name) + '</strong></p>';
+    var focus = progressFocusHtml(list);
+    if (focus) html += focus;
     else if (!list.some(function (c) { return c.solved; })) html += '<p class="kp-weak-note">5問や模試を解くと、ここに範囲ごとの結果が出ます。</p>';
     html += '<div class="kp-list">';
     list.forEach(function (c) {
@@ -930,6 +969,7 @@
     // iPad横向き・広いPCでは home-main（風景・今日の10問）と home-side（メニュー）を2列に並べる
     html += '<div class="home-layout"><div class="home-main">';
 
+    html += homeProgressCard();
     html +=
       '<section class="home-hero">' +
       sceneSvg("hero") +
