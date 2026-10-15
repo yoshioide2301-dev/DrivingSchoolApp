@@ -2448,3 +2448,18 @@ button.mistake-item:active {
 /* v1.1：ふりがな（本番の試験・教本と同じく、漢字の上に小さく） */
 ruby rt { font-size: 0.5em; font-weight: 400; color: var(--text-sub); letter-spacing: 0; }
 .question-text, .explain-text, .legal-basis { line-height: 2.1; }
+
+/* v1.1：使い方（本物の画面に、押す場所の赤い丸。1枚に1つの動き） */
+.guide-screen { text-align: center; }
+.guide-top { display: flex; justify-content: space-between; align-items: center; }
+.guide-count { color: var(--text-sub); font-weight: 700; font-size: calc(14px * var(--fs)); }
+.guide-skip { margin: 0; }
+.guide-img { display: block; width: auto; max-width: 100%; max-height: 58vh; margin: 8px auto 14px; border-radius: 18px; border: 1px solid var(--border-strong); box-shadow: 0 10px 26px rgba(20, 90, 140, 0.15); }
+.guide-title { display: flex; justify-content: center; align-items: center; gap: 10px; margin: 0; font-size: calc(22px * var(--fs-head)); font-weight: 800; color: var(--text); }
+.guide-no { display: inline-flex; justify-content: center; align-items: center; width: 34px; height: 34px; border-radius: 50%; background: #E5243B; color: #fff; font-size: 20px; }
+.guide-text { margin: 6px 0 12px; color: var(--text-sub); font-size: calc(16px * var(--fs)); }
+.guide-dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 14px; }
+.guide-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--track); }
+.guide-dot.is-active { background: var(--teal); width: 22px; border-radius: 4px; }
+.guide-nav { display: grid; grid-template-columns: 1fr 1.4fr; gap: 12px; }
+.btn-pill--ghost { background: var(--surface); color: var(--teal-text); border: 1.5px solid var(--teal); box-shadow: none; }

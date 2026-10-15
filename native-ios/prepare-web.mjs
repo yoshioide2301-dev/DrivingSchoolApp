@@ -4,6 +4,7 @@ const files=['app.js','support.js','style.css','manifest.json','privacy.html','q
 mkdirSync('www/questions',{recursive:true});mkdirSync('www/signs/img',{recursive:true});mkdirSync('www/signs/color',{recursive:true});
 for(const f of readdirSync('../signs/img'))copyFileSync('../signs/img/'+f,'www/signs/img/'+f);
 for(const f of readdirSync('../signs/color'))copyFileSync('../signs/color/'+f,'www/signs/color/'+f);
+mkdirSync('www/guide',{recursive:true});for(const f of readdirSync('../guide'))copyFileSync('../guide/'+f,'www/guide/'+f);
 for(const file of files)copyFileSync('../'+file,'www/'+file);
 let html=readFileSync('../index.html','utf8').replace('<script src="app.js"></script>','<script type="module" src="native-bootstrap.js"></script>');
 writeFileSync('www/index.html',html);

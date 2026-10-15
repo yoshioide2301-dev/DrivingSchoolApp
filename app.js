@@ -668,6 +668,28 @@
     return '<div class="kp-focus' + (weak ? ' kp-focus--weak' : '') + '">' + characterSvg("character kp-focus-chara") +
       '<div class="kp-focus-body"><p class="kp-focus-label">' + label + '</p><p class="kp-focus-name">' + escapeHtml(name) + '</p><p class="kp-focus-sub">' + sub + '</p></div>' + btn + '</div>';
   }
+  var GUIDE_KEY = "michito_guide_seen";
+  var GUIDE_STEPS = [
+    { img: "guide/step1.png", title: "「はじめる」をタッチ", text: "今日の5問をはじめます。" },
+    { img: "guide/step2.png", title: "習った教習番号をタッチ", text: "その範囲から5問出ます。" },
+    { img: "guide/step3.png", title: "○か×をタッチ", text: "正しいと思えば○、誤りなら×。" },
+    { img: "guide/step4.png", title: "解説と根拠を読む", text: "なぜそうなるかが、条文で分かります。" },
+    { img: "guide/step5.png", title: "苦手な範囲をタッチ", text: "「あなたの現在地」で苦手が分かります。" },
+    { img: "guide/step6.png", title: "仕上げは模試", text: "50問・30分。45問を目指そう。" }
+  ];
+  function viewGuide() {
+    var i = Math.max(0, Math.min(GUIDE_STEPS.length - 1, state.guideIndex || 0)), st = GUIDE_STEPS[i], last = i === GUIDE_STEPS.length - 1;
+    var dots = GUIDE_STEPS.map(function (x, k) { return '<span class="guide-dot' + (k === i ? ' is-active' : '') + '"></span>'; }).join("");
+    return '<div class="screen guide-screen"><div class="guide-top"><span class="guide-count">使い方 ' + (i + 1) + ' / ' + GUIDE_STEPS.length + '</span>' +
+      '<button class="text-link guide-skip" data-action="guide-done">' + (last ? '閉じる' : 'とばす') + '</button></div>' +
+      '<img class="guide-img" src="' + st.img + '" alt="' + escapeHtml(st.title) + 'の画面。押す場所を赤い丸で示しています">' +
+      '<h1 class="guide-title"><span class="guide-no">' + (i + 1) + '</span>' + escapeHtml(st.title) + '</h1><p class="guide-text">' + escapeHtml(st.text) + '</p>' +
+      '<div class="guide-dots" aria-hidden="true">' + dots + '</div>' +
+      '<div class="guide-nav">' + (i > 0 ? '<button class="btn-pill btn-pill--ghost" data-action="guide-prev">← 前へ</button>' : '<span></span>') +
+      '<button class="btn-pill" data-action="' + (last ? 'guide-done' : 'guide-next') + '">' + (last ? 'はじめよう' : '次へ →') + '</button></div></div>';
+  }
+  function openGuide() { state.guideIndex = 0; state.view = "guide"; render(); window.scrollTo(0, 0); }
+
   // 時間帯のあいさつ（5〜10時：おはようございます、18時〜4時：こんばんは）
   function greetingText() {
     var h = new Date().getHours();
@@ -1063,6 +1085,7 @@
       html += menuItemHtml("open-tips-home", "menu-icon--pink", ICONS.sign, "標識の覚え方", "まちがえやすい組を一言で。すぐ1問。",
         weakPairs > 0 ? '<span class="menu-badge">' + weakPairs + "</span>" : "");
     }
+    html += menuItemHtml("open-guide", "menu-icon--green", ICONS.bulb, "使い方", "絵で見る、ミチトの進め方。", "");
     html += menuItemHtml("open-history", "menu-icon--blue", ICONS.chart, "学習履歴", "これまでの歩みを確認する。", "");
     html += menuItemHtml("open-training-notes", "menu-icon--green", ICONS.memo, "トレーニングメモ", "今日の気づきを残しておこう。", "");
     html += "</nav>";
@@ -2077,6 +2100,7 @@
     html += topBackHtml("go-home");
     html += '<h1 class="screen-title screen-title--left">設定</h1>';
     html += '<p class="screen-lead screen-lead--left">見やすい文字の大きさと色合いを選べます。選ぶとすぐに切り替わります。</p>';
+    html += '<button class="text-link" data-action="open-guide">使い方を見る（絵で6枚）</button>';
 
     html += '<section class="settings-group">';
     html += '<h2 class="settings-label" id="settings-font-size">文字の大きさ</h2>';
@@ -2228,6 +2252,9 @@
       case "signTips":
         html = viewSignTips();
         break;
+      case "guide":
+        html = viewGuide();
+        break;
       case "settings":
         html = viewSettings();
         break;
@@ -2241,7 +2268,7 @@
         html = viewHome();
     }
 
-    if(state.view!=="support") html+='<button class="text-link support-entry" data-action="open-support">意見・不具合・アンケート</button>';
+    if(state.view!=="support"&&state.view!=="guide") html+='<button class="text-link support-entry" data-action="open-support">意見・不具合・アンケート</button>';
     var activeTab = TAB_VIEWS[state.view];
     if (activeTab) {
       html += tabBarHtml(activeTab);
@@ -2458,6 +2485,16 @@
 
   // ---------- イベント委譲 ----------
 
+  var guideTouchX = null;
+  appEl.addEventListener("touchstart", function (e) { guideTouchX = state.view === "guide" && e.touches[0] ? e.touches[0].clientX : null; }, { passive: true });
+  appEl.addEventListener("touchend", function (e) {
+    if (guideTouchX === null || state.view !== "guide" || !e.changedTouches[0]) return;
+    var dx = e.changedTouches[0].clientX - guideTouchX; guideTouchX = null;
+    if (Math.abs(dx) < 50) return;
+    var n = (state.guideIndex || 0) + (dx < 0 ? 1 : -1);
+    if (n >= 0 && n < GUIDE_STEPS.length) { state.guideIndex = n; render(); }
+  });
+
   appEl.addEventListener("click", function (event) {
     var target = event.target.closest("[data-action]");
     if (!target || target.disabled) return;
@@ -2538,6 +2575,18 @@
         break;
       case "submit-training-note":
         submitTrainingNote();
+        break;
+      case "open-guide":
+        openGuide();
+        break;
+      case "guide-next":
+        state.guideIndex = (state.guideIndex || 0) + 1; render(); window.scrollTo(0, 0);
+        break;
+      case "guide-prev":
+        state.guideIndex = Math.max(0, (state.guideIndex || 0) - 1); render(); window.scrollTo(0, 0);
+        break;
+      case "guide-done":
+        setLocal(GUIDE_KEY, true); goHome();
         break;
       case "open-progress":
         state.view = "progress"; render(); window.scrollTo(0, 0);
@@ -2644,6 +2693,7 @@
     }
     state.exam=loadMock();
     if(state.exam && state.exam.resumeOnLoad){state.view="mock";state.session=null;}
+    if (state.view === "home" && !getLocal(GUIDE_KEY, false)) { state.guideIndex = 0; state.view = "guide"; }
     mockTick();
     if(typeof setInterval==='function')setInterval(mockTick,1000);
     window.addEventListener("pagehide", function(){saveProgress();saveMock();});
