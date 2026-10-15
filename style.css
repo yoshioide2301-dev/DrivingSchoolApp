@@ -2439,7 +2439,7 @@ button.mistake-item:active {
 :root { --kp-weak: #E9B04F; --kp-weak-text: #8A5A12; }
 :root[data-theme="yoru"] { --kp-weak: #D9A44A; --kp-weak-text: #F0C77A; }
 .kp-entry-title { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; }
-.kp-entry { margin-top: 16px; }
+.today-card--progress { margin-top: 16px; }
 .kp-entry-icon { display: inline-flex; width: 32px; height: 32px; padding: 5px; box-sizing: border-box; border-radius: 50%; background: var(--teal); }
 .kp-entry-icon svg { width: 100%; height: 100%; }
 .kp-entry-sub { margin: 0 0 12px; color: var(--text-sub); }
