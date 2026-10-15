@@ -39,7 +39,9 @@
     SESSION: "michito_session",
     SURVEY: "michito_session_survey",
     // 間違えた問題（問題IDの配列）。今日の10問・仮免模試で間違えるたびに追加し、解き直しで正解したら外す
-    MISTAKES: "michito_mistakes"
+    MISTAKES: "michito_mistakes",
+    // v1.1：問題ごとの最後の正誤 { 問題ID: { ok: true/false, t: 日時 } }。範囲ごとの理解度に使う
+    PROGRESS: "michito_progress"
   };
 
   var appEl = document.getElementById("app");
@@ -557,6 +559,83 @@
       correct: s.selectedIndex === q.correct, feedbackRating: null,
       feedbackReason: [], comment: "", appVersion: APP_VERSION });
     if (s.selectedIndex !== q.correct) addMistakeIds([q.id]);
+    recordProgress([{ id: q.id, ok: s.selectedIndex === q.correct }]);
+  }
+
+  // ---------- v1.1：範囲（教習番号）ごとの理解度 ----------
+  // 問題ごとに「最後に解いたときの正誤」だけを残す。前回の模試の結果が残っていれば、初回に取り込む
+  function getProgress() {
+    var p = getLocal(STORAGE_KEYS.PROGRESS, null);
+    if (p && typeof p === "object" && !Array.isArray(p)) return p;
+    p = {};
+    var r = getLocal(MOCK_RESULT_KEY, null);
+    if (r && Array.isArray(r.questions) && Array.isArray(r.answers)) {
+      r.questions.forEach(function (q, i) {
+        if (q && q.id && r.answers[i] !== null && r.answers[i] !== undefined) p[q.id] = { ok: r.answers[i] === q.correct, t: 0 };
+      });
+    }
+    return p;
+  }
+  function recordProgress(items) {
+    var p = getProgress();
+    var now = Date.now();
+    items.forEach(function (x) { p[x.id] = { ok: !!x.ok, t: now }; });
+    if (!setLocal(STORAGE_KEYS.PROGRESS, p)) state.storageWarning = true;
+  }
+  // 範囲ごとに：問題数・解いた数・最後に正解した数
+  function chapterProgress() {
+    var p = getProgress();
+    var map = {};
+    getChapters().forEach(function (c) { map[c.kyoshu] = { kyoshu: c.kyoshu, name: c.name, count: c.count, solved: 0, correct: 0 }; });
+    getReviewedQuestions().forEach(function (q) {
+      var c = map[q.kyoshu], r = p[q.id];
+      if (!c || !r) return;
+      c.solved++;
+      if (r.ok) c.correct++;
+    });
+    return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return a.kyoshu - b.kyoshu; });
+  }
+  var WEAK_MIN_SOLVED = 3; // 3問以上解いた範囲だけを「苦手」の判定に使う
+  function progressRate(c) { return c.solved ? Math.round(c.correct / c.solved * 100) : null; }
+  function progressLevel(c) {
+    var rate = progressRate(c);
+    if (rate === null) return { cls: "none", text: "まだ解いていません" };
+    if (c.solved < WEAK_MIN_SOLVED) return { cls: "few", text: "もう少し解くと分かります" };
+    if (rate >= 80) return { cls: "good", text: "よくできています" };
+    if (rate >= 60) return { cls: "mid", text: "あと一歩" };
+    return { cls: "weak", text: "復習しよう" };
+  }
+  // 正解率の低い順（同じなら解いた数の多い順）。3問以上解いた範囲だけ
+  function weakestChapter(list) {
+    var c = list.filter(function (x) { return x.solved >= WEAK_MIN_SOLVED && progressRate(x) < 80; })
+      .sort(function (a, b) { return progressRate(a) - progressRate(b) || b.solved - a.solved; });
+    return c[0] || null;
+  }
+  function progressBarHtml(c) {
+    var rate = progressRate(c);
+    return '<span class="kp-bar kp-bar--' + progressLevel(c).cls + '" aria-hidden="true"><span class="kp-fill" style="width:' + (rate || 0) + '%"></span></span>';
+  }
+  // 学習履歴の「範囲ごとの理解度」。行を押すと、その範囲の5問を始める
+  function chapterProgressPanel() {
+    var list = chapterProgress();
+    var html = '<section class="panel kp-panel"><h2>範囲ごとの理解度</h2>' +
+      '<p class="chart-caption">棒の長さは、解いた問題のうち最後に正解した割合です。範囲を押すと、その範囲の5問を始めます。</p>';
+    var weak = weakestChapter(list);
+    if (weak) html += '<p class="kp-weak-note">いま復習したい範囲：<strong>教習番号' + weak.kyoshu + '　' + escapeHtml(weak.name) + '</strong></p>';
+    else if (!list.some(function (c) { return c.solved; })) html += '<p class="kp-weak-note">5問や模試を解くと、ここに範囲ごとの結果が出ます。</p>';
+    html += '<div class="kp-list">';
+    list.forEach(function (c) {
+      var rate = progressRate(c), lv = progressLevel(c);
+      html += '<button class="kp-row" data-action="start-chapter" data-kyoshu="' + c.kyoshu + '" aria-label="教習番号' + c.kyoshu + ' ' + escapeHtml(c.name) + '。' +
+        (rate === null ? 'まだ解いていません' : '解いた' + c.solved + '問のうち' + c.correct + '問正解、' + rate + 'パーセント。' + lv.text) + '。この範囲の5問を始める">' +
+        '<span class="kp-head"><span class="kp-name"><span class="kp-no">' + c.kyoshu + '</span>' + escapeHtml(c.name) + '</span>' +
+        '<span class="kp-rate">' + (rate === null ? '−' : rate + '%') + '</span></span>' +
+        progressBarHtml(c) +
+        '<span class="kp-sub"><span class="kp-level kp-level--' + lv.cls + '">' + lv.text + '</span>' +
+        '<span>解いた ' + c.solved + ' / ' + c.count + '問</span></span></button>';
+    });
+    html += '</div></section>';
+    return html;
   }
 
   // ---------- 間違えた問題（端末に保存して積み上げる） ----------
@@ -780,6 +859,7 @@
     state.mistakeAnswered = true;
 
     var isCorrect = choiceIndex === m.correct;
+    recordProgress([{ id: m.questionId, ok: isCorrect }]);
     if (isCorrect) {
       // 正解した問題は「未クリアの間違い問題一覧」から外す
       var list = state.mistakeView.mistakes;
@@ -1079,6 +1159,8 @@
   // ---------- ② 今日の10問（開始） ----------
 
   function viewStart() {
+    var prog = {};
+    chapterProgress().forEach(function (c) { prog[c.kyoshu] = c; });
     var html = '<div class="screen screen--start screen--chapters">' +
       topBackHtml("go-home") +
       '<h1 class="screen-title">今日の5問</h1>' +
@@ -1088,7 +1170,8 @@
       html += '<button class="menu-item" data-action="start-chapter" data-kyoshu="' + c.kyoshu + '">' +
         '<span class="menu-icon menu-icon--blue chapter-no">' + c.kyoshu + '</span>' +
         '<span class="menu-body"><span class="menu-title">教習番号' + c.kyoshu + '　' + escapeHtml(c.name) + '</span>' +
-        '<span class="menu-sub">' + c.count + '問から5問</span></span>' +
+        '<span class="menu-sub">' + c.count + '問から5問' + (prog[c.kyoshu] && prog[c.kyoshu].solved ? '・正解 ' + progressRate(prog[c.kyoshu]) + '%' : '') + '</span>' +
+        (prog[c.kyoshu] && prog[c.kyoshu].solved ? progressBarHtml(prog[c.kyoshu]) : '') + '</span>' +
         '<span class="menu-chevron" aria-hidden="true">›</span></button>';
     });
     html += '<button class="menu-item" data-action="start-chapter" data-kyoshu="0">' +
@@ -1811,6 +1894,7 @@
     var history = (Array.isArray(savedHistory) ? savedHistory : []).filter(function(h){return h && typeof h==='object';}).slice().reverse();
     var html = '<div class="screen screen--history">';
     html += '<h1 class="screen-title screen-title--left">学習履歴</h1>';
+    html += chapterProgressPanel();
     html += mockHistoryChart(history.slice().reverse());
     html += '<section class="history-records"><h2>学習の記録</h2>';
 
@@ -2102,6 +2186,7 @@
     var r={sessionId:e.sessionId,date:todayDateString(),mode:'mock',count:50,correctCount:score,accuracy:score*2,completed:true,durationSec:Math.max(0,Math.round((Math.min(Date.now(),e.deadline)-e.startedAt)/1000)),reason:reason,questions:e.questions,answers:e.answers};
     var history=getLocal(STORAGE_KEYS.HISTORY,[]);if(!Array.isArray(history))history=[];history=history.filter(function(h){return h.sessionId!==r.sessionId;});history.push({sessionId:r.sessionId,date:r.date,mode:r.mode,count:50,correctCount:score,accuracy:r.accuracy,completed:true,durationSec:r.durationSec,reason:r.reason});
     addMistakeIds(e.questions.filter(function(q,i){return e.answers[i]!==null&&e.answers[i]!==q.correct;}).map(function(q){return q.id;}));
+    recordProgress(e.questions.map(function(q,i){return {id:q.id,ok:e.answers[i]===q.correct,a:e.answers[i]};}).filter(function(x){return x.a!==null&&x.a!==undefined;}));
     var resultSaved=setLocal(MOCK_RESULT_KEY,r),historySaved=setLocal(STORAGE_KEYS.HISTORY,history);
     state.storageWarning=(!resultSaved||!historySaved)||state.storageWarning;
     if(resultSaved&&historySaved) { try{localStorage.removeItem(MOCK_KEY);}catch(err){state.storageWarning=true;} }
