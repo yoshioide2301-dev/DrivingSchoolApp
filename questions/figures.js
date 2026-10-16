@@ -1,8 +1,8 @@
 // 間違えやすい問題の図（v1.1 試し：20問・16枚。10/16 本人OK「テスターの反応で効くか確かめる」）
 // 図は各問題の解説と根拠の条文に書いてあることだけを描く（原文にないことは描かない）。
 // 道路は上から見た図。日本は左側通行なので、上へ進む車は道路の左半分を走る。
-// 本人の確認が済むまでアプリには表示しない（FIGURES_ENABLED）。
-var FIGURES_ENABLED = false;
+// 10/17 本人OK「全部入れて良い」→ v1.1 のリリースに入れる（FIGURES_ENABLED）。
+var FIGURES_ENABLED = true;
 var FIGURES = (function () {
   var C = { road: "#6B7785", edge: "#FFFFFF", me: "#0E7C86", other: "#8A96A3", ok: "#0E7C86", ng: "#E5243B", text: "#0A192F", walk: "#F2EBDD", warn: "#E9B04F" };
   function svg(body, h) { return '<svg viewBox="0 0 320 ' + (h || 200) + '" xmlns="http://www.w3.org/2000/svg" role="img" font-family="sans-serif">' + '<defs><marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>' + '<rect width="320" height="' + (h || 200) + '" fill="#EEF5F0"/>' + body + "</svg>"; }
