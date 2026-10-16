@@ -9,7 +9,7 @@
 //   このファイルではキャッシュ処理のみを扱う。
 // - バックエンド通信・外部APIは扱わない。
 
-const CACHE_NAME = "michito-owner-preview-cache-v24";
+const CACHE_NAME = "michito-owner-preview-cache-v25";
 
 const CORE_ASSETS = [
   "./",
