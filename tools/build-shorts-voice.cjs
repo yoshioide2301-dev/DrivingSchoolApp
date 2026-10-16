@@ -23,6 +23,7 @@ body{font-family:"Yu Gothic UI","Meiryo",sans-serif;color:#0A192F;background:lin
 .tag{display:inline-block;background:#FFD66B;border-radius:999px;padding:10px 30px;font-size:40px;font-weight:900}
 .q{font-size:68px;font-weight:800;line-height:1.55;margin-top:34px}
 .cd{display:flex;justify-content:center;margin-top:70px}.cd b{display:flex;align-items:center;justify-content:center;width:300px;height:300px;border-radius:50%;background:#FFD66B;font-size:200px;font-weight:900;color:#0A192F}
+.ox{display:flex;align-items:center;justify-content:center;gap:50px;margin-top:80px}.ox b{display:block;line-height:0;filter:drop-shadow(0 10px 18px rgba(0,0,0,.3))}.ox i{font-style:normal;font-size:90px;font-weight:900;color:#FFD66B}
 .ans{display:flex;align-items:center;gap:30px}.mark{font-size:160px;font-weight:900;line-height:1}
 .fig{margin-top:26px;border-radius:28px;overflow:hidden}.fig svg{display:block;width:100%;height:auto}
 .e{font-size:46px;line-height:1.6;margin-top:24px;font-weight:700}
@@ -37,10 +38,15 @@ const ICON = 'file:///' + path.join(ROOT, 'native-ios', 'assets', 'AppIcon-1024.
 const head = `<div class="top"><img src="${ICON}">ミチト 仮免学科</div>`;
 const page = body => `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body><div class="note">試作（非公開）</div>${body}</body></html>`;
 const HOOK = { 'D-C016': ['2026年9月から<br><em>変わった</em><br>ルール、<br>知ってる？', '2026年9月から変わったルール、知ってる？'], default: ['仮免の学科<br><em>○か×か？</em>', '仮免の学科、マルかバツか？'] };
+const OX_O = '<svg width="250" height="250" viewBox="0 0 250 250"><circle cx="125" cy="125" r="98" fill="none" stroke="#fff" stroke-width="38"/></svg>', OX_X = '<svg width="250" height="250" viewBox="0 0 250 250"><path d="M40 40L210 210M210 40L40 210" stroke="#FF6B7A" stroke-width="40" stroke-linecap="round"/></svg>';  // 太い〇と×（文字の○×は線が細いので図形で描く）
+const ox = n => `<div class="ox"><b${n >= 1 ? '' : ' style="visibility:hidden"'}>${OX_O}</b><i${n >= 2 ? '' : ' style="visibility:hidden"'}>or</i><b${n >= 3 ? '' : ' style="visibility:hidden"'}>${OX_X}</b></div>`;
 const qCard = q => `<div class="card"><span class="tag">○か×か</span><div class="q">${esc(q.question)}</div></div>`;
 const ff = args => execFileSync('ffmpeg', ['-loglevel', 'error', '-y', ...args]);
 const dur = f => parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f], { encoding: 'utf8' }));
-const tts = async (text, wav) => {
+const tts = async (text, wav, n = 0) => {
+  try { return await tts1(text, wav); } catch (e) { if (n >= 3) throw e; await new Promise(r => setTimeout(r, 3000)); return tts(text, wav, n + 1); }
+};
+const tts1 = async (text, wav) => {
   const aq = await (await fetch(VV + '/audio_query?speaker=' + SPEAKER + '&text=' + encodeURIComponent(text), { method: 'POST' })).json();
   aq.speedScale = SPEED; aq.outputSamplingRate = 44100; aq.prePhonemeLength = 0.05; aq.postPhonemeLength = 0.15;
   const r = await fetch(VV + '/synthesis?speaker=' + SPEAKER, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(aq) });
@@ -49,7 +55,8 @@ const tts = async (text, wav) => {
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const tmp0 = fs.mkdtempSync(path.join(os.tmpdir(), 'sfx-'));
-  const tick = path.join(tmp0, 'tick.wav'), chime = path.join(tmp0, 'chime.wav');
+  const tick = path.join(tmp0, 'tick.wav'), chime = path.join(tmp0, 'chime.wav'), silence = path.join(tmp0, 'silence.wav');
+  ff(['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-t', '0.5', silence]);
   ff(['-f', 'lavfi', '-i', 'sine=frequency=1400:duration=0.06', '-af', 'volume=0.5,afade=t=out:st=0.03:d=0.03', tick]);
   ff(['-f', 'lavfi', '-i', 'sine=frequency=880:duration=0.18', '-f', 'lavfi', '-i', 'sine=frequency=1320:duration=0.45', '-filter_complex', '[0]volume=0.4[a];[1]volume=0.4,afade=t=out:st=0.1:d=0.35,adelay=150|150[b];[a][b]amix=inputs=2:normalize=0', chime]);
   for (const id of IDS) {
@@ -60,7 +67,11 @@ const tts = async (text, wav) => {
     const hook = HOOK[id] || HOOK.default;
     const scenes = [
       { html: head + `<div class="hook">${hook[0]}</div>`, say: hook[1], min: 1.2 },
-      { html: head + qCard(q), say: kana(q, 'question') + '。マルか、バツか。', min: 3 },
+      // 声の「マルか？」で〇、少しおいて「or」、「バツか？」で×を出す（耳で聞いた言葉を目で追えるように。本人 10/16）
+      { html: head + qCard(q), say: kana(q, 'question') + '。', min: 2.5 },
+      { html: head + qCard(q) + ox(1), say: 'マルか？', min: 0.5 },
+      { html: head + qCard(q) + ox(2), min: 0.3 },
+      { html: head + qCard(q) + ox(3), say: 'バツか？', min: 0.6 },
       { html: head + qCard(q) + '<div class="cd"><b>3</b></div>', sfx: tick, min: 0.8 },
       { html: head + qCard(q) + '<div class="cd"><b>2</b></div>', sfx: tick, min: 0.8 },
       { html: head + qCard(q) + '<div class="cd"><b>1</b></div>', sfx: tick, min: 0.8 },
@@ -78,7 +89,7 @@ const tts = async (text, wav) => {
         await tts(sc.say, wav);
         if (sc.pre) { const mix = path.join(tmp, i + 'm.wav'); ff(['-i', sc.pre, '-i', wav, '-filter_complex', '[1]adelay=450|450[v];[0][v]amix=inputs=2:normalize=0:duration=longest', mix]); audio = mix; }
         else audio = wav;
-      } else audio = sc.sfx;
+      } else audio = sc.sfx || silence;
       const d = Math.max(sc.min, (sc.say ? dur(audio) + 0.25 : 0));
       ff(['-loop', '1', '-i', png, '-i', audio, '-filter_complex', '[1:a]apad,atrim=0:' + d.toFixed(2) + ',aformat=sample_rates=44100:channel_layouts=stereo[a]', '-map', '0:v', '-map', '[a]', '-t', d.toFixed(2), '-r', '30', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '160k', seg]);
       parts.push(seg);
@@ -87,8 +98,8 @@ const tts = async (text, wav) => {
     fs.writeFileSync(list, parts.map(p => "file '" + p.replace(/\\/g, '/') + "'").join('\n'));
     const mp4 = path.join(OUT, 'michito-short-voice-' + id + '.mp4');
     ff(['-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', mp4]);
-    fs.copyFileSync(path.join(tmp, '5.png'), path.join(OUT, 'michito-short-voice-' + id + '-answer.png'));
-    fs.copyFileSync(path.join(tmp, '6.png'), path.join(OUT, 'michito-short-voice-end.png'));
+    fs.copyFileSync(path.join(tmp, (scenes.length - 2) + '.png'), path.join(OUT, 'michito-short-voice-' + id + '-answer.png'));
+    fs.copyFileSync(path.join(tmp, (scenes.length - 1) + '.png'), path.join(OUT, 'michito-short-voice-end.png'));
     console.log('作成', path.basename(mp4), dur(mp4).toFixed(1) + '秒');
     fs.rmSync(tmp, { recursive: true, force: true });
   }
