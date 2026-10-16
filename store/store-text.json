@@ -9,7 +9,7 @@
   "supportUrl": "https://yoshioide2301-dev.github.io/DrivingSchoolApp/privacy.html",
   "copyright": "2026 Yoshio Ide",
   "versionString": "1.1",
-  "buildNumber": "26",
+  "buildNumber": "27",
   "primaryCategory": "EDUCATION",
   "secondaryCategory": "REFERENCE",
   "reviewNotes": "Michito is an independent study app for the Japanese provisional driving licence written test. It contains 500 original true/false practice questions. Each question is written from the text of Japanese traffic laws (Road Traffic Act, its Enforcement Order and Regulations, and the Order on Road Signs and Markings), and the legal basis is shown under each explanation. Features: five questions at a time by lesson range, a 50-question 30-minute mock exam with scoring and a score chart, a review list of incorrectly answered questions, a list of road signs, and simple diagrams for some questions. No account or login is required. All learning data stays on the device. The optional feedback screen only opens the user's own mail app with a pre-filled message; nothing is sent unless the user sends the e-mail. The app does not access the network for learning. It is not affiliated with any driving school, the police, or the examination authority."

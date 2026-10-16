@@ -56,8 +56,13 @@ const price = await api('GET', `/v1/apps/${appId}/appPriceSchedule?include=manua
 say('価格の設定', price.ok ? ((price.json.included || []).length ? 'あり' : 'なし') : '読めない');
 
 // ビルド
-const builds = await api('GET', `/v1/builds?filter[app]=${appId}&filter[version]=${T.buildNumber}&filter[preReleaseVersion.version]=${T.versionString}&limit=5`);
-const build = builds.json && builds.json.data[0];
+let build = null;
+for (let i = 0; i < (MODE === 'apply' ? 30 : 1); i++) {
+  const builds = await api('GET', `/v1/builds?filter[app]=${appId}&filter[version]=${T.buildNumber}&filter[preReleaseVersion.version]=${T.versionString}&limit=5`);
+  build = builds.json && builds.json.data[0];
+  if (build && build.attributes.processingState === 'VALID') break;
+  if (MODE === 'apply') { say('ビルドの処理を待つ', i + 1); await new Promise(r => setTimeout(r, 60000)); }
+}
 say('ビルド', T.versionString + ' (' + T.buildNumber + ')', build ? build.attributes.processingState + ' 暗号=' + build.attributes.usesNonExemptEncryption : '見つからない');
 
 if (ver) {
