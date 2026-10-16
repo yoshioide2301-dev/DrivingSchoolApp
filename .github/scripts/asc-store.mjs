@@ -104,11 +104,41 @@ else { const c = await api('POST', '/v1/appInfoLocalizations', { type: 'appInfoL
 { const p = await api('PATCH', `/v1/appInfos/${info.id}`, { type: 'appInfos', id: info.id, relationships: { primaryCategory: { data: { type: 'appCategories', id: T.primaryCategory } }, secondaryCategory: { data: { type: 'appCategories', id: T.secondaryCategory } } } }); say('カテゴリ', p.ok ? 'OK' : 'NG'); }
 // 6) 年齢区分：未回答の項目だけ「なし」で埋める（文字の項目は NONE、真偽の項目は false）
 if (age.json && ageNull.length) {
-  const cur = age.json.data.attributes, attrs = {};
-  for (const k of ageNull) { if (['kidsAgeBand', 'ageRatingOverride', 'ageRatingOverrideV2', 'koreaAgeRatingOverride', 'developerAgeRatingInfoUrl'].includes(k)) continue; attrs[k] = /^(is|has|gambling$|unrestrictedWebAccess$|lootBox$|messagingAndChat$|parentalControls$|ageAssurance$|userGeneratedContent$|advertising$|healthOrWellnessTopics$|seventeenPlus$|gamblingAndContests$)/.test(k) ? false : 'NONE'; }
-  let p = await api('PATCH', `/v1/ageRatingDeclarations/${age.json.data.id}`, { type: 'ageRatingDeclarations', id: age.json.data.id, attributes: attrs });
-  say('年齢区分', p.ok ? 'OK' : 'NG（画面で回答してください）', Object.keys(attrs).length + '項目');
+  let ok = 0, ng = [];
+  for (const k of ageNull) {
+    if (['kidsAgeBand', 'gracRatingClassificationNumber', 'developerAgeRatingInfoUrl', 'ageRatingOverride', 'ageRatingOverrideV2', 'koreaAgeRatingOverride'].includes(k)) continue;
+    let done = false;
+    for (const v of ['NONE', false]) {
+      const r = await fetch('https://api.appstoreconnect.apple.com/v1/ageRatingDeclarations/' + age.json.data.id, { method: 'PATCH', headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' }, body: JSON.stringify({ data: { type: 'ageRatingDeclarations', id: age.json.data.id, attributes: { [k]: v } } }) });
+      if (r.ok) { done = true; break; }
+    }
+    if (done) ok++; else ng.push(k);
+  }
+  say('年齢区分', ok + '項目を「なし」に', ng.length ? '通らなかった：' + ng.join(',') : '');
 }
+// 6b) 価格：無料（まだ設定が無いときだけ）
+if (!price.ok) {
+  const pts = await api('GET', `/v1/apps/${appId}/appPricePoints?filter[territory]=JPN&limit=200`);
+  const free = pts.json && pts.json.data.find(p => Number(p.attributes.customerPrice) === 0);
+  if (free) {
+    const r = await fetch('https://api.appstoreconnect.apple.com/v1/appPriceSchedules', { method: 'POST', headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' }, body: JSON.stringify({
+      data: { type: 'appPriceSchedules', relationships: { app: { data: { type: 'apps', id: appId } }, baseTerritory: { data: { type: 'territories', id: 'JPN' } }, manualPrices: { data: [{ type: 'appPrices', id: '${p0}' }] } } },
+      included: [{ type: 'appPrices', id: '${p0}', attributes: { startDate: null }, relationships: { appPricePoint: { data: { type: 'appPricePoints', id: free.id } } } }] }) });
+    say('価格（無料）', r.ok ? 'OK' : 'NG ' + r.status + ' ' + (await r.text()).slice(0, 300));
+  } else say('価格（無料）', '無料の価格が見つからない');
+}
+// 6c) 配信地域：日本だけ（まだ設定が無いときだけ）
+{
+  const av = await api('GET', `/v1/apps/${appId}/appAvailabilityV2`);
+  if (!av.ok) {
+    const r = await fetch('https://api.appstoreconnect.apple.com/v2/appAvailabilities', { method: 'POST', headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' }, body: JSON.stringify({
+      data: { type: 'appAvailabilities', attributes: { availableInNewTerritories: false }, relationships: { app: { data: { type: 'apps', id: appId } }, territoryAvailabilities: { data: [{ type: 'territoryAvailabilities', id: '${jpn}' }] } } },
+      included: [{ type: 'territoryAvailabilities', id: '${jpn}', attributes: { available: true, releaseDate: null, preOrderEnabled: false }, relationships: { territory: { data: { type: 'territories', id: 'JPN' } } } }] }) });
+    say('配信地域（日本）', r.ok ? 'OK' : 'NG ' + r.status + ' ' + (await r.text()).slice(0, 300));
+  } else say('配信地域', '設定済み');
+}
+// 6d) 第三者のコンテンツ：標識の図（パブリックドメイン）と法令の条文を使っている → 「使っていて、権利がある」
+if (!app.attributes.contentRightsDeclaration) { const p = await api('PATCH', `/v1/apps/${appId}`, { type: 'apps', id: appId, attributes: { contentRightsDeclaration: 'USES_THIRD_PARTY_CONTENT' } }); say('第三者のコンテンツの申告', p.ok ? 'OK' : 'NG'); }
 // 7) 審査メモ（連絡先は個人情報なので入れない。画面で本人が入れる）
 {
   const rd = await api('GET', `/v1/appStoreVersions/${ver.id}/appStoreReviewDetail`);
