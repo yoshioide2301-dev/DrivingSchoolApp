@@ -2,5 +2,8 @@
   "appId": "com.yoshioide2301.michito",
   "appName": "ミチト",
   "webDir": "www",
-  "ios": {"contentInset": "never"}
+  "ios": {
+    "contentInset": "never"
+  },
+  "zoomEnabled": false
 }

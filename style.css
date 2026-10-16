@@ -254,6 +254,10 @@ button, input, textarea {
   color: inherit;
 }
 
+/* 拡大を防ぐ：2回タップの拡大を止める・入力欄は16px以上（iPhone は16px未満の入力欄を押すと自動で拡大し、戻らない） */
+html { touch-action: manipulation; }
+input, textarea, select { font-size: max(16px, 1em); }
+
 button {
   -webkit-tap-highlight-color: transparent;
 }

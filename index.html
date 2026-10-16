@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>ミチト</title>
   <meta name="description" content="運転免許学科試験対策アプリ ミチト｜今日も、少しずつ。">
   <link rel="manifest" href="manifest.json">
@@ -29,6 +29,10 @@
 <body>
   <div id="app"></div>
 
+  <script>
+    // 両手の親指で素早く操作したときに、ピンチや2回タップで画面が拡大して戻らなくなるのを防ぐ（10/17 息子さんの端末で何度か発生）。文字の大きさは設定で変えられる
+    ["gesturestart", "gesturechange", "gestureend"].forEach(function (t) { document.addEventListener(t, function (e) { e.preventDefault(); }, { passive: false }); });
+  </script>
   <script src="questions/questions.js"></script>
   <script src="questions/furigana.js"></script>
   <script src="signs/signs.js"></script>
