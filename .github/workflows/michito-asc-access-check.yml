@@ -1,0 +1,25 @@
+# ミチト：App Store Connect API の鍵で、TestFlight とアナリティクスの数字を読めるかを確かめる（読み取りだけ。10/16 本人OK）
+# 起動：タグ asc-access-check-* の push。ログには窓口ごとの返事の番号だけを出す（公開 repo なので、数字の中身は出さない）
+name: Michito ASC access check
+on:
+  push:
+    tags:
+      - "asc-access-check-*"
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 読めるかを確かめる
+        run: node .github/scripts/asc-access-check.mjs
