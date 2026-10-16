@@ -2164,6 +2164,12 @@
     html += "</div>";
     html += "</section>";
 
+    // 協力してくださった方へ（10/16 本人：名前を出さない形 A。名簿は集めない）
+    html += '<section class="settings-group">';
+    html += '<h2 class="settings-label">協力してくださった方へ</h2>';
+    html += '<p class="settings-note">テスト版にご参加いただいた皆さまの声をもとに、ミチトはつくられています。心より感謝いたします。</p>';
+    html += '</section>';
+
     html += '<p class="settings-note" data-action="dev-tap">ミチト v' + escapeHtml(APP_VERSION) + '</p>';
     if (isDevMode()) html += devSettingsHtml();
     html += '<p class="settings-note">設定はこの端末にだけ保存されます。学習履歴やメモには影響しません。</p>';
