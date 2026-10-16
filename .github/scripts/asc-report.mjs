@@ -36,13 +36,13 @@ out.groups = [];
 for (const g of await all('グループ', `/v1/apps/${id}/betaGroups?limit=50&fields[betaGroups]=name,isInternalGroup,publicLinkEnabled,publicLinkLimit,publicLinkLimitEnabled,createdDate`)) {
   const testers = await all('グループのテスター', `/v1/betaGroups/${g.id}/betaTesters?limit=200&fields[betaTesters]=state,inviteType`);
   const usage = await call('グループの利用', `/v1/betaGroups/${g.id}/metrics/betaTesterUsages?period=P30D&groupBy=betaTesters&limit=200`);
-  const link = g.attributes.publicLinkEnabled ? await call('公開リンクの利用', `/v1/betaGroups/${g.id}/metrics/publicLinkUsages?limit=200`) : null;
+  const link = g.attributes.publicLinkEnabled ? await call('公開リンクの利用', `/v1/betaGroups/${g.id}/metrics/publicLinkUsages`) : null;
   out.groups.push({ id: g.id, ...g.attributes, testers: testers.map(t => ({ id: t.id, ...t.attributes })), usage30d: usage, publicLinkUsages: link });
 }
 out.testerUsage = {};
 for (const p of ['P7D', 'P30D']) out.testerUsage[p] = await call('テスター別の利用 ' + p, `/v1/apps/${id}/metrics/betaTesterUsages?period=${p}&groupBy=betaTesters&limit=200`);
 out.builds = [];
-for (const b of await all('ビルド', `/v1/builds?filter[app]=${id}&limit=10&sort=-uploadedDate&fields[builds]=version,uploadedDate,expirationDate,expired,processingState`)) {
+for (const b of ((await call('ビルド', `/v1/builds?filter[app]=${id}&limit=5&sort=-uploadedDate&fields[builds]=version,uploadedDate,expirationDate,expired,processingState`)) || {}).data || []) {
   const m = await call('ビルドの利用', `/v1/builds/${b.id}/metrics/betaBuildUsages`);
   out.builds.push({ id: b.id, ...b.attributes, usage: m });
 }
