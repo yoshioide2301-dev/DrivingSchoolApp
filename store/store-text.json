@@ -1,0 +1,16 @@
+{
+  "subtitle": "条文の根拠が見える仮免○×問題",
+  "promotional_text": "答えの理由を、法令の根拠と一緒に。登録不要・無料・広告なし。仮免学科の○×500問すべてに法令名と条・項を表示します。模試は本番と同じ50問・30分・○×形式。10回で全問を一巡できます（同じ端末で保存が有効な場合）。生活道路30km/h（2026年9月施行）に対応。",
+  "description": "ミチトは、仮免許（第1段階）の範囲を学ぶ、iPhone用の○×問題アプリです。500問すべてに法令の根拠を表示。50問・30分の仮免模試は、10回で500問を一巡できます。\n\n■ 500問すべてに、法令と条・項を表示\n道路交通法・道路交通法施行令・道路交通法施行規則・道路標識、区画線及び道路標示に関する命令の条文をもとに作った問題です。解説の一番下に、根拠となる法令名と条・項を表示します。\n\n■ 2026年9月施行の法改正に対応\n中央線や車両通行帯のない一般道路（いわゆる生活道路）の法定最高速度30km/h（2026年9月1日施行、道路交通法施行令第11条）を、問題と解説に反映しています。\n\n■ 本番と同じ50問・30分・○×形式の模試\n50問を30分で解き、終わってから採点します。45問を合格の目安として表示します。\nまだ出ていない問題から順に出すので、模試10回分で、ちょうど500問を一巡できます。同じ端末で保存が有効な場合に利用できる仕組みです。\n模試の点数の推移は、グラフで確認できます。\n\n■ 範囲を選んで、5問ずつ\n学科教本の教習番号1〜10に沿って、問題を分けています。学びたい範囲を選んで5問ずつ取り組めます。「同じ範囲でもう5問」で、直前の問題を避けて続けられます。\n\n■ 標識を見て、意味を確かめる\n法令の別表にある標識の図と意味を、種類ごとに見られます。問題に出る標識だけに絞ったり、標識から関連する問題へ進んだりできます。\n「標識の覚え方」では、形と色の地図や、まちがえやすい標識の組のカードを用意。「すぐ1問」で解いてみたり、苦手な組をもう一度確かめたりできます。\n\n■ 間違えた問題を、あとで解き直し\n間違えた問題は端末に保存されます。あとで解き直し、正解すると一覧から外れます。\n\n■ 自分に合った表示と、端末内の記録\n文字の大きさと、画面のテーマ（色）を選べます。\n学習の記録は端末の中だけに保存し、外部には送りません。アカウント登録は不要です。広告・アプリ内課金はありません。\n意見や不具合は、ご自身のメールアプリから任意で送れます。\n\nこのアプリは、教習所・試験の実施機関・警察の公式アプリではありません。実際の試験問題を収録したものではなく、合格を保証するものでもありません。",
+  "keywords": "運転免許,普通免許,学科試験,教習所,問題集,模擬試験,道路交通法,標識",
+  "name": "ミチト",
+  "locale": "ja",
+  "privacyPolicyUrl": "https://yoshioide2301-dev.github.io/DrivingSchoolApp/privacy.html",
+  "supportUrl": "https://yoshioide2301-dev.github.io/DrivingSchoolApp/privacy.html",
+  "copyright": "2026 Yoshio Ide",
+  "versionString": "1.1",
+  "buildNumber": "26",
+  "primaryCategory": "EDUCATION",
+  "secondaryCategory": "REFERENCE",
+  "reviewNotes": "Michito is an independent study app for the Japanese provisional driving licence written test. It contains 500 original true/false practice questions. Each question is written from the text of Japanese traffic laws (Road Traffic Act, its Enforcement Order and Regulations, and the Order on Road Signs and Markings), and the legal basis is shown under each explanation. Features: five questions at a time by lesson range, a 50-question 30-minute mock exam with scoring and a score chart, a review list of incorrectly answered questions, a list of road signs, and simple diagrams for some questions. No account or login is required. All learning data stays on the device. The optional feedback screen only opens the user's own mail app with a pre-filled message; nothing is sent unless the user sends the e-mail. The app does not access the network for learning. It is not affiliated with any driving school, the police, or the examination authority."
+}

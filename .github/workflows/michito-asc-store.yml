@@ -1,0 +1,28 @@
+# ミチト：App Store の掲載情報（文章・画面写真・ビルド）を App Store Connect に登録する（10/17 本人OK：今日リリースの申請まで）
+# 起動：タグ asc-store-check-*（読むだけ）／ asc-store-apply-*（登録する）。審査への提出はしない。
+name: Michito ASC store
+on:
+  push:
+    tags:
+      - "asc-store-check-*"
+      - "asc-store-apply-*"
+permissions:
+  contents: read
+jobs:
+  store:
+    runs-on: ubuntu-latest
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 掲載情報
+        run: |
+          case "$GITHUB_REF_NAME" in asc-store-apply-*) export MODE=apply ;; *) export MODE=check ;; esac
+          node .github/scripts/asc-store.mjs
