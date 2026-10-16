@@ -2430,7 +2430,7 @@
   function devFind(text) {
     var all = questions || [], out = [], missing = [];
     var add = function (q) { if (out.indexOf(q) < 0) out.push(q); };
-    devNorm(text).split(/[\s,、，]+/).filter(Boolean).forEach(function (tok) {
+    devNorm(text).split(/[\s,、，・･／/;；]+/).filter(Boolean).forEach(function (tok) {
       var r = tok.split(/[〜~～]/);
       if (r.length === 2) {
         var m1 = /^(.*?)(\d+)$/.exec(r[0]), m2 = /^(.*?)(\d+)$/.exec(r[1]);
