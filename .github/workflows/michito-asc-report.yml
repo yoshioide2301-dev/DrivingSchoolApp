@@ -1,0 +1,33 @@
+# ミチト：利用状況（TestFlight とアナリティクス）を週1回集め、暗号にして保存する（10/16 本人OK）
+# 起動：毎週月曜 9:00（日本時間）、またはタグ asc-report-* の push。結果は report.enc（管理者のパソコンの秘密鍵でしか読めない）
+# 公開 repo なので、ログには窓口ごとの返事の番号だけを出す
+name: Michito ASC report
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  push:
+    tags:
+      - "asc-report-*"
+permissions:
+  contents: read
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 集めて暗号にする
+        run: node .github/scripts/asc-report.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asc-report
+          path: report.enc
+          retention-days: 30
