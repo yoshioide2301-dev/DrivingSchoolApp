@@ -38,7 +38,7 @@ say('アプリ：見つかった', 'contentRightsDeclaration=' + app.attributes.
 // バージョン
 const vers = await api('GET', `/v1/apps/${appId}/appStoreVersions?filter[platform]=IOS&limit=20`);
 for (const v of vers.json.data) say('バージョン', v.attributes.versionString, v.attributes.appStoreState, 'copyright=' + (v.attributes.copyright || '-'));
-const EDITABLE = ['PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED', 'INVALID_BINARY'];
+const EDITABLE = ['PREPARE_FOR_SUBMISSION', 'READY_FOR_REVIEW', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED', 'INVALID_BINARY'];
 let ver = vers.json.data.find(v => EDITABLE.includes(v.attributes.appStoreState));
 
 // アプリ情報（名前・サブタイトル・カテゴリ・年齢区分）
