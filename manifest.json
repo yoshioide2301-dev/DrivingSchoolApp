@@ -1,12 +1,23 @@
 {
   "name": "ミチト",
   "short_name": "ミチト",
-  "description": "運転免許学科試験対策アプリ（開発中）",
+  "description": "運転免許 仮免学科の対策アプリ",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
   "lang": "ja",
-  "icons": []
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }

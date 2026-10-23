@@ -1,11 +1,11 @@
 // app.js
 //
 // ミチト MVP v0.1 - Step 6 + UI/ブランド移行 v1
-// 「今日の10問」の基本UI・学習導線 ＋ 実問題20問（D-C001〜D-C020）の出題。
+// 「今日の10問」の基本UI・学習導線 ＋ reviewedの○×教材の出題。
 // Step 6-A: 間違えた問題の復習UX改善（正解するたびに一覧から消える）
 // Step 6-B: 問題後の振り返り（旧フィードバック機能を「寄り添いアンケート」へ変更）
 // V4.0 DESIGN-REFERENCE: ミチトデザイン１.png / ミチトデザイン２.png の画面構成・フローを再現
-//   HOME → 今日の10問（開始） → 問題（選択 → 回答する） → 正解／不正解 → 解説 → 振り返り → … → 結果
+//   HOME → 今日の10問 → ○×回答 → 正答は次問（解説任意）／誤答は解説 → 結果（感想任意）
 // V4.1: 歯車から開く設定画面（文字サイズ 標準・大・特大／テーマ そら・やわらか・よる）。
 //   選ぶとすぐに反映し、localStorage の michito_settings にだけ保存する
 //
@@ -25,8 +25,9 @@
 (function () {
   "use strict";
 
-  var APP_VERSION = "0.1.0-step6";
-  var SESSION_SIZE = 10;
+  var APP_VERSION = "1.1";
+  var SESSION_SIZE = 5; // v1.1：教習番号（範囲）を選んで5問ずつ
+  var MAX_SAVED_SESSION = 10; // v1.0 の10問の途中保存も再開できるようにする
   var NOTE_MAX_LENGTH = 500;
 
   var STORAGE_KEYS = {
@@ -34,7 +35,13 @@
     FEEDBACK: "zerodora_feedback",
     TRAINING_NOTES: "zerodora_training_notes",
     // V4.1: 表示設定（文字サイズ・テーマ）。学習履歴・メモのキー／形式とは独立させる
-    SETTINGS: "michito_settings"
+    SETTINGS: "michito_settings",
+    SESSION: "michito_session",
+    SURVEY: "michito_session_survey",
+    // 間違えた問題（問題IDの配列）。今日の10問・仮免模試で間違えるたびに追加し、解き直しで正解したら外す
+    MISTAKES: "michito_mistakes",
+    // v1.1：問題ごとの最後の正誤 { 問題ID: { ok: true/false, t: 日時 } }。範囲ごとの理解度に使う
+    PROGRESS: "michito_progress"
   };
 
   var appEl = document.getElementById("app");
@@ -116,16 +123,40 @@
   function getReviewedQuestions() {
     if (!Array.isArray(questions)) return [];
     return questions.filter(function (q) {
-      return q.reviewStatus === REVIEWED_STATUS;
+      return q.reviewStatus === REVIEWED_STATUS && q.type === "truefalse" &&
+        Array.isArray(q.choices) && q.choices.length === 2 &&
+        q.choices[0] === "○" && q.choices[1] === "×" &&
+        (q.correct === 0 || q.correct === 1);
     });
   }
 
-  function buildSessionQuestions() {
-    var reviewedQuestions = getReviewedQuestions();
+  // v1.1：教習番号（学科教本 第1段階の1〜10）ごとの範囲。kyoshu が 0 のときは全範囲
+  function getChapters() {
+    var map = {};
+    getReviewedQuestions().forEach(function (q) {
+      if (!q.kyoshu) return;
+      if (!map[q.kyoshu]) map[q.kyoshu] = { kyoshu: q.kyoshu, name: q.kyoshuName || "", count: 0 };
+      map[q.kyoshu].count++;
+    });
+    return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return a.kyoshu - b.kyoshu; });
+  }
+
+  function chapterLabel(kyoshu) {
+    if (!kyoshu) return "全部の範囲";
+    var c = getChapters().find(function (x) { return x.kyoshu === kyoshu; });
+    return "教習番号" + kyoshu + (c && c.name ? "　" + c.name : "");
+  }
+
+  // avoidIds：直前に解いた問題。範囲の中でまだ解いていない問題を先に出す
+  function buildSessionQuestions(kyoshu, avoidIds) {
+    var reviewedQuestions = getReviewedQuestions().filter(function (q) { return !kyoshu || q.kyoshu === kyoshu; });
     if (reviewedQuestions.length === 0) {
       return [];
     }
-    var pool = [];
+    var avoid = Array.isArray(avoidIds) ? avoidIds : [];
+    var fresh = reviewedQuestions.filter(function (q) { return avoid.indexOf(q.id) < 0; });
+    var seen = reviewedQuestions.filter(function (q) { return avoid.indexOf(q.id) >= 0; });
+    var pool = shuffle(fresh).concat(shuffle(seen));
     while (pool.length < SESSION_SIZE) {
       pool = pool.concat(shuffle(reviewedQuestions));
     }
@@ -138,6 +169,7 @@
   // - choices / correct は「表示順」に置き換えたコピーを返す
   // - _choiceOrder[表示位置] = 元データでの選択肢インデックス
   function withShuffledChoices(q) {
+    if (q.type === "truefalse") return { choices: q.choices.slice(), correct: q.correct, _choiceOrder: [0, 1] };
     if (!Array.isArray(q.choices)) return {};
     var order = shuffle(
       q.choices.map(function (_, i) {
@@ -170,7 +202,7 @@
     history.forEach(function (h) {
       totalCount += h.count || 0;
       totalCorrect += h.correctCount || 0;
-      if (h.date === today) {
+      if (h.date === today && h.mode !== "mock") {
         todayCount += h.count || 0;
       }
     });
@@ -198,7 +230,13 @@
     { value: "yoru", label: "よる", desc: "暗めの落ち着いた配色。夜の学習に。" }
   ];
 
-  var DEFAULT_SETTINGS = { fontSize: "standard", theme: "sora" };
+  // v1.1：ふりがな（本番の試験・教本と同じく、漢字に読みを振る。10/15 本人：必須）
+  var FURIGANA_OPTIONS = [
+    { value: "on", label: "あり" },
+    { value: "off", label: "なし" }
+  ];
+
+  var DEFAULT_SETTINGS = { fontSize: "standard", theme: "sora", furigana: "on" };
 
   function isValidOption(options, value) {
     for (var i = 0; i < options.length; i++) {
@@ -210,10 +248,11 @@
   // 保存値が壊れている・古い・不正な場合は、項目ごとに初期値へ戻す
   function loadSettings() {
     var raw = getLocal(STORAGE_KEYS.SETTINGS, null);
-    var settings = { fontSize: DEFAULT_SETTINGS.fontSize, theme: DEFAULT_SETTINGS.theme };
+    var settings = { fontSize: DEFAULT_SETTINGS.fontSize, theme: DEFAULT_SETTINGS.theme, furigana: DEFAULT_SETTINGS.furigana };
     if (raw && typeof raw === "object" && !Array.isArray(raw)) {
       if (isValidOption(FONT_SIZE_OPTIONS, raw.fontSize)) settings.fontSize = raw.fontSize;
       if (isValidOption(THEME_OPTIONS, raw.theme)) settings.theme = raw.theme;
+      if (isValidOption(FURIGANA_OPTIONS, raw.furigana)) settings.furigana = raw.furigana;
     }
     return settings;
   }
@@ -228,12 +267,12 @@
   applySettings(settings);
 
   function updateSetting(name, value) {
-    if (name !== "fontSize" && name !== "theme") return;
-    var options = name === "fontSize" ? FONT_SIZE_OPTIONS : THEME_OPTIONS;
+    if (name !== "fontSize" && name !== "theme" && name !== "furigana") return;
+    var options = name === "fontSize" ? FONT_SIZE_OPTIONS : name === "furigana" ? FURIGANA_OPTIONS : THEME_OPTIONS;
     if (!isValidOption(options, value)) return;
     settings[name] = value;
     applySettings(settings);
-    setLocal(STORAGE_KEYS.SETTINGS, { fontSize: settings.fontSize, theme: settings.theme });
+    setLocal(STORAGE_KEYS.SETTINGS, { fontSize: settings.fontSize, theme: settings.theme, furigana: settings.furigana });
     render({ keepScroll: true });
     // 再描画でフォーカスが外れるため、選んだ項目へ戻す（キーボード操作・読み上げ向け）
     var selected = appEl.querySelector('[data-setting="' + name + '"][data-value="' + value + '"]');
@@ -318,6 +357,16 @@
       '<path d="M250 160 C282 146 318 128 350 111" fill="none" stroke="#fff" stroke-width="2.2" opacity="0.9"/>' +
       '<path d="M186 160 C250 142 305 126 344 111" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="9 8"/>' +
       '<path d="M0 138 C90 128 160 140 240 150 L260 160 H0Z" fill="#7DBD7C" opacity="0.85"/>' +
+      (variant === "goal"
+        ? '<path d="M262 140 V100" stroke="#5D6B79" stroke-width="2.4"/>' +
+          '<path d="M263 100 h22 v14 h-22z" fill="#fff" stroke="#5D6B79" stroke-width="1.2"/>' +
+          '<path d="M263 100h5.5v3.5h-5.5zM274 100h5.5v3.5h-5.5zM268.5 103.5h5.5v3.5h-5.5zM279.5 103.5h5.5v3.5h-5.5zM263 107h5.5v3.5h-5.5zM274 107h5.5v3.5h-5.5zM268.5 110.5h5.5v3.5h-5.5zM279.5 110.5h5.5v3.5h-5.5z" fill="#0A192F"/>'
+        : "") +
+      (variant === "map"
+        ? '<ellipse cx="232" cy="147" rx="11" ry="3.5" fill="#000" opacity="0.15"/>' +
+          '<path d="M232 146 C224 134 216 126 216 116 A16 16 0 0 1 248 116 C248 126 240 134 232 146Z" fill="#0A8F9A" stroke="#fff" stroke-width="2"/>' +
+          '<circle cx="232" cy="116" r="6" fill="#fff"/>'
+        : "") +
       "</svg>"
     );
   }
@@ -356,6 +405,8 @@
   }
 
   var ICONS = {
+    sign:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M7.5 10h9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M12 17v5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
     gear:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4L10.6 6a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" transform="translate(-1 0)"/></svg>',
     target:
@@ -364,6 +415,8 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="10.6" y="5" width="2.8" height="9.5" rx="1.4" fill="#fff"/><circle cx="12" cy="18.3" r="1.7" fill="#fff"/></svg>',
     chart:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="12" width="3" height="7" rx="1" fill="#fff"/><rect x="10.5" y="8" width="3" height="11" rx="1" fill="#fff"/><rect x="16" y="5" width="3" height="14" rx="1" fill="#fff"/></svg>',
+    timer:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7" fill="none" stroke="#fff" stroke-width="2.2"/><path d="M12 13.5V9.5M10 3.5h4M12 3.5v3" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>',
     memo:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="16" rx="2" fill="none" stroke="#fff" stroke-width="2"/><path d="M9 9h6M9 12.5h6M9 16h3.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>',
     tabHome:
@@ -445,29 +498,36 @@
 
   function goHome() {
     state.view = "home";
+    saveMock();
+    saveProgress();
     state.session = null;
     render();
   }
 
   function openStart() {
     state.view = "start";
-    state.session = null;
     render();
   }
 
-  function startSession() {
-    var sessionQuestions = buildSessionQuestions();
+  function startSession(kyoshu, avoidIds) {
+    kyoshu = kyoshu || 0;
+    state.view="home"; saveMock();
+    saveProgress();
+    var sessionQuestions = buildSessionQuestions(kyoshu, avoidIds);
     if (sessionQuestions.length === 0) {
       // reviewStatus: "reviewed" の問題が1件もない場合のガード
       alert("現在、出題可能な問題がありません（reviewStatus: \"reviewed\" の問題が0件です）。");
       return;
     }
+    state.resumeNotice = null;
     state.session = {
       sessionId: generateSessionId(),
+      kyoshu: kyoshu,
       questions: sessionQuestions,
       currentIndex: 0,
       answers: [],
       startTime: Date.now(),
+      date: todayDateString(),
       answeredCurrent: false,
       selectedIndex: null,
       pendingIndex: null, // 「回答する」を押す前に選んでいる選択肢
@@ -475,6 +535,7 @@
       reflectionChoice: null
     };
     state.view = "question";
+    saveProgress();
     render();
   }
 
@@ -483,6 +544,8 @@
     var s = state.session;
     if (!s || s.answeredCurrent) return;
     s.pendingIndex = choiceIndex;
+    if (s.questions[s.currentIndex].type === "truefalse") { submitAnswer(); return; }
+    saveProgress();
     render({ keepScroll: true });
   }
 
@@ -492,7 +555,9 @@
     if (!s || s.answeredCurrent || s.pendingIndex === null) return;
     s.selectedIndex = s.pendingIndex;
     s.answeredCurrent = true;
-    s.phase = "verdict";
+    s.phase = s.selectedIndex === s.questions[s.currentIndex].correct ? "verdict" : "explain";
+    recordCurrentAnswer();
+    saveProgress();
     render();
   }
 
@@ -500,36 +565,298 @@
     var s = state.session;
     if (!s || !s.answeredCurrent) return;
     s.phase = phase;
+    saveProgress();
     render();
   }
 
-  function proceedToNext(feedbackPayload) {
+  function recordCurrentAnswer() {
+    var s = state.session;
+    if (!s || !s.answeredCurrent || s.answers.length > s.currentIndex) return;
+    var q = s.questions[s.currentIndex];
+    s.answers.push({ timestamp: new Date().toISOString(), sessionId: s.sessionId,
+      questionId: q.id, selectedAnswer: toOriginalChoiceIndex(q, s.selectedIndex),
+      correct: s.selectedIndex === q.correct, feedbackRating: null,
+      feedbackReason: [], comment: "", appVersion: APP_VERSION });
+    if (s.selectedIndex !== q.correct) addMistakeIds([q.id]);
+    recordProgress([{ id: q.id, ok: s.selectedIndex === q.correct }]);
+  }
+
+  // ---------- v1.1：範囲（教習番号）ごとの理解度 ----------
+  // 問題ごとに「最後に解いたときの正誤」だけを残す。前回の模試の結果が残っていれば、初回に取り込む
+  function getProgress() {
+    if (getLocal(DEV_SAMPLE_KEY, false)) return devSampleProgress();
+    var p = getLocal(STORAGE_KEYS.PROGRESS, null);
+    if (p && typeof p === "object" && !Array.isArray(p)) return p;
+    p = {};
+    var r = getLocal(MOCK_RESULT_KEY, null);
+    if (r && Array.isArray(r.questions) && Array.isArray(r.answers)) {
+      r.questions.forEach(function (q, i) {
+        if (q && q.id && r.answers[i] !== null && r.answers[i] !== undefined) p[q.id] = { ok: r.answers[i] === q.correct, t: 0 };
+      });
+    }
+    return p;
+  }
+  // 開発用の試しの記録。保存している本当の記録は変えず、表示だけ差し替える
+  function devSampleProgress() {
+    var plan = { 1: [20, 18], 2: [10, 5], 3: [30, 27], 4: [12, 7], 5: [2, 1], 7: [8, 8], 8: [15, 9] }, by = {}, p = {};
+    getReviewedQuestions().forEach(function (q) { (by[q.kyoshu] = by[q.kyoshu] || []).push(q.id); });
+    Object.keys(plan).forEach(function (k) { (by[k] || []).slice(0, plan[k][0]).forEach(function (id, i) { p[id] = { ok: i < plan[k][1], t: 0 }; }); });
+    return p;
+  }
+  function recordProgress(items) {
+    if (getLocal(DEV_SAMPLE_KEY, false)) return;
+    var p = getProgress();
+    var now = Date.now();
+    items.forEach(function (x) { p[x.id] = { ok: !!x.ok, t: now }; });
+    if (!setLocal(STORAGE_KEYS.PROGRESS, p)) state.storageWarning = true;
+  }
+  // 範囲ごとに：問題数・解いた数・最後に正解した数
+  function chapterProgress() {
+    var p = getProgress();
+    var map = {};
+    getChapters().forEach(function (c) { map[c.kyoshu] = { kyoshu: c.kyoshu, name: c.name, count: c.count, solved: 0, correct: 0 }; });
+    getReviewedQuestions().forEach(function (q) {
+      var c = map[q.kyoshu], r = p[q.id];
+      if (!c || !r) return;
+      c.solved++;
+      if (r.ok) c.correct++;
+    });
+    return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return a.kyoshu - b.kyoshu; });
+  }
+  var WEAK_MIN_SOLVED = 3; // 3問以上解いた範囲だけを「苦手」の判定に使う
+  function progressRate(c) { return c.solved ? Math.round(c.correct / c.solved * 100) : null; }
+  function progressLevel(c) {
+    var rate = progressRate(c);
+    if (rate === null) return { cls: "none", text: "まだ解いていません" };
+    if (c.solved < WEAK_MIN_SOLVED) return { cls: "few", text: "もう少し解くと分かります" };
+    if (rate >= 80) return { cls: "good", text: "よくできています" };
+    if (rate >= 60) return { cls: "mid", text: "あと一歩" };
+    return { cls: "weak", text: "復習しよう" };
+  }
+  // 正解率の低い順（同じなら解いた数の多い順）。3問以上解いた範囲だけ
+  function weakestChapter(list) {
+    var c = list.filter(function (x) { return x.solved >= WEAK_MIN_SOLVED && progressRate(x) < 80; })
+      .sort(function (a, b) { return progressRate(a) - progressRate(b) || b.solved - a.solved; });
+    return c[0] || null;
+  }
+  function progressBarHtml(c) {
+    var rate = progressRate(c);
+    return '<span class="kp-bar kp-bar--' + progressLevel(c).cls + '" aria-hidden="true"><span class="kp-fill" style="width:' + (rate || 0) + '%"></span></span>';
+  }
+  // 次にやることを1つだけ、大きく示す（ホームと学習履歴で共通）。何も解いていなければ空
+  function progressFocusHtml(list) {
+    var weak = weakestChapter(list);
+    var untried = list.filter(function (c) { return !c.solved; })[0];
+    if (!list.some(function (c) { return c.solved; })) return "";
+    var label, name, sub, btn;
+    if (weak) {
+      label = "いま復習したい範囲";
+      name = "教習番号" + weak.kyoshu + "　" + weak.name;
+      sub = "正解 " + progressRate(weak) + "%（解いた" + weak.solved + "問）";
+      btn = '<button class="btn-pill btn-pill--block kp-focus-btn" data-action="start-chapter" data-kyoshu="' + weak.kyoshu + '">この範囲を5問 <span aria-hidden="true">→</span></button>';
+    } else if (untried) {
+      label = "まだ解いていない範囲";
+      name = "教習番号" + untried.kyoshu + "　" + untried.name;
+      sub = "ほかの範囲は、今のところよくできています。";
+      btn = '<button class="btn-pill btn-pill--block kp-focus-btn" data-action="start-chapter" data-kyoshu="' + untried.kyoshu + '">この範囲を5問 <span aria-hidden="true">→</span></button>';
+    } else {
+      label = "どの範囲もよくできています";
+      name = "本番と同じ50問で力試し";
+      sub = "仮免模試：50問・30分。";
+      btn = '<button class="btn-pill btn-pill--block kp-focus-btn" data-action="mock-open">模試に挑戦 <span aria-hidden="true">→</span></button>';
+    }
+    return '<div class="kp-focus' + (weak ? ' kp-focus--weak' : '') + '">' + characterSvg("character kp-focus-chara") +
+      '<div class="kp-focus-body"><p class="kp-focus-label">' + label + '</p><p class="kp-focus-name">' + escapeHtml(name) + '</p><p class="kp-focus-sub">' + sub + '</p></div>' + btn + '</div>';
+  }
+  var GUIDE_KEY = "michito_guide_seen";
+  var GUIDE_STEPS = [
+    { img: "guide/step1.png", title: "「はじめる」をタッチ", text: "今日の5問をはじめます。" },
+    { img: "guide/step2.png", title: "習った教習番号をタッチ", text: "その範囲から5問出ます。" },
+    { img: "guide/step3.png", title: "○か×をタッチ", text: "正しいと思えば○、誤りなら×。" },
+    { img: "guide/step4.png", title: "解説と根拠を読む", text: "なぜそうなるかが、条文で分かります。" },
+    { img: "guide/step5.png", title: "苦手な範囲をタッチ", text: "「あなたの現在地」で苦手が分かります。" },
+    { img: "guide/step6.png", title: "仕上げは模試", text: "50問・30分。45問を目指そう。" }
+  ];
+  function viewGuide() {
+    var i = Math.max(0, Math.min(GUIDE_STEPS.length - 1, state.guideIndex || 0)), st = GUIDE_STEPS[i], last = i === GUIDE_STEPS.length - 1;
+    var dots = GUIDE_STEPS.map(function (x, k) { return '<span class="guide-dot' + (k === i ? ' is-active' : '') + '"></span>'; }).join("");
+    return '<div class="screen guide-screen"><div class="guide-top"><span class="guide-count">使い方 ' + (i + 1) + ' / ' + GUIDE_STEPS.length + '</span>' +
+      '<button class="text-link guide-skip" data-action="guide-done">' + (last ? '閉じる' : 'とばす') + '</button></div>' +
+      '<img class="guide-img" src="' + st.img + '" alt="' + escapeHtml(st.title) + 'の画面。押す場所を赤い丸で示しています">' +
+      '<h1 class="guide-title"><span class="guide-no">' + (i + 1) + '</span>' + escapeHtml(st.title) + '</h1><p class="guide-text">' + escapeHtml(st.text) + '</p>' +
+      '<div class="guide-dots" aria-hidden="true">' + dots + '</div>' +
+      '<div class="guide-nav">' + (i > 0 ? '<button class="btn-pill btn-pill--ghost" data-action="guide-prev">← 前へ</button>' : '<span></span>') +
+      '<button class="btn-pill" data-action="' + (last ? 'guide-done' : 'guide-next') + '">' + (last ? 'はじめよう' : '次へ →') + '</button></div></div>';
+  }
+  function openGuide() { state.guideIndex = 0; state.view = "guide"; render(); window.scrollTo(0, 0); }
+
+  // 時間帯のあいさつ（5〜10時：おはようございます、18時〜4時：こんばんは）
+  function greetingText() {
+    var h = new Date().getHours();
+    if (h >= 5 && h < 11) return "おはようございます。";
+    if (h >= 18 || h < 5) return "こんばんは。";
+    return "こんにちは。";
+  }
+  // 開発用：試しの記録で表示する（本当の記録は変えない）
+  var DEV_SAMPLE_KEY = "michito_dev_sample_progress";
+  function colsHtml(list, action) {
+    var label = list.map(function (c) { var r = progressRate(c); return "教習番号" + c.kyoshu + " " + (r === null ? "未回答" : r + "パーセント"); }).join("、");
+    var html = action ? '<button class="kp-cols" data-action="' + action + '" aria-label="範囲ごとの正解の割合。' + escapeHtml(label) + '。くわしく見る">' : '<div class="kp-cols" role="img" aria-label="範囲ごとの正解の割合。' + escapeHtml(label) + '">';
+    list.forEach(function (c) {
+      html += '<span class="kp-col kp-bar--' + progressLevel(c).cls + '"><span class="kp-col-bar"><span class="kp-fill" style="height:' + (progressRate(c) || 0) + '%"></span></span><span class="kp-col-no">' + c.kyoshu + '</span></span>';
+    });
+    return html + (action ? '</button>' : '</div>');
+  }
+  function colsNote(any) {
+    return '<p class="kp-cols-note">' + (any ? '数字は教習番号。棒が高いほど正解が多い範囲です。' : '「今日の5問」や模試を解くと、教習番号ごとの正解の割合がここに出て、苦手な範囲が分かります。') + '</p>';
+  }
+  // ホームの入口（「今日の5問」と同じ作りのカード。10/15 本人が形B に決定）
+  function homeProgressEntry() {
+    var list = chapterProgress(), weak = weakestChapter(list);
+    var sub = weak ? "いま復習したい範囲：教習番号" + weak.kyoshu + "　" + weak.name : list.some(function (c) { return c.solved; }) ? "範囲ごとの得意・苦手を見る。" : "解いた結果から、得意・苦手が分かります。";
+    return '<section class="today-card today-card--more"><div class="today-card-scene">' + sceneSvg("map") + '</div>' +
+      '<div class="today-card-body"><h2 class="today-card-title"><span class="kp-entry-icon">' + ICONS.chart + '</span>あなたの現在地</h2>' +
+      '<p class="today-card-sub">' + escapeHtml(sub) + '</p>' +
+      '<button class="btn-pill" data-action="open-progress">見る <span aria-hidden="true">→</span></button></div></section>';
+  }
+  // 現在地の画面（ホームの「あなたの現在地」カードから）
+  function viewProgress() {
+    var list = chapterProgress(), any = list.some(function (c) { return c.solved; });
+    return '<div class="screen screen--history"><h1 class="screen-title screen-title--left">あなたの現在地</h1>' +
+      '<section class="panel">' + colsHtml(list, "") + colsNote(any) + progressFocusHtml(list) + '</section>' + chapterProgressPanel(true) + '</div>';
+  }
+  // 学習履歴の「範囲ごとの理解度」。行を押すと、その範囲の5問を始める
+  function chapterProgressPanel(noFocus) {
+    var list = chapterProgress();
+    var html = '<section class="panel kp-panel"><h2>範囲ごとの理解度</h2>' +
+      '<p class="chart-caption">棒の長さは、解いた問題のうち最後に正解した割合です。範囲を押すと、その範囲の5問を始めます。</p>';
+    var focus = noFocus ? "" : progressFocusHtml(list);
+    if (focus || noFocus) html += focus;
+    else if (!list.some(function (c) { return c.solved; })) html += '<p class="kp-weak-note">5問や模試を解くと、ここに範囲ごとの結果が出ます。</p>';
+    html += '<div class="kp-list">';
+    list.forEach(function (c) {
+      var rate = progressRate(c), lv = progressLevel(c);
+      html += '<button class="kp-row" data-action="start-chapter" data-kyoshu="' + c.kyoshu + '" aria-label="教習番号' + c.kyoshu + ' ' + escapeHtml(c.name) + '。' +
+        (rate === null ? 'まだ解いていません' : '解いた' + c.solved + '問のうち' + c.correct + '問正解、' + rate + 'パーセント。' + lv.text) + '。この範囲の5問を始める">' +
+        '<span class="kp-head"><span class="kp-name"><span class="kp-no">' + c.kyoshu + '</span>' + escapeHtml(c.name) + '</span>' +
+        '<span class="kp-rate">' + (rate === null ? '−' : rate + '%') + '</span></span>' +
+        progressBarHtml(c) +
+        '<span class="kp-sub"><span class="kp-level kp-level--' + lv.cls + '">' + lv.text + '</span>' +
+        '<span>解いた ' + c.solved + ' / ' + c.count + '問</span></span></button>';
+    });
+    html += '</div></section>';
+    return html;
+  }
+
+  // ---------- 間違えた問題（端末に保存して積み上げる） ----------
+  function getMistakeIds() {
+    var ids = getLocal(STORAGE_KEYS.MISTAKES, []);
+    if (!Array.isArray(ids)) return [];
+    var valid = {};
+    getReviewedQuestions().forEach(function (q) { valid[q.id] = true; });
+    return ids.filter(function (id) { return valid[id]; });
+  }
+  function addMistakeIds(newIds) {
+    var ids = getLocal(STORAGE_KEYS.MISTAKES, []);
+    if (!Array.isArray(ids)) ids = [];
+    newIds.forEach(function (id) { if (ids.indexOf(id) === -1) ids.push(id); });
+    if (!setLocal(STORAGE_KEYS.MISTAKES, ids)) state.storageWarning = true;
+  }
+  function removeMistakeId(id) {
+    var ids = getLocal(STORAGE_KEYS.MISTAKES, []);
+    if (!Array.isArray(ids)) return;
+    if (!setLocal(STORAGE_KEYS.MISTAKES, ids.filter(function (x) { return x !== id; }))) state.storageWarning = true;
+  }
+  // 間違い問題の一覧を、保存された問題IDから作る（一覧を開いた時点の内容。正解したものは「クリア」と表示）
+  function buildMistakeView() {
+    var byId = {};
+    getReviewedQuestions().forEach(function (q) { byId[q.id] = q; });
+    var list = getMistakeIds().map(function (id, i) {
+      var q = byId[id];
+      return { questionId: q.id, id: q.id, type: q.type, question: q.question, choices: q.choices, correct: q.correct,
+        explanation: q.explanation, ref: q.ref, source: q.source, sourceSection: q.sourceSection, questionNumber: i + 1 };
+    });
+    return { mistakes: list.slice(), mistakeAll: list, mistakeTotal: list.length };
+  }
+
+  function saveProgress() {
     var s = state.session;
     if (!s) return;
-    var q = s.questions[s.currentIndex];
-    var isCorrect = s.selectedIndex === q.correct;
+    state.storageWarning = !setLocal(STORAGE_KEYS.SESSION, { schemaVersion: 1, session: s, resumeOnLoad: state.view === "question" });
+    if (!s.answers.length) return;
+    var history = getLocal(STORAGE_KEYS.HISTORY, []);
+    if (!Array.isArray(history)) history = [];
+    var correctCount = s.answers.filter(function (a) { return a.correct; }).length;
+    var summary = { sessionId: s.sessionId, date: s.date || new Date(s.startTime).getFullYear() + "-" + String(new Date(s.startTime).getMonth() + 1).padStart(2, "0") + "-" + String(new Date(s.startTime).getDate()).padStart(2, "0"),
+      count: s.answers.length, correctCount: correctCount,
+      accuracy: Math.round(correctCount / s.answers.length * 100),
+      durationSec: Math.round((Date.now() - s.startTime) / 1000), completed: false };
+    var idx = history.findIndex(function (h) { return h.sessionId === s.sessionId; });
+    if (idx < 0) history.push(summary); else history[idx] = summary;
+    if (!setLocal(STORAGE_KEYS.HISTORY, history)) state.storageWarning = true;
+  }
 
-    var answerRecord = {
-      timestamp: new Date().toISOString(),
-      sessionId: s.sessionId,
-      questionId: q.id,
-      selectedAnswer: toOriginalChoiceIndex(q, s.selectedIndex),
-      correct: isCorrect,
-      feedbackRating: feedbackPayload ? feedbackPayload.rating : null,
-      feedbackReason: feedbackPayload ? feedbackPayload.reasons : [],
-      comment: feedbackPayload ? feedbackPayload.comment : "",
-      appVersion: APP_VERSION
-    };
+  function clearSavedSession() {
+    try { localStorage.removeItem(STORAGE_KEYS.SESSION); } catch (e) { /* storage unavailable */ }
+  }
 
-    s.answers.push(answerRecord);
-
-    // フィードバック（入力の有無に関わらず、回答記録の一部として保存する）
-    if (feedbackPayload) {
-      var feedbackLog = getLocal(STORAGE_KEYS.FEEDBACK, []);
-      feedbackLog.push(answerRecord);
-      setLocal(STORAGE_KEYS.FEEDBACK, feedbackLog);
+  function previousC011Text(source) {
+    return source && source.id==='D-C011' && source.question==='左右の見通しがきかない交差点で、交通整理が行われておらず、自分が優先道路を通行していない場合は、徐行しなければならない。' ? '左右の見通しがきかない交差点でも、交通整理が行われておらず、優先道路も通行していないときは徐行しなければならない。' : null;
+  }
+  function savedSession() {
+    try {
+    var saved = getLocal(STORAGE_KEYS.SESSION, null);
+    if (!saved || saved.schemaVersion !== 1 || !saved.session) return null;
+    var s = saved.session;
+    var pool = getReviewedQuestions();
+    if (typeof s.sessionId !== "string" || !Number.isFinite(s.startTime) ||
+        !Array.isArray(s.questions) || !s.questions.length || s.questions.length > MAX_SAVED_SESSION ||
+        !Number.isInteger(s.currentIndex) || s.currentIndex < 0 || s.currentIndex >= s.questions.length ||
+        !Array.isArray(s.answers) || typeof s.answeredCurrent !== "boolean" ||
+        s.answers.length !== s.currentIndex + (s.answeredCurrent ? 1 : 0) ||
+        ["question", "verdict", "explain"].indexOf(s.phase) < 0) return null;
+    for (var i = 0; i < s.questions.length; i++) {
+      var q = s.questions[i];
+      var source = pool.find(function (item) { return item.id === q.id; });
+      if (previousC011Text(source) && q.question===previousC011Text(source)) q.question=source.question;
+      if (!source || q.type !== "truefalse" || q.type !== source.type || q.question !== source.question || q.explanation !== source.explanation ||
+          !Array.isArray(q._choiceOrder) || q._choiceOrder[0] !== 0 || q._choiceOrder[1] !== 1 || q._choiceOrder.length !== source.choices.length ||
+          new Set(q._choiceOrder).size !== source.choices.length ||
+          !q._choiceOrder.every(function (n, j) { return Number.isInteger(n) && n >= 0 &&
+            n < source.choices.length && q.choices[j] === source.choices[n]; }) ||
+          q.correct !== q._choiceOrder.indexOf(source.correct)) return null;
+      if (i < s.answers.length) {
+        var answer = s.answers[i];
+        if (!answer || answer.questionId !== q.id || answer.sessionId !== s.sessionId ||
+            !Number.isInteger(answer.selectedAnswer) || answer.selectedAnswer < 0 ||
+            answer.selectedAnswer >= source.choices.length ||
+            answer.correct !== (answer.selectedAnswer === source.correct)) return null;
+      }
     }
+    var current = s.questions[s.currentIndex];
+    if (s.pendingIndex !== null && (!Number.isInteger(s.pendingIndex) || s.pendingIndex < 0 ||
+        s.pendingIndex >= current.choices.length)) return null;
+    if (s.answeredCurrent && (!Number.isInteger(s.selectedIndex) || s.selectedIndex < 0 ||
+        s.selectedIndex >= current.choices.length ||
+        toOriginalChoiceIndex(current, s.selectedIndex) !== s.answers[s.currentIndex].selectedAnswer)) return null;
+    if (!s.answeredCurrent && (s.phase !== "question" || s.selectedIndex !== null)) return null;
+    return s;
+    } catch (e) { return null; }
+  }
 
+  function resumeSession() {
+    var s = savedSession();
+    if (!s) { clearSavedSession(); showToast("保存した学習を再開できません。新しく始めてください。"); return; }
+    state.session = s;
+    state.view = "question";
+    saveProgress();
+    render();
+  }
+
+  function proceedToNext() {
+    var s = state.session;
+    if (!s || !s.answeredCurrent) return;
+    recordCurrentAnswer();
     if (s.currentIndex + 1 >= s.questions.length) {
       finishSession();
       return;
@@ -541,6 +868,7 @@
     s.pendingIndex = null;
     s.phase = "question";
     s.reflectionChoice = null;
+    saveProgress();
     render();
   }
 
@@ -557,6 +885,7 @@
         var q = s.questions[idx];
         mistakes.push({
           questionId: q.id,
+          type: q.type,
           question: q.question,
           choices: q.choices,
           correct: q.correct,
@@ -569,7 +898,8 @@
     });
 
     var summary = {
-      date: todayDateString(),
+      sessionId: s.sessionId, completed: true, kyoshu: s.kyoshu || 0,
+      date: s.date || todayDateString(),
       count: s.questions.length,
       correctCount: correctCount,
       accuracy: s.questions.length > 0 ? Math.round((correctCount / s.questions.length) * 100) : 0,
@@ -577,15 +907,25 @@
     };
 
     var history = getLocal(STORAGE_KEYS.HISTORY, []);
-    history.push(summary);
-    setLocal(STORAGE_KEYS.HISTORY, history);
+    if (!Array.isArray(history)) history = [];
+    var historyIndex = history.findIndex(function (h) { return h.sessionId === s.sessionId; });
+    if (historyIndex < 0) history.push(summary); else history[historyIndex] = summary;
+    if (setLocal(STORAGE_KEYS.HISTORY, history)) {
+      clearSavedSession();
+      state.storageWarning = false;
+    } else {
+      // 最終回答の保存を残し、再起動後に完了保存を再試行できるようにする。
+      state.storageWarning = true;
+    }
 
     state.lastSession = {
       summary: summary,
       mistakes: mistakes, // 現段階では画面遷移内でのみ保持し、localStorageへは保存しない
       // (正式問題投入後、間違い履歴の永続化を追加予定)
       mistakeTotal: mistakes.length, // 復習の進捗表示用（正解して一覧から消えても変化しない当初件数）
-      mistakeAll: mistakes.slice() // 一覧表示用（クリア済みも「クリア」として表示する）
+      mistakeAll: mistakes.slice(), // 一覧表示用（クリア済みも「クリア」として表示する）
+      kyoshu: s.kyoshu || 0,
+      questionIds: s.questions.map(function (q) { return q.id; }) // 「同じ範囲でもう5問」で重ならないように
     };
 
     state.session = null;
@@ -594,12 +934,13 @@
   }
 
   function openMistakeList() {
+    if (state.view !== "mistakeSolve" || !state.mistakeView) state.mistakeView = buildMistakeView();
     state.view = "mistakes";
     render();
   }
 
   function openMistakeSolve(index) {
-    var data = state.lastSession;
+    var data = state.mistakeView;
     if (!data || !data.mistakeAll[index]) return;
     state.mistakeSolveSnapshot = data.mistakeAll[index];
     state.mistakeAnswered = false;
@@ -612,6 +953,7 @@
   function pickMistakeChoice(choiceIndex) {
     if (!state.mistakeSolveSnapshot || state.mistakeAnswered) return;
     state.mistakePending = choiceIndex;
+    if (state.mistakeSolveSnapshot.type === "truefalse") { submitMistakeAnswer(); return; }
     render({ keepScroll: true });
   }
 
@@ -627,11 +969,13 @@
     state.mistakeAnswered = true;
 
     var isCorrect = choiceIndex === m.correct;
+    recordProgress([{ id: m.questionId, ok: isCorrect }]);
     if (isCorrect) {
       // 正解した問題は「未クリアの間違い問題一覧」から外す
-      var list = state.lastSession.mistakes;
+      var list = state.mistakeView.mistakes;
       var idx = list.indexOf(m);
       if (idx !== -1) list.splice(idx, 1);
+      removeMistakeId(m.questionId);
       m.cleared = true;
       var remaining = list.length;
       if (remaining === 0) {
@@ -680,7 +1024,7 @@
   // ---------- ① HOME ----------
 
   function viewHome() {
-    var remaining = state.lastSession ? state.lastSession.mistakes.length : 0;
+    var remaining = getMistakeIds().length;
 
     var html =
       '<header class="home-header">' +
@@ -699,7 +1043,7 @@
     html +=
       '<section class="home-hero">' +
       sceneSvg("hero") +
-      '<h1 class="home-greeting">こんにちは。<br>今日も少しだけ進もう。</h1>' +
+      '<h1 class="home-greeting">' + greetingText() + '<br>今日も少しだけ進もう。</h1>' +
       "</section>";
 
     html +=
@@ -710,12 +1054,20 @@
       '<div class="today-card-body">' +
       '<h2 class="today-card-title"><span class="today-card-icon">' +
       ICONS.target +
-      "</span>今日の10問</h2>" +
-      '<p class="today-card-sub">今日も10問、一緒にやろう。</p>' +
+      "</span>今日の5問</h2>" +
+      '<p class="today-card-sub">習った範囲を選んで、5問ずつ。</p>' +
       '<button class="btn-pill" data-action="open-start">はじめる <span aria-hidden="true">→</span></button>' +
+      (savedSession() ? '<button class="text-link card-link" data-action="resume-session">途中の5問の続きから再開</button>' : "") +
       "</div>" +
       "</section>";
 
+    html += homeProgressEntry();
+    html += '<section class="today-card today-card--more"><div class="today-card-scene">' + sceneSvg("goal") + '</div>' +
+      '<div class="today-card-body"><h2 class="today-card-title"><span class="kp-entry-icon">' + ICONS.timer + '</span>仮免模試</h2>' +
+      '<p class="today-card-sub">50問・30分。終わってから採点・復習。</p>' +
+      '<button class="btn-pill" data-action="mock-open">模試に挑戦 <span aria-hidden="true">→</span></button>' +
+      (state.exam ? '<button class="text-link card-link" data-action="mock-resume">模試の続きへ（時間は進みます）</button>' : '') +
+      (getLocal(MOCK_RESULT_KEY,null) ? '<button class="text-link card-link" data-action="mock-result">前回の模試結果</button>' : '') + '</div></section>';
     html += '</div><div class="home-side">';
 
     html += '<nav class="menu-list">';
@@ -727,6 +1079,13 @@
       "もう一度、一緒にやってみよう。",
       remaining > 0 ? '<span class="menu-badge">' + remaining + "</span>" : ""
     );
+    html += menuItemHtml("open-signs", "menu-icon--blue", ICONS.sign, "標識一覧", "203種類の標識と、法令が定める意味。", "");
+    if (TIPS().pairs.length) {
+      var weakPairs = tipsWeakIds().length;
+      html += menuItemHtml("open-tips-home", "menu-icon--pink", ICONS.sign, "標識の覚え方", "まちがえやすい組を一言で。すぐ1問。",
+        weakPairs > 0 ? '<span class="menu-badge">' + weakPairs + "</span>" : "");
+    }
+    html += menuItemHtml("open-guide", "menu-icon--green", ICONS.bulb, "使い方", "絵で見る、ミチトの進め方。", "");
     html += menuItemHtml("open-history", "menu-icon--blue", ICONS.chart, "学習履歴", "これまでの歩みを確認する。", "");
     html += menuItemHtml("open-training-notes", "menu-icon--green", ICONS.memo, "トレーニングメモ", "今日の気づきを残しておこう。", "");
     html += "</nav>";
@@ -764,25 +1123,184 @@
     );
   }
 
+  // ---------- v1.1：標識一覧（標識令 別表第一・第二の図と意味） ----------
+  var SIGN_CATS = ["規制標識", "指示標識", "警戒標識", "案内標識", "補助標識"];
+  function SIGNS_DATA() { return typeof SIGNS !== "undefined" && Array.isArray(SIGNS) ? SIGNS : []; }
+
+  // カラーの図（Commons）があればそれを、無ければ法令の様式図を使う
+  function signPic(x) { return x.cimg && x.cimg.length ? x.cimg : x.img; }
+
+  function viewSigns() {
+    var cat = state.signCat || "規制標識";
+    var list = SIGNS_DATA().map(function (x, i) { return { x: x, i: i }; }).filter(function (o) {
+      return o.x.cat === cat && (!state.signOnlyQ || (o.x.kq && o.x.kq.length));
+    });
+    var html = '<div class="screen screen--signs">' + topBackHtml("go-home") +
+      '<h1 class="screen-title">標識一覧</h1>' +
+      '<p class="screen-lead">本標識は4種類（案内・警戒・規制・指示）。<br>その下に付く補助標識もあります。</p>' +
+      (TIPS().pairs.length ? '<button class="btn-pill btn-pill--wide tips-entry" data-action="open-tips">標識の覚え方（まちがえ兄弟） <span aria-hidden="true">→</span></button>' : '') +
+      '<div class="sign-tabs" role="tablist">';
+    SIGN_CATS.forEach(function (c) {
+      html += '<button class="sign-tab' + (c === cat ? " is-active" : "") + '" role="tab" aria-selected="' + (c === cat) + '" data-action="sign-cat" data-cat="' + c + '">' + c.replace("標識", "") + '</button>';
+    });
+    html += '</div><button class="sign-filter' + (state.signOnlyQ ? " is-on" : "") + '" data-action="sign-only-q" aria-pressed="' + !!state.signOnlyQ + '">' +
+      (state.signOnlyQ ? "☑" : "☐") + ' ミチトの問題に出てくる標識だけ</button>';
+    if (!list.length) html += '<p class="empty-state">この種類には、問題に出てくる標識がありません。</p>';
+    html += '<div class="sign-grid">';
+    list.forEach(function (o) {
+      html += '<button class="sign-card" data-action="open-sign" data-index="' + o.i + '">' +
+        '<img src="' + signPic(o.x)[0] + '" alt="" loading="lazy">' +
+        '<span class="sign-name">' + escapeHtml(o.x.name) + '<span class="sign-no">（' + escapeHtml(o.x.no) + '）</span></span>' +
+        (o.x.kq && o.x.kq.length ? '<span class="sign-badge">問題あり</span>' : '') + '</button>';
+    });
+    html += '</div><p class="settings-note sign-credit">意味：道路標識、区画線及び道路標示に関する命令 別表第一（e-Gov 法令検索、2026年9月1日施行版）。カラーの図：Wikimedia Commons（パブリックドメイン）。法令の様式図（別表第二）と1枚ずつ照らし合わせています。カラーの図が無いものは法令の様式図です。</p></div>';
+    return html;
+  }
+
+  function viewSignDetail() {
+    var x = SIGNS_DATA()[state.signIndex];
+    if (!x) return '<div class="empty-state">標識が見つかりません。</div>' + backHomeButtonHtml();
+    var html = '<div class="screen screen--sign-detail">' + topBackHtml("open-signs") +
+      '<p class="sign-cat-label">' + escapeHtml(x.cat) + '　（' + escapeHtml(x.no) + '）</p>' +
+      '<h1 class="screen-title">' + escapeHtml(x.name) + '</h1>';
+    signPic(x).forEach(function (src) { html += '<img class="sign-big" src="' + src + '" alt="' + escapeHtml(x.name) + '">'; });
+    if (x.meaning) html += '<section class="panel sign-meaning"><h2>法令が定める意味</h2><p>' + escapeHtml(x.meaning) + '</p><p class="settings-note">標識令 別表第一「表示する意味」より（根拠の条を示す前置きは省略）。</p></section>';
+    if (x.kq && x.kq.length) html += '<button class="btn-pill btn-pill--wide" data-action="sign-questions">この標識の問題を解く（' + Math.min(x.kq.length, SESSION_SIZE) + '問） <span aria-hidden="true">→</span></button>';
+    html += '<button class="text-link" data-action="open-signs">一覧へ戻る</button></div>';
+    return html;
+  }
+
+  // ---------- v1.1 試作：覚え方のコツ（形と色の地図 → まちがえ兄弟カード → すぐ1問 → 苦手な組をもう一度） ----------
+  var TIPS_KEY = "michito.signTips.v1";
+  function TIPS() { return typeof SIGN_TIPS !== "undefined" && SIGN_TIPS ? SIGN_TIPS : { pairs: [], map: [] }; }
+  function tipsRecord() { return getLocal(TIPS_KEY, {}) || {}; }
+  function tipsWeakIds() {
+    var rec = tipsRecord();
+    return TIPS().pairs.filter(function (p) { return rec[p.id] && rec[p.id].last === "w"; }).map(function (p) { return p.id; });
+  }
+  function tipsPair(id) { return TIPS().pairs.filter(function (p) { return p.id === id; })[0]; }
+  function startTips(onlyWeak) {
+    var weak = tipsWeakIds();
+    var ids = onlyWeak ? weak : weak.concat(TIPS().pairs.map(function (p) { return p.id; }).filter(function (id) { return weak.indexOf(id) < 0; }));
+    if (!ids.length) return;
+    state.tips = { order: ids, pos: 0, phase: "card", qi: 0, chosen: null };
+    state.view = "signTips"; render(); window.scrollTo(0, 0);
+  }
+
+  function viewSignTipsIntro() {
+    var weak = tipsWeakIds().length;
+    var html = '<div class="screen screen--tips">' + topBackHtml(state.tipsFrom || "open-signs") +
+      '<h1 class="screen-title">標識の覚え方</h1>' +
+      '<p class="screen-lead">まず、形と色で種類をつかむ。<br>次に、まちがえやすい組を一言で見分ける。</p>' +
+      '<section class="panel tips-map"><h2>① 形と色の地図</h2><p class="settings-note">種類ごとに、形と色がそろっています。</p>';
+    TIPS().map.forEach(function (g) {
+      html += '<div class="tips-map-row"><span class="tips-map-cat">' + escapeHtml(g.cat.replace("標識", "")) + '</span><span class="tips-map-imgs">';
+      g.idx.forEach(function (i) { html += '<img src="' + signPic(SIGNS_DATA()[i])[0] + '" alt="' + escapeHtml(SIGNS_DATA()[i].name) + '" loading="lazy">'; });
+      html += '</span></div>';
+    });
+    html += '</section><section class="panel"><h2>② まちがえ兄弟</h2><p>似ている2つを並べて、違いを一言で。見たらすぐ1問。</p>' +
+      '<button class="btn-pill btn-pill--wide" data-action="tips-start">まちがえ兄弟を見る（' + TIPS().pairs.length + '組） <span aria-hidden="true">→</span></button>' +
+      (weak ? '<button class="btn-pill btn-pill--wide btn-pill--pink tips-weak-btn" data-action="tips-weak">苦手な組だけ（' + weak + '組）</button>' : '') +
+      '</section></div>';
+    return html;
+  }
+
+  function tipsSideHtml(side, one) {
+    var X = SIGNS_DATA()[side.idx];
+    return '<div class="tips-side"><img src="' + signPic(X)[0] + '" alt="">' +
+      '<span class="tips-one">' + escapeHtml(one || "") + '</span>' +
+      '<span class="tips-side-name">' + escapeHtml(side.name) + '<span class="sign-no">（' + escapeHtml(side.no) + '）</span></span></div>';
+  }
+
+  function viewSignTips() {
+    var t = state.tips;
+    if (!t) return viewSignTipsIntro();
+    var html = '<div class="screen screen--tips">' + topBackHtml("open-tips");
+    if (t.phase === "done") {
+      var weak = tipsWeakIds().length;
+      html += '<h1 class="screen-title">おつかれさま！</h1><p class="screen-lead">' + t.order.length + '組を見終わりました。</p>' +
+        (weak ? '<p class="tips-done">まだ苦手な組：<strong>' + weak + '組</strong></p><button class="btn-pill btn-pill--wide btn-pill--pink" data-action="tips-weak">苦手な組だけもう一度 <span aria-hidden="true">→</span></button>'
+              : '<p class="tips-done">全部の組で正解しました！</p>') +
+        (state.tipsFrom === "go-home" ? '<button class="text-link" data-action="go-home">ホームへ戻る</button>' : '<button class="text-link" data-action="open-signs">標識一覧へ戻る</button>') + '</div>';
+      return html;
+    }
+    var p = tipsPair(t.order[t.pos]);
+    var one = p.one || {};
+    html += '<p class="tips-progress">まちがえ兄弟　' + (t.pos + 1) + ' / ' + t.order.length + '</p>' +
+      '<div class="tips-pair">' + tipsSideHtml(p.a, one.a) + tipsSideHtml(p.b, one.b) + '</div>';
+    if (t.phase === "card") {
+      html += '<p class="tips-head">' + escapeHtml(p.head) + '</p>' +
+        '<p class="tips-diff">' + escapeHtml(p.diff) + '</p>' +
+        '<details class="tips-quotes"><summary>法令の言葉で確かめる</summary>';
+      p.quotes.forEach(function (q) { html += '<p>「' + escapeHtml(q.quote) + '」<span class="sign-no">' + escapeHtml(q.source) + '</span></p>'; });
+      html += '<p class="settings-note">道路標識、区画線及び道路標示に関する命令（e-Gov、2026年9月1日施行版）</p></details>' +
+        (p.quiz.length ? '<button class="btn-pill btn-pill--wide" data-action="tips-quiz">すぐ1問 <span aria-hidden="true">→</span></button>'
+                       : '<button class="btn-pill btn-pill--wide" data-action="tips-next">次の組へ <span aria-hidden="true">→</span></button>');
+    } else {
+      var q = p.quiz[t.qi];
+      html += '<p class="tips-q-label">すぐ1問</p><p class="tips-q">' + escapeHtml(q.statement) + '</p>';
+      if (t.chosen === null) {
+        html += '<div class="tips-ox"><button class="tips-ox-btn" data-action="tips-answer" data-choice="○">○</button><button class="tips-ox-btn" data-action="tips-answer" data-choice="×">×</button></div>';
+      } else {
+        var ok = t.chosen === q.answer;
+        html += '<p class="tips-verdict ' + (ok ? "is-ok" : "is-ng") + '">' + (ok ? "正解！" : "ざんねん。答えは「" + q.answer + "」") + '</p>' +
+          '<p class="tips-diff">' + escapeHtml(q.explanation) + '</p>' +
+          '<p class="tips-cite">「' + escapeHtml(q.quote) + '」<span class="sign-no">' + escapeHtml(q.source) + '</span></p>' +
+          (ok ? '' : '<p class="settings-note">この組は「苦手な組」に入りました。あとでもう一度出てきます。</p>') +
+          '<button class="btn-pill btn-pill--wide" data-action="tips-next">' + (t.pos + 1 === t.order.length ? "まとめを見る" : "次の組へ") + ' <span aria-hidden="true">→</span></button>';
+      }
+    }
+    return html + '</div>';
+  }
+
+  function tipsNext() {
+    var t = state.tips;
+    t.pos++; t.phase = t.pos >= t.order.length ? "done" : "card"; t.chosen = null;
+    render(); window.scrollTo(0, 0);
+  }
+
+  // 指定した問題だけで「今日の5問」と同じ流れを始める（標識から問題へ）
+  function startSessionWithIds(ids) {
+    var pool = getReviewedQuestions().filter(function (q) { return ids.indexOf(q.id) >= 0; });
+    if (!pool.length) return;
+    startSession(0);
+    if (!state.session) return;
+    state.session.questions = shuffle(pool).slice(0, SESSION_SIZE).map(function (q, idx) {
+      return Object.assign({}, q, withShuffledChoices(q), { _instanceKey: q.id + "_" + idx });
+    });
+    state.session.kyoshu = 3;
+    saveProgress();
+    render();
+  }
+
   // ---------- ② 今日の10問（開始） ----------
 
   function viewStart() {
-    var stats = computeHomeStats();
-    return (
-      '<div class="screen screen--start">' +
+    var prog = {};
+    chapterProgress().forEach(function (c) { prog[c.kyoshu] = c; });
+    var html = '<div class="screen screen--start screen--chapters">' +
       topBackHtml("go-home") +
-      '<h1 class="screen-title">今日の10問</h1>' +
-      '<p class="screen-lead">まずは10問。<br>自分のペースで進めよう。</p>' +
-      ringHtml(stats.todayCount, SESSION_SIZE, "ring--start") +
-      '<button class="btn-pill btn-pill--wide" data-action="start-session">ミチトと始める <span aria-hidden="true">→</span></button>' +
-      '<div class="ground-scene">' +
-      sceneSvg("ground") +
-      "</div>" +
-      "</div>"
-    );
+      '<h1 class="screen-title">今日の5問</h1>' +
+      '<p class="screen-lead">どの範囲を解く？<br>学科教本の教習番号で選べます。</p>' +
+      '<nav class="menu-list chapter-list">';
+    getChapters().forEach(function (c) {
+      html += '<button class="menu-item" data-action="start-chapter" data-kyoshu="' + c.kyoshu + '">' +
+        '<span class="menu-icon menu-icon--blue chapter-no">' + c.kyoshu + '</span>' +
+        '<span class="menu-body"><span class="menu-title">教習番号' + c.kyoshu + '　' + escapeHtml(c.name) + '</span>' +
+        '<span class="menu-sub">' + c.count + '問から5問' + (prog[c.kyoshu] && prog[c.kyoshu].solved ? '・正解 ' + progressRate(prog[c.kyoshu]) + '%' : '') + '</span>' +
+        (prog[c.kyoshu] && prog[c.kyoshu].solved ? progressBarHtml(prog[c.kyoshu]) : '') + '</span>' +
+        '<span class="menu-chevron" aria-hidden="true">›</span></button>';
+    });
+    html += '<button class="menu-item" data-action="start-chapter" data-kyoshu="0">' +
+      '<span class="menu-icon menu-icon--green chapter-no">全</span>' +
+      '<span class="menu-body"><span class="menu-title">全部の範囲から</span>' +
+      '<span class="menu-sub">' + getReviewedQuestions().length + '問から5問</span></span>' +
+      '<span class="menu-chevron" aria-hidden="true">›</span></button>';
+    html += '</nav></div>';
+    return html;
   }
 
-  // ---------- ③〜⑦ 今日の10問（問題 → 正解／不正解 → 解説 → 振り返り） ----------
+  // ---------- 今日の10問（○×回答 → 次問／任意解説 → 結果） ----------
 
   var CHOICE_LETTERS = ["A", "B", "C", "D", "E", "F"];
 
@@ -808,8 +1326,10 @@
 
     var html =
       '<div class="screen screen--question screen--split">' +
+      questionIdentityHtml(q) +
       '<div class="quiz-progress">' +
-      '<div class="quiz-progress-label">今日の10問<span class="quiz-progress-count">' +
+      '<div class="question-position">第' + (s.currentIndex + 1) + '問 <span>／全' + s.questions.length + '問</span></div>' +
+      '<div class="quiz-progress-label">' + escapeHtml(s.kyoshu ? "教習番号" + s.kyoshu : "今日の5問") + '<span class="quiz-progress-count">' +
       (s.currentIndex + 1) +
       " / " +
       s.questions.length +
@@ -825,14 +1345,11 @@
       "問</div>" +
       (q.reviewStatus === "mock" ? '<div class="mock-badge">仮問題（UI確認用）</div>' : "") +
       '<p class="question-text">' +
-      escapeHtml(q.question) +
+      furiganaHtml(q, "question") +
       "</p>" +
       "</div>" +
       '<div class="split-side">' +
       choiceListHtml(q.choices, s.pendingIndex, "pick-choice") +
-      '<div class="answer-bar"><button class="btn-pill btn-pill--block" data-action="submit-answer"' +
-      (s.pendingIndex === null ? " disabled" : "") +
-      ">回答する</button></div>" +
       "</div>" +
       "</div>" +
       "</div>";
@@ -841,24 +1358,25 @@
 
   // A〜D の選択肢（選ぶだけ。判定は「回答する」で行う）
   function choiceListHtml(choices, pendingIndex, action) {
-    var html = '<div class="choice-list" role="radiogroup">';
+    var isTruefalse = choices.length === 2 && choices[0] === "○" && choices[1] === "×";
+    var html = '<div class="choice-list' + (isTruefalse ? " choice-list--truefalse" : "") + '"' + (isTruefalse ? ' role="group" aria-label="○×で回答"' : ' role="radiogroup"') + ">";
     choices.forEach(function (choice, idx) {
       var isSelected = idx === pendingIndex;
       html +=
         '<button class="choice-btn' +
         (isSelected ? " is-selected" : "") +
-        '" role="radio" aria-checked="' +
-        (isSelected ? "true" : "false") +
-        '" data-action="' +
+        '" type="button"' +
+        (isTruefalse ? "" : ' role="radio" aria-checked="' + (isSelected ? "true" : "false") + '"') +
+        ' data-action="' +
         action +
         '" data-index="' +
         idx +
         '">' +
         '<span class="choice-letter">' +
-        (CHOICE_LETTERS[idx] || idx + 1) +
+        (isTruefalse ? choices[idx] : (CHOICE_LETTERS[idx] || idx + 1)) +
         "</span>" +
         '<span class="choice-text">' +
-        escapeHtml(choice) +
+        escapeHtml(isTruefalse ? (idx === 0 ? "正しい" : "誤り") : choice) +
         "</span>" +
         "</button>";
     });
@@ -875,16 +1393,17 @@
     if (isCorrect) {
       return (
         '<div class="screen screen--verdict screen--correct">' +
+        questionIdentityHtml(q) +
         '<div class="verdict-mark verdict-mark--correct">' +
         '<span class="spark spark--1"></span><span class="spark spark--2"></span><span class="spark spark--3"></span><span class="spark spark--4"></span>' +
-        '<span class="verdict-circle">' +
-        ICONS.check +
+        '<span class="verdict-circle" aria-hidden="true">' +
+        '○' +
         "</span>" +
         "</div>" +
         '<h1 class="verdict-title verdict-title--correct">正解！</h1>' +
         '<p class="verdict-text">いいですね。<br>ちゃんと理解できています 👍</p>' +
-        '<button class="btn-pill btn-pill--wide" data-action="show-explanation">解説を見る <span aria-hidden="true">→</span></button>' +
-        michitoTalkHtml("ミチトのひとこと", "その調子です！\nこのまま進めていきましょう。") +
+        '<button class="btn-pill btn-pill--wide" data-action="next-question">' + (s.currentIndex + 1 === s.questions.length ? '結果を見る' : '次の問題へ') + '</button>' +
+        '<button class="text-link" data-action="show-explanation">解説を見る</button>' +
         '<div class="ground-scene ground-scene--soft">' +
         sceneSvg("ground") +
         "</div>" +
@@ -893,6 +1412,7 @@
     }
     return (
       '<div class="screen screen--verdict screen--incorrect">' +
+      questionIdentityHtml(q) +
       '<div class="verdict-mark verdict-mark--incorrect">' +
       '<span class="spark spark--1"></span><span class="spark spark--2"></span><span class="spark spark--3"></span><span class="spark spark--4"></span>' +
       '<span class="verdict-circle">!</span>' +
@@ -912,6 +1432,10 @@
     var isCorrect = s.selectedIndex === q.correct;
     return (
       '<div class="screen screen--explain screen--split">' +
+      questionIdentityHtml(q) +
+      '<div class="question-position">第' + (s.currentIndex + 1) + '問 <span>／全' + s.questions.length + '問</span></div>' +
+      answerOutcomeHtml(isCorrect) +
+      '<section class="panel"><h2 class="explain-label">設問</h2><p class="question-text">' + furiganaHtml(q, "question") + '</p></section>' +
       '<h1 class="screen-title screen-title--left">解説</h1>' +
       '<div class="split-layout split-layout--explain">' +
       explanationBodyHtml(q, isCorrect, s.selectedIndex) +
@@ -920,7 +1444,7 @@
       '<button class="pager-btn" data-action="back-to-verdict">' +
       ICONS.back +
       "前へ</button>" +
-      '<button class="pager-btn pager-btn--next" data-action="show-reflection">次へ' +
+      '<button class="pager-btn pager-btn--next" data-action="next-question">次へ' +
       ICONS.back +
       "</button>" +
       "</div>" +
@@ -929,24 +1453,69 @@
   }
 
   // 解説本文（今日の10問・間違い問題の解き直しで共通）
+  function answerOutcomeHtml(isCorrect) {
+    return '<div class="answer-outcome answer-outcome--' + (isCorrect ? 'correct' : 'incorrect') + '" role="status"><span class="answer-outcome-mark" aria-hidden="true">' + (isCorrect ? '○' : '×') + '</span><strong>' + (isCorrect ? '正解' : '不正解') + '</strong></div>';
+  }
+
+  function questionIdentityHtml(q) {
+    return '<div class="question-identity" aria-label="問題ID">問題ID：<strong>MCT:' + escapeHtml(q.id || q.questionId || '') + '</strong></div>';
+  }
+
+  // 根拠となる法令（解説の下に右寄せで小さく表示）。ref（条・項・号まで確認済みの根拠）を優先し、無ければ source と sourceSection から作る
+  // ふりがな付きの文（HTML）。questions/furigana.js の「漢字《よみ》」を <ruby> にする。
+  // 設定が「なし」のとき・データが無いとき・もとの文と一致しないとき（作り直し忘れ）は、ふりがな無しで出す
+  function furiganaHtml(q, field) {
+    var text = String((q && q[field]) || "");
+    var id = q && (q.id || q.questionId);
+    var d = settings.furigana !== "off" && typeof FURIGANA !== "undefined" && FURIGANA && id && FURIGANA[id];
+    var r = d && d[field];
+    if (!r || r.replace(/《[^》]*》/g, "") !== text) return escapeHtml(text);
+    return escapeHtml(r).replace(/([^《》]+?)《([^》]*)》/g, function (m, base, read) {
+      var k = base.match(/[\u4e00-\u9fff々〆ヶ]+$/);
+      if (!k) return m;
+      return base.slice(0, base.length - k[0].length) + "<ruby>" + k[0] + "<rt>" + read + "</rt></ruby>";
+    });
+  }
+
+  function legalBasisText(q) {
+    if (q.ref) return String(q.ref);
+    var src = String(q.source || "").replace(/（[^）]*）$/, "").trim();
+    var sec = String(q.sourceSection || "").trim();
+    if (!sec) return src;
+    return src && sec.indexOf(src) !== 0 ? src + " " + sec : sec;
+  }
+
+  function legalBasisHtml(q) {
+    var t = legalBasisText(q);
+    return t ? '<p class="legal-basis" aria-label="根拠となる法令">根拠：' + (q.ref ? furiganaHtml(q, "ref") : escapeHtml(t)) + "</p>" : "";
+  }
+
+  // 間違えやすい問題の図（questions/figures.js）。図は解説と根拠の条文に書いてあることだけを描く
+  function figureHtml(q) {
+    var f = typeof FIGURES_ENABLED !== "undefined" && FIGURES_ENABLED && typeof FIGURES !== "undefined" ? FIGURES[q.id] : null;
+    return f ? '<figure class="explain-figure">' + f.svg + "<figcaption>図：" + escapeHtml(f.title) + "</figcaption></figure>" : "";
+  }
+
   function explanationBodyHtml(q, isCorrect, selectedIndex) {
-    var correctLabel = (CHOICE_LETTERS[q.correct] || q.correct + 1) + ". " + (q.choices[q.correct] || "");
+    var correctLabel = q.type === "truefalse" ? q.choices[q.correct] + (q.correct === 0 ? "（正しい）" : "（誤り）") : (CHOICE_LETTERS[q.correct] || q.correct + 1) + ". " + (q.choices[q.correct] || "");
     var html = '<section class="explain-section">';
     html += '<h2 class="explain-label">問題のポイント</h2>';
-    html += '<p class="explain-text">' + escapeHtml(q.explanation || "") + "</p>";
+    html += '<p class="explain-text">' + furiganaHtml(q, "explanation") + "</p>";
+    html += figureHtml(q);
+    html += legalBasisHtml(q);
     html += "</section>";
     html +=
       '<div class="hint-box">' +
       '<div class="hint-title"><span class="hint-icon">' +
       ICONS.bulb +
-      "</span>ミチトのひとこと</div>" +
+      "</span>正答の確認</div>" +
       '<p class="hint-text">正解は<strong>「' +
       escapeHtml(correctLabel) +
       "」</strong>です。" +
       (isCorrect
         ? "<br>この判断、しっかり覚えておきましょう。"
         : "<br>あなたの回答は「" +
-          escapeHtml((CHOICE_LETTERS[selectedIndex] || "") + ". " + (q.choices[selectedIndex] || "")) +
+          escapeHtml(q.type === "truefalse" ? (q.choices[selectedIndex] || "") : (CHOICE_LETTERS[selectedIndex] || "") + ". " + (q.choices[selectedIndex] || "")) +
           "」でした。ここを覚えておけば大丈夫です。") +
       "</p>" +
       "</div>";
@@ -1079,7 +1648,8 @@
     var mistakeCount = data.mistakes.length;
 
     var html = '<div class="screen screen--result">';
-    html += '<h1 class="result-heading">今日の10問 終了！</h1>';
+    html += '<h1 class="result-heading">今日の5問 終了！</h1>';
+    html += '<p class="result-chapter">' + escapeHtml(chapterLabel(data.kyoshu)) + '</p>';
     html += ringHtml(s.correctCount, s.count, "ring--result");
     html += '<div class="result-accuracy">正答率 ' + s.accuracy + "%</div>";
     html += '<p class="result-time">学習時間 ' + timeText + "</p>";
@@ -1102,13 +1672,32 @@
     } else {
       html +=
         '<div class="retry-card retry-card--clear">' +
-        '<span class="retry-card-title">🎉 10問すべて正解！</span>' +
-        '<p class="retry-card-sub">この調子で、また明日も10問。</p>' +
+        '<span class="retry-card-title">🎉 ' + s.count + '問すべて正解！</span>' +
+        '<p class="retry-card-sub">この調子で、次の5問も一緒に。</p>' +
         "</div>";
     }
+    html += '<button class="btn-pill btn-pill--wide" data-action="start-same-chapter">同じ範囲でもう5問 <span aria-hidden="true">→</span></button>' +
+      '<button class="text-link" data-action="open-start">ほかの範囲を選ぶ</button>';
+    if (!data.surveySubmitted) html += '<details class="session-survey"><summary>使い心地を伝える（任意）</summary>' +
+      '<label for="session-survey-comment">気になったこと・改善してほしいこと</label>' +
+      '<textarea id="session-survey-comment" class="comment-input" maxlength="500"></textarea>' +
+      '<p>この端末にだけ保存されます。</p><button class="btn-pill" data-action="submit-session-survey">保存する</button></details>';
+    else html += '<p>感想を保存しました。</p>';
     html += '<button class="text-link" data-action="go-home">ホームへ戻る</button>';
     html += "</div>";
     return html;
+  }
+
+  function submitSessionSurvey() {
+    var data = state.lastSession;
+    var el = document.getElementById("session-survey-comment");
+    if (!data || data.surveySubmitted || !el || !el.value.trim()) return;
+    var log = getLocal(STORAGE_KEYS.SURVEY, []);
+    if (!Array.isArray(log)) log = [];
+    log.push({ sessionId: data.summary.sessionId, timestamp: new Date().toISOString(),
+      comment: el.value.trim().slice(0, 500), appVersion: APP_VERSION });
+    if (setLocal(STORAGE_KEYS.SURVEY, log)) { data.surveySubmitted = true; render(); }
+    else showToast("保存できませんでした。");
   }
 
   function backHomeButtonHtml() {
@@ -1118,7 +1707,7 @@
   // ---------- ⑨ 間違い問題 ----------
 
   function viewMistakes() {
-    var data = state.lastSession;
+    var data = state.mistakeView || buildMistakeView();
     var all = data ? data.mistakeAll : [];
     var total = data ? data.mistakeTotal || 0 : 0;
     var remaining = data ? data.mistakes.length : 0;
@@ -1131,8 +1720,8 @@
 
     if (total === 0) {
       html +=
-        '<div class="panel"><div class="empty-state">直近のセッションで間違えた問題はありません。<br>「今日の10問」を解くと、ここに表示されます。</div></div>';
-      html += michitoTalkHtml("", "まずは今日の10問から。\n一緒に始めましょう。");
+        '<div class="panel"><div class="empty-state">間違えた問題はありません。<br>「今日の5問」や「仮免模試」で間違えた問題が、ここにたまります。</div></div>';
+      html += michitoTalkHtml("", "まずは今日の5問から。\n一緒に始めましょう。");
       html += backHomeButtonHtml();
       html += "</div>";
       return html;
@@ -1153,7 +1742,7 @@
       '%"></div></div>' +
       "</div>";
 
-    html += '<h2 class="list-label">直近の学習</h2>';
+    html += '<h2 class="list-label">間違えた問題</h2>';
     html += '<div class="panel mistake-list">';
     all.forEach(function (m, idx) {
       var preview = m.question.length > 26 ? m.question.slice(0, 26) + "…" : m.question;
@@ -1201,20 +1790,17 @@
   function viewMistakeSolve() {
     var m = state.mistakeSolveSnapshot;
     var html = '<div class="screen screen--question screen--split">';
+    html += questionIdentityHtml(m);
     html += topBackHtml("open-mistakes");
     html += '<div class="split-layout">';
     html += '<div class="split-main">';
     html += '<div class="question-number">第' + (m.questionNumber || "") + "問（復習）</div>";
-    html += '<p class="question-text">' + escapeHtml(m.question) + "</p>";
+    html += '<p class="question-text">' + furiganaHtml(m, "question") + "</p>";
     html += "</div>";
     html += '<div class="split-side">';
 
     if (!state.mistakeAnswered) {
       html += choiceListHtml(m.choices, state.mistakePending, "pick-mistake-choice");
-      html +=
-        '<div class="answer-bar"><button class="btn-pill btn-pill--block" data-action="submit-mistake-answer"' +
-        (state.mistakePending === null ? " disabled" : "") +
-        ">回答する</button></div>";
       html += "</div></div></div>";
       return html;
     }
@@ -1225,10 +1811,10 @@
       (isCorrect ? "inline-verdict--correct" : "inline-verdict--incorrect") +
       '">' +
       '<span class="inline-verdict-icon">' +
-      (isCorrect ? ICONS.check : "!") +
+      (isCorrect ? "○" : "×") +
       "</span>" +
       '<span class="inline-verdict-title">' +
-      (isCorrect ? "正解！" : "今回は惜しかったです。") +
+      (isCorrect ? "正解！" : "不正解") +
       "</span>" +
       "</div>";
     html += explanationBodyHtml(m, isCorrect, state.mistakeSelected);
@@ -1420,12 +2006,36 @@
 
   // ---------- 学習履歴 ----------
 
+  function mockHistoryChart(history) {
+    var exams=history.filter(function(h){return h && h.mode==='mock' && h.count===50 && h.completed!==false && h.reason!=='restart' && Number.isInteger(h.correctCount) && h.correctCount>=0 && h.correctCount<=50;});
+    var shown=exams.slice(-10), html='<section class="panel mock-history"><h2>模試の歩み</h2><p class="chart-caption">合格の目安：45問 / 50問</p>';
+    if(!shown.length) return html+'<p>模試を採点すると、ここに点数の推移が表示されます。</p><button class="btn-pill" data-action="mock-open">模試に挑戦</button></section>';
+    var latest=shown[shown.length-1], gap=Math.max(0,45-latest.correctCount);
+    html+='<p class="mock-growth">最新 <strong>'+latest.correctCount+' / 50問</strong> · '+(gap?'目安まであと'+gap+'問':'合格の目安に到達')+'</p>';
+    if(exams.length>1) { var diff=latest.correctCount-exams[exams.length-2].correctCount; html+='<p class="chart-caption">前回より'+(diff>0?'＋'+diff+'問':diff<0?'−'+Math.abs(diff)+'問':'変化なし')+'</p>'; }
+    var x=function(i){return shown.length===1?151:36+230*i/(shown.length-1);}, y=function(score){return 180-score*3;};
+    var summary=shown.map(function(h,i){return (exams.length-shown.length+i+1)+'回目 '+String(h.date||'')+' '+h.correctCount+'問正解';}).join('、');
+    html+='<svg class="mock-history-chart" viewBox="0 0 280 218" role="img" aria-label="'+escapeHtml(summary)+'"><title>仮免模試の正解数の推移。破線は45問の目安。</title>';
+    [0,25,50].forEach(function(score){html+='<line class="chart-grid" x1="36" y1="'+y(score)+'" x2="266" y2="'+y(score)+'"/><text class="chart-label" x="28" y="'+(y(score)+5)+'" text-anchor="end">'+score+'</text>';});
+    html+='<line class="chart-target" x1="36" y1="45" x2="266" y2="45"/><text class="chart-target-label" x="28" y="50" text-anchor="end">45</text>';
+    if(shown.length>1) html+='<polyline class="chart-trend" points="'+shown.map(function(h,i){return x(i).toFixed(1)+','+y(h.correctCount);}).join(' ')+'"/>';
+    shown.forEach(function(h,i){html+='<circle class="chart-point" cx="'+x(i).toFixed(1)+'" cy="'+y(h.correctCount)+'" r="4"><title>'+escapeHtml(String(h.date||''))+'：'+h.correctCount+' / 50問</title></circle>';});
+    var ticks=[];for(var j=0;j<Math.min(shown.length,4);j++){var index=shown.length<=4?j:Math.round(j*(shown.length-1)/3);if(ticks.indexOf(index)<0)ticks.push(index);}
+    ticks.forEach(function(i){html+='<text class="chart-label" x="'+x(i).toFixed(1)+'" y="204" text-anchor="'+(shown.length===1?'middle':i===0?'start':i===shown.length-1?'end':'middle')+'">'+(exams.length-shown.length+i+1)+'回目</text>';});
+    html+='</svg><p class="chart-caption">正解数（50問） · '+(exams.length>10?'直近10回 / 全'+exams.length+'回':'全'+exams.length+'回')+'</p>';
+    if(shown.length===1) html+='<p class="chart-caption">2回目の採点から点が線でつながります。</p>';
+    return html+'</section>';
+  }
+
   function viewHistory() {
     var stats = computeHomeStats();
-    var history = getLocal(STORAGE_KEYS.HISTORY, []).slice().reverse();
+    var savedHistory = getLocal(STORAGE_KEYS.HISTORY, []);
+    var history = (Array.isArray(savedHistory) ? savedHistory : []).filter(function(h){return h && typeof h==='object';}).slice().reverse();
     var html = '<div class="screen screen--history">';
     html += '<h1 class="screen-title screen-title--left">学習履歴</h1>';
-    html += '<p class="screen-lead screen-lead--left">これまでの歩みを確認する。</p>';
+    html += chapterProgressPanel();
+    html += mockHistoryChart(history.slice().reverse());
+    html += '<section class="history-records"><h2>学習の記録</h2>';
 
     html +=
       '<div class="stats-grid">' +
@@ -1450,7 +2060,7 @@
         html +=
           '<div class="history-item">' +
           '<span class="history-date">' +
-          escapeHtml(h.date) +
+          escapeHtml(h.date) + (h.mode === "mock" ? "（仮免模試）" : "") + (h.completed === false ? "（途中）" : "") +
           "</span>" +
           '<span class="history-score">' +
           h.correctCount +
@@ -1463,7 +2073,7 @@
       });
       html += "</div>";
     }
-    html += "</div>";
+    html += "</section></div>";
     return html;
   }
 
@@ -1497,6 +2107,7 @@
     html += topBackHtml("go-home");
     html += '<h1 class="screen-title screen-title--left">設定</h1>';
     html += '<p class="screen-lead screen-lead--left">見やすい文字の大きさと色合いを選べます。選ぶとすぐに切り替わります。</p>';
+    html += '<button class="text-link" data-action="open-guide">使い方を見る（絵で6枚）</button>';
 
     html += '<section class="settings-group">';
     html += '<h2 class="settings-label" id="settings-font-size">文字の大きさ</h2>';
@@ -1513,6 +2124,18 @@
           escapeHtml(opt.label) +
           "</span>"
       );
+    });
+    html += "</div>";
+    html += "</section>";
+
+    html += '<section class="settings-group">';
+    html += '<h2 class="settings-label" id="settings-furigana">ふりがな</h2>';
+    html += '<p class="settings-note">問題文・解説・根拠の漢字に、読みを小さく表示します。本番の試験と同じ形です。</p>';
+    html += '<div class="option-grid" role="group" aria-labelledby="settings-furigana">';
+    FURIGANA_OPTIONS.forEach(function (opt) {
+      html += settingOptionHtml("furigana", opt, settings.furigana,
+        '<span class="option-sample" aria-hidden="true">' + (opt.value === "on" ? '<ruby>道路<rt>どうろ</rt></ruby>' : '道路') + '</span>' +
+        '<span class="option-name">' + escapeHtml(opt.label) + "</span>");
     });
     html += "</div>";
     html += "</section>";
@@ -1544,10 +2167,18 @@
     html += '<div class="panel settings-preview" aria-hidden="true">';
     html += '<p class="question-text">この大きさ・色合いで、問題文や解説が表示されます。長い文章は画面の幅に合わせて折り返します。</p>';
     html +=
-      '<div class="choice-btn is-selected"><span class="choice-letter">A</span><span class="choice-text">選んだ選択肢はこのように表示されます</span></div>';
+      '<div class="choice-list choice-list--truefalse"><div class="choice-btn is-selected"><span class="choice-letter">○</span><span class="choice-text">正しい</span></div><div class="choice-btn"><span class="choice-letter">×</span><span class="choice-text">誤り</span></div></div>';
     html += "</div>";
     html += "</section>";
 
+    // 協力してくださった方へ（10/16 本人：名前を出さない形 A。名簿は集めない）
+    html += '<section class="settings-group">';
+    html += '<h2 class="settings-label">協力してくださった方へ</h2>';
+    html += '<p class="settings-note">テスト版にご参加いただいた皆さまの声をもとに、ミチトはつくられています。心より感謝いたします。</p>';
+    html += '</section>';
+
+    html += '<p class="settings-note" data-action="dev-tap">ミチト v' + escapeHtml(APP_VERSION) + '</p>';
+    if (isDevMode()) html += devSettingsHtml();
     html += '<p class="settings-note">設定はこの端末にだけ保存されます。学習履歴やメモには影響しません。</p>';
     html += backHomeButtonHtml();
     html += "</div>";
@@ -1594,6 +2225,10 @@
   function render(options) {
     var html = "";
     switch (state.view) {
+      case "support": html=window.MctSupport.view();break;
+      case "mockSetup": html=viewMockSetup();break;
+      case "mock": html=viewMock();break;
+      case "mockResult": html=viewMockResult();break;
       case "home":
         html = viewHome();
         break;
@@ -1621,38 +2256,293 @@
       case "history":
         html = viewHistory();
         break;
+      case "signs":
+        html = viewSigns();
+        break;
+      case "signDetail":
+        html = viewSignDetail();
+        break;
+      case "signTips":
+        html = viewSignTips();
+        break;
+      case "guide":
+        html = viewGuide();
+        break;
       case "settings":
         html = viewSettings();
+        break;
+      case "progress":
+        html = viewProgress();
+        break;
+      case "devQuestions":
+        html = viewDevQuestions();
         break;
       default:
         html = viewHome();
     }
 
+    if(state.view!=="support"&&state.view!=="guide") html+='<button class="text-link support-entry" data-action="open-support">意見・不具合・アンケート</button>';
     var activeTab = TAB_VIEWS[state.view];
     if (activeTab) {
       html += tabBarHtml(activeTab);
     }
     document.body.classList.toggle("has-tabbar", !!activeTab);
 
+    if (state.view !== "home") html = '<div class="session-home-bar"><button class="text-link" data-action="go-home">ホームへ戻る</button></div>' + html;
+    if (state.resumeNotice) html = '<p class="panel" role="status">' + escapeHtml(state.resumeNotice) + "</p>" + html;
+    if (state.storageWarning) html = '<p class="panel" role="alert">学習の保存ができません。この画面を閉じると続きから再開できない可能性があります。</p>' + html;
     appEl.innerHTML = html;
     if (!(options && options.keepScroll)) {
       window.scrollTo(0, 0);
     }
   }
 
+  // 仮免模試。日々の学習と別に保存し、壁時計で期限を判定する。
+  var MOCK_KEY = 'michito_mock_session';
+  var MOCK_RESULT_KEY = 'michito_mock_result';
+  var MOCK_DECK_KEY = 'michito_mock_deck';
+  function mockStamp(q) { return JSON.stringify([q.id,q.question,q.choices,q.correct,q.explanation]); }
+  function loadMock() {
+    var e = getLocal(MOCK_KEY, null), pool = getReviewedQuestions();
+    if (!e || e.schemaVersion !== 1 || !Array.isArray(e.ids) || e.ids.length !== 50 || new Set(e.ids).size !== 50 || !Array.isArray(e.answers) || e.answers.length !== 50 || !e.answers.every(function(a){return a===null||a===0||a===1;}) || !Number.isInteger(e.index) || e.index<0 || e.index>=50 || !Number.isFinite(e.startedAt) || e.deadline!==e.startedAt+1800000) return null;
+    var qs=e.ids.map(function(id){return pool.find(function(q){return q.id===id;});});
+    if(qs.some(function(q,i){
+      if(!q || !e.stamps) return true;
+      if(mockStamp(q)===e.stamps[i]) return false;
+      var old=previousC011Text(q);
+      if(old && JSON.stringify([q.id,old,q.choices,q.correct,q.explanation])===e.stamps[i]) {e.stamps[i]=mockStamp(q);return false;}
+      return true;
+    })) return null;
+    e.questions=qs; return e;
+  }
+  function saveMock() {
+    if (!state.exam) return;
+    state.exam.resumeOnLoad = state.view === 'mock';
+    state.storageWarning = !setLocal(MOCK_KEY, state.exam) || state.storageWarning;
+  }
+  function mockSetup() {
+    goHome(); state.view='mockSetup'; render();
+  }
+  function startMock() {
+    if(state.exam && !window.confirm('進行中の模試を終了し、新しい模試を始めますか？')) return;
+    var pool=getReviewedQuestions(), poolIds=pool.map(function(q){return q.id;});
+    if(pool.length<50) { alert('模試に必要な50問がそろっていません。');return; }
+    var deck=getLocal(MOCK_DECK_KEY,null), signature=poolIds.join(',');
+    var remaining=deck && deck.signature===signature && Array.isArray(deck.remaining) && new Set(deck.remaining).size===deck.remaining.length && deck.remaining.every(function(id){return poolIds.indexOf(id)>=0;}) ? deck.remaining.slice() : [];
+    if(remaining.length<50) remaining=remaining.concat(shuffle(poolIds.filter(function(id){return remaining.indexOf(id)<0;})));
+    // 同じ論点の○×の裏返し（pairGroup が同じ問題）は、同じ回に入れず次の回へ回す（GPT の500問点検 10/15、本人OK）
+    var pairOf={}; pool.forEach(function(q){if(q.pairGroup)pairOf[q.id]=q.pairGroup;});
+    var ids=[], used={}, rest=[];
+    remaining.forEach(function(id){var g=pairOf[id]; if(ids.length<50&&!(g&&used[g])){ids.push(id);if(g)used[g]=1;} else rest.push(id);});
+    while(ids.length<50&&rest.length) ids.push(rest.shift());
+    remaining=rest;
+    var qs=ids.map(function(id){return pool.find(function(q){return q.id===id;});});
+    state.storageWarning=!setLocal(MOCK_DECK_KEY,{signature:signature,remaining:remaining})||state.storageWarning;
+    if(qs.length!==50) { alert('模試に必要な50問がそろっていません。');return; }
+    if(state.exam) finishMock('restart');
+    state.exam={schemaVersion:1, sessionId:generateSessionId(), ids:qs.map(function(q){return q.id;}),stamps:qs.map(mockStamp),questions:qs,answers:Array(50).fill(null),index:0,startedAt:Date.now(),deadline:Date.now()+1800000};
+    state.exam.deadline=state.exam.startedAt+1800000;
+    state.view='mock'; saveMock();render();
+  }
+  function finishMock(reason) {
+    var e=state.exam; if(!e)return;
+    var score=e.questions.filter(function(q,i){return e.answers[i]===q.correct;}).length;
+    var r={sessionId:e.sessionId,date:todayDateString(),mode:'mock',count:50,correctCount:score,accuracy:score*2,completed:true,durationSec:Math.max(0,Math.round((Math.min(Date.now(),e.deadline)-e.startedAt)/1000)),reason:reason,questions:e.questions,answers:e.answers};
+    var history=getLocal(STORAGE_KEYS.HISTORY,[]);if(!Array.isArray(history))history=[];history=history.filter(function(h){return h.sessionId!==r.sessionId;});history.push({sessionId:r.sessionId,date:r.date,mode:r.mode,count:50,correctCount:score,accuracy:r.accuracy,completed:true,durationSec:r.durationSec,reason:r.reason});
+    addMistakeIds(e.questions.filter(function(q,i){return e.answers[i]!==null&&e.answers[i]!==q.correct;}).map(function(q){return q.id;}));
+    recordProgress(e.questions.map(function(q,i){return {id:q.id,ok:e.answers[i]===q.correct,a:e.answers[i]};}).filter(function(x){return x.a!==null&&x.a!==undefined;}));
+    var resultSaved=setLocal(MOCK_RESULT_KEY,r),historySaved=setLocal(STORAGE_KEYS.HISTORY,history);
+    state.storageWarning=(!resultSaved||!historySaved)||state.storageWarning;
+    if(resultSaved&&historySaved) { try{localStorage.removeItem(MOCK_KEY);}catch(err){state.storageWarning=true;} }
+    state.mockResult=r;state.exam=null;
+    if(state.view==='mock')state.view='mockResult';
+    render();
+  }
+  function mockTick() {
+    if(!state.exam)return;
+    if(Date.now()>=state.exam.deadline){finishMock('timeout');return;}
+    var el=document.getElementById('mock-timer');if(el)el.textContent=mockTime();
+  }
+  function mockTime() {
+    var sec=Math.max(0,Math.ceil((state.exam.deadline-Date.now())/1000));return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
+  }
+  function mockAction(action,target) {
+    if(action==='mock-open'){mockSetup();return;}
+    if(action==='mock-start'){startMock();return;}
+    if(action==='mock-result'){state.mockResult=getLocal(MOCK_RESULT_KEY,null);state.view='mockResult';render();return;}
+    if(action==='mock-resume'){state.exam=state.exam||loadMock();if(!state.exam)return;state.view='mock';saveMock();mockTick();render();return;}
+    if(!state.exam)return;
+    if(Date.now()>=state.exam.deadline){finishMock('timeout');return;}
+    var i=Number(target.getAttribute('data-index'));
+    if(action==='mock-answer'&&(i===0||i===1))state.exam.answers[state.exam.index]=i;
+    if(action==='mock-jump'&&Number.isInteger(i)&&i>=0&&i<50)state.exam.index=i;
+    if(action==='mock-finish') {
+      var left=state.exam.answers.filter(function(a){return a===null;}).length;
+      if(window.confirm((left?'未回答が'+left+'問あります。':'')+'模試を終了して採点しますか？'))finishMock('manual');return;
+    }
+    saveMock();render({keepScroll:action==='mock-answer'});
+  }
+  function viewMockSetup() {
+    return '<section class="panel"><h1>仮免模試</h1><p>○×50問・30分。45問以上正解が合格の目安です。</p><p>途中の正誤表示はなく、終了後に採点・復習します。未回答は不正解として数えます。終了まで回答を変更できます。</p><p>HOMEへ戻ったり画面を閉じても、制限時間は進みます。</p><p class="settings-note">公式試験問題ではありません。' + getReviewedQuestions().length + '問から50問ずつ出題します。同じ端末で保存が有効な場合、まだ出ていない問題から順に出し、全部出し終えると一巡します（途中終了も1回と数えます）。試験範囲をすべて網羅した教材ではありません。</p><button class="btn-pill" data-action="mock-start">30分の模試を始める</button></section>';
+  }
+  function viewMock() {
+    var e=state.exam;if(!e)return viewMockSetup();var q=e.questions[e.index];
+    var html='<section class="panel"><h1>仮免模試</h1><p>残り <strong id="mock-timer">'+mockTime()+'</strong> ／ 回答済み '+e.answers.filter(function(a){return a!==null;}).length+'/50問</p><p class="question-number">第'+(e.index+1)+'問 / 50</p><p class="question-identity" aria-label="問題ID">問題ID：MCT:'+escapeHtml(q.id)+'</p><p class="question-text">'+furiganaHtml(q,'question')+'</p><div class="mock-choices">';
+    q.choices.forEach(function(c,i){var selected=e.answers[e.index]===i;html+='<button class="btn-pill" data-action="mock-answer" data-index="'+i+'" aria-pressed="'+selected+'" aria-label="'+escapeHtml(c)+(selected?' 選択中':'を選択')+'"><span class="mock-choice-symbol" aria-hidden="true">'+escapeHtml(c)+'</span><span class="mock-choice-status" aria-hidden="true">選択中</span></button>';});
+    html+='</div><div class="mock-navigation">';
+    if(e.index>0)html+='<button class="text-link" data-action="mock-jump" data-index="'+(e.index-1)+'">前の問題</button>';
+    if(e.index<49)html+='<button class="btn-pill" data-action="mock-jump" data-index="'+(e.index+1)+'">次の問題</button>';
+    html+='</div><details><summary>問題一覧（回答済みは ✓）</summary><div class="mock-grid">';
+    e.answers.forEach(function(a,i){html+='<button data-action="mock-jump" data-index="'+i+'" aria-label="第'+(i+1)+'問 '+(a===null?'未回答':'回答済み')+'"'+(i===e.index?' aria-current="step"':'')+'>'+(i+1)+(a===null?'':' ✓')+'</button>';});
+    return html+'</div></details><button class="btn-pill mt-20" data-action="mock-finish">終了して採点</button></section>';
+  }
+  function viewMockResult() {
+    var r=state.mockResult||getLocal(MOCK_RESULT_KEY,null);if(!r)return '<section class="panel">模試の結果はまだありません。</section>';
+    var html='<section class="panel"><h1>仮免模試 結果</h1><p>'+r.correctCount+'/50問正解（'+r.accuracy+'%）</p><h2>'+(r.correctCount>=45?'合格の目安に到達':'もう一度復習しよう')+'</h2><p>'+(r.reason==='timeout'?'制限時間になったため終了しました。':'模試を終了しました。')+'</p><p>未回答 '+r.answers.filter(function(a){return a===null;}).length+'問 ／ 45問以上正解が合格の目安</p><h2>全問の復習</h2>';
+    r.questions.forEach(function(q,i){var a=r.answers[i];html+='<details class="mock-review"><summary>第'+(i+1)+'問：'+(a===q.correct?'正解':a===null?'未回答':'不正解')+'</summary><p class="question-identity" aria-label="問題ID">問題ID：MCT:'+escapeHtml(q.id)+'</p><p class="question-text">'+furiganaHtml(q,'question')+'</p><p>あなたの回答：'+(a===null?'未回答':q.choices[a])+' ／ 正解：'+q.choices[q.correct]+'</p><p class="explain-text">'+furiganaHtml(q,'explanation')+'</p>'+figureHtml(q)+legalBasisHtml(q)+'</details>';});
+    return html+'<button class="btn-pill mt-20" data-action="mock-open">もう一度挑戦する</button></section>';
+  }
+
+  // ---------- 開発用：問題を番号で表示（本人の要望 10/15。利用者のメニューには出さない） ----------
+  // 設定の「ミチト v…」を3秒以内に5回押すと開発モードの切り替え。番号は ID（D-M080）でも元の番号（M7D-07-004）でもよく、「D-M264〜D-M308」のような範囲も使える。
+  var DEV_KEY = 'michito_dev_mode';
+  var devTaps = [];
+  function isDevMode() { return getLocal(DEV_KEY, false) === true; }
+  function latestVerifiedDate() {
+    return (questions || []).reduce(function (m, q) { return q.lastVerifiedDate && q.lastVerifiedDate > m ? q.lastVerifiedDate : m; }, '');
+  }
+  function devSettingsHtml() {
+    var d = latestVerifiedDate();
+    return '<section class="settings-group dev-panel"><h2 class="settings-label">開発用：問題を番号で表示</h2>' +
+      '<p class="settings-note">番号を空白か「,」で区切って入れます。ID（D-M080）でも元の番号（M7D-07-004）でもかまいません。範囲は「D-M264〜D-M308」。</p>' +
+      '<textarea id="dev-ids" class="dev-ids" rows="3" placeholder="D-C106 D-M080 M7F-01-005">' + escapeHtml(state.devQuery || '') + '</textarea>' +
+      '<button class="btn-pill" data-action="dev-show">表示する</button>' +
+      '<button class="text-link" data-action="dev-show" data-preset="latest">最近直した・入れた問題（' + escapeHtml(d) + '）</button>' +
+      '<button class="text-link" data-action="dev-show" data-preset="excluded">出題から外した問題</button>' +
+      '<h2 class="settings-label">開発用：あなたの現在地</h2>' +
+      '<p class="settings-note">試しの記録：' + (getLocal(DEV_SAMPLE_KEY, false) ? "表示中（本当の記録は変わりません。解いても記録されません）" : "使っていない") + '</p>' +
+      '<button class="text-link" data-action="dev-sample">試しの記録を' + (getLocal(DEV_SAMPLE_KEY, false) ? "やめる" : "表示する") + '</button>' +
+      '<button class="text-link" data-action="dev-off">開発モードを終える</button></section>';
+  }
+  function devNorm(s) {
+    return String(s).replace(/[Ａ-Ｚａ-ｚ０-９－]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }).toUpperCase().replace(/^MCT:/, '').trim();
+  }
+  function devFind(text) {
+    var all = questions || [], out = [], missing = [];
+    var add = function (q) { if (out.indexOf(q) < 0) out.push(q); };
+    devNorm(text).split(/[\s,、，・･／/;；]+/).filter(Boolean).forEach(function (tok) {
+      var r = tok.split(/[〜~～]/);
+      if (r.length === 2) {
+        var m1 = /^(.*?)(\d+)$/.exec(r[0]), m2 = /^(.*?)(\d+)$/.exec(r[1]);
+        if (m1 && m2 && m1[1] === m2[1]) {
+          for (var n = +m1[2]; n <= +m2[2]; n++) {
+            var id = m1[1] + String(n).padStart(m1[2].length, '0');
+            var q = all.find(function (x) { return x.id === id || x.draftId === id; });
+            if (q) add(q); else missing.push(id);
+          }
+          return;
+        }
+      }
+      var hit = all.filter(function (x) { return x.id === tok || x.draftId === tok; });
+      if (hit.length) hit.forEach(add); else missing.push(tok);
+    });
+    return { list: out, missing: missing };
+  }
+  function viewDevQuestions() {
+    var r = state.devResult || { list: [], missing: [] };
+    var html = '<div class="screen screen--settings">' + topBackHtml('open-settings');
+    html += '<h1 class="screen-title screen-title--left">問題の確認（開発用）</h1>';
+    html += '<p class="screen-lead screen-lead--left">' + r.list.length + '問' + (r.missing.length ? ' ／ 見つからない番号：' + escapeHtml(r.missing.join(' ')) : '') + '</p>';
+    r.list.forEach(function (q) {
+      var out = q.reviewStatus !== REVIEWED_STATUS;
+      html += '<section class="panel dev-card">' +
+        '<p class="question-identity">ID：<strong>' + escapeHtml(q.id) + '</strong>' + (q.draftId ? ' ／ 元の番号：' + escapeHtml(q.draftId) : '') + (q.kyoshu ? ' ／ 教習' + q.kyoshu : '') + (out ? ' ／ <strong>出題しない（' + escapeHtml(q.reviewStatus) + '）</strong>' : '') + '</p>' +
+        '<p class="question-text">' + furiganaHtml(q, "question") + '</p>' +
+        '<p class="explain-text"><strong>答え：' + escapeHtml(q.choices[q.correct] || '') + '</strong></p>' +
+        '<p class="explain-text">' + furiganaHtml(q, "explanation") + '</p>' +
+        figureHtml(q) + legalBasisHtml(q) +
+        (q.quote ? '<p class="settings-note">引用：' + escapeHtml(q.quote) + '</p>' : '') +
+        (q.excludedReason ? '<p class="settings-note">外した理由：' + escapeHtml(q.excludedReason) + '</p>' : '') +
+        (q.lastVerifiedDate ? '<p class="settings-note">最終確認日：' + escapeHtml(q.lastVerifiedDate) + '</p>' : '') +
+        '</section>';
+    });
+    html += '<button class="btn-pill" data-action="open-settings">番号を入れ直す</button></div>';
+    return html;
+  }
+  function devAction(action, target) {
+    if (action === 'dev-tap') {
+      var now = Date.now();
+      devTaps = devTaps.filter(function (t) { return now - t < 3000; }).concat(now);
+      if (devTaps.length >= 5) {
+        devTaps = [];
+        setLocal(DEV_KEY, !isDevMode());
+        alert(isDevMode() ? '開発モードにしました（問題を番号で表示できます）' : '開発モードを終えました');
+        render({ keepScroll: true });
+      }
+      return;
+    }
+    if (action === 'dev-sample') {
+      setLocal(DEV_SAMPLE_KEY, !getLocal(DEV_SAMPLE_KEY, false));
+      alert(getLocal(DEV_SAMPLE_KEY, false) ? '試しの記録を表示します。ホームの「あなたの現在地」で見られます' : '本当の記録の表示に戻しました');
+      render({ keepScroll: true }); return;
+    }
+    if (action === 'dev-off') { setLocal(DEV_KEY, false); render(); return; }
+    if (action === 'dev-show') {
+      var preset = target.getAttribute('data-preset');
+      if (preset === 'latest') { var d = latestVerifiedDate(); state.devResult = { list: questions.filter(function (q) { return q.lastVerifiedDate === d; }), missing: [] }; }
+      else if (preset === 'excluded') state.devResult = { list: questions.filter(function (q) { return q.reviewStatus !== REVIEWED_STATUS && q.reviewStatus !== 'mock'; }), missing: [] };
+      else { var el = document.getElementById('dev-ids'); state.devQuery = el ? el.value : ''; state.devResult = devFind(state.devQuery); }
+      state.view = 'devQuestions'; render();
+    }
+  }
+
   // ---------- イベント委譲 ----------
+
+  var guideTouchX = null;
+  appEl.addEventListener("touchstart", function (e) { guideTouchX = state.view === "guide" && e.touches[0] ? e.touches[0].clientX : null; }, { passive: true });
+  appEl.addEventListener("touchend", function (e) {
+    if (guideTouchX === null || state.view !== "guide" || !e.changedTouches[0]) return;
+    var dx = e.changedTouches[0].clientX - guideTouchX; guideTouchX = null;
+    if (Math.abs(dx) < 50) return;
+    var n = (state.guideIndex || 0) + (dx < 0 ? 1 : -1);
+    if (n >= 0 && n < GUIDE_STEPS.length) { state.guideIndex = n; render(); }
+  });
 
   appEl.addEventListener("click", function (event) {
     var target = event.target.closest("[data-action]");
     if (!target || target.disabled) return;
     var action = target.getAttribute("data-action");
+    if(action==='open-support') {
+      saveProgress();saveMock();
+      var q=state.view==='mock'&&state.exam?state.exam.questions[state.exam.index]:state.view==='question'&&state.session?state.session.questions[state.session.currentIndex]:null;
+      window.MctSupport.setContext({appVersion:APP_VERSION,screen:state.view,questionId:q?q.id:''});
+      state.view='support';render();return;
+    }
 
+    if(action.indexOf("mock-")===0){mockAction(action,target);return;}
+    if(action.indexOf("dev-")===0){devAction(action,target);return;}
     switch (action) {
       case "open-start":
         openStart();
         break;
+      case "resume-session":
+        resumeSession();
+        break;
+      case "next-question":
+        proceedToNext();
+        break;
+      case "submit-session-survey":
+        submitSessionSurvey();
+        break;
       case "start-session":
         startSession();
+        break;
+      case "start-chapter":
+        startSession(parseInt(target.getAttribute("data-kyoshu"), 10) || 0);
+        break;
+      case "start-same-chapter":
+        if (state.lastSession) startSession(state.lastSession.kyoshu || 0, state.lastSession.questionIds);
+        else openStart();
         break;
       case "pick-choice":
         pickChoice(parseInt(target.getAttribute("data-index"), 10));
@@ -1699,8 +2589,72 @@
       case "submit-training-note":
         submitTrainingNote();
         break;
+      case "open-guide":
+        openGuide();
+        break;
+      case "guide-next":
+        state.guideIndex = (state.guideIndex || 0) + 1; render(); window.scrollTo(0, 0);
+        break;
+      case "guide-prev":
+        state.guideIndex = Math.max(0, (state.guideIndex || 0) - 1); render(); window.scrollTo(0, 0);
+        break;
+      case "guide-done":
+        setLocal(GUIDE_KEY, true); goHome();
+        break;
+      case "open-progress":
+        state.view = "progress"; render(); window.scrollTo(0, 0);
+        break;
       case "open-history":
         openHistory();
+        break;
+      case "open-signs":
+        state.view = "signs"; render(); window.scrollTo(0, 0);
+        break;
+      case "sign-cat":
+        state.signCat = target.getAttribute("data-cat"); render();
+        break;
+      case "sign-only-q":
+        state.signOnlyQ = !state.signOnlyQ; render();
+        break;
+      case "open-sign":
+        state.signIndex = parseInt(target.getAttribute("data-index"), 10); state.view = "signDetail"; render(); window.scrollTo(0, 0);
+        break;
+      case "open-tips-home":
+        state.tipsFrom = "go-home"; state.tips = null; state.view = "signTips"; render(); window.scrollTo(0, 0);
+        break;
+      case "open-tips":
+        if (state.view === "signs") state.tipsFrom = "open-signs";
+        state.tips = null; state.view = "signTips"; render(); window.scrollTo(0, 0);
+        break;
+      case "tips-start":
+        startTips(false);
+        break;
+      case "tips-weak":
+        startTips(true);
+        break;
+      case "tips-quiz":
+        (function () {
+          var t = state.tips, p = tipsPair(t.order[t.pos]);
+          // 前回まちがえた組は、前と違う問題を出す
+          var rec = tipsRecord()[p.id];
+          t.qi = p.quiz.length > 1 ? (rec && typeof rec.qi === "number" ? 1 - rec.qi : Math.floor(Math.random() * p.quiz.length)) : 0;
+          t.phase = "quiz"; t.chosen = null; render();
+        })();
+        break;
+      case "tips-answer":
+        (function () {
+          var t = state.tips, p = tipsPair(t.order[t.pos]), q = p.quiz[t.qi];
+          t.chosen = target.getAttribute("data-choice");
+          var rec = tipsRecord();
+          rec[p.id] = { last: t.chosen === q.answer ? "r" : "w", qi: t.qi, at: Date.now() };
+          setLocal(TIPS_KEY, rec); render();
+        })();
+        break;
+      case "tips-next":
+        tipsNext();
+        break;
+      case "sign-questions":
+        startSessionWithIds((SIGNS_DATA()[state.signIndex] || {}).kq || []);
         break;
       case "go-home":
         goHome();
@@ -1734,11 +2688,31 @@
       appEl.innerHTML = '<div class="empty-state">問題データを読み込めませんでした。</div>';
       return;
     }
-    if ("serviceWorker" in navigator) {
+    if ("serviceWorker" in navigator && !(window.Capacitor && window.Capacitor.isNativePlatform())) {
       navigator.serviceWorker.register("./service-worker.js").catch(function (err) {
         console.warn("Service Workerの登録に失敗しました", err);
       });
     }
+    var stored = getLocal(STORAGE_KEYS.SESSION, null);
+    var restorable = savedSession();
+    if (stored && !restorable) {
+      state.resumeNotice = "前の形式や更新前の問題で保存した学習は再開できません。履歴は残しています。○×形式で新しく始めてください。";
+    }
+    // 学習中の再読込では回答済みの判定・解説を含めて復元する。
+    // 明示的にHOMEへ戻った場合は保存のみ行い、自動再開しない。
+    if (stored && stored.resumeOnLoad === true && restorable) {
+      state.session = restorable;
+      state.view = "question";
+    }
+    state.exam=loadMock();
+    if(state.exam && state.exam.resumeOnLoad){state.view="mock";state.session=null;}
+    if (state.view === "home" && !getLocal(GUIDE_KEY, false)) { state.guideIndex = 0; state.view = "guide"; }
+    mockTick();
+    if(typeof setInterval==='function')setInterval(mockTick,1000);
+    window.addEventListener("pagehide", function(){saveProgress();saveMock();});
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "hidden") {saveProgress();saveMock();} else mockTick();
+    });
     render();
   }
 
