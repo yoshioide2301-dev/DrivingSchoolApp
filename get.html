@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ミチト 仮免学科｜入手する</title>
+<meta name="description" content="仮免学科の○×問題を、法令の根拠つきで。iPhone は App Store、Android はブラウザでそのまま使えます。">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+:root{color-scheme:light dark;--bg:#f4f8fa;--fg:#14202e;--sub:#56657a;--card:#fff;--line:#d9e3ea;--brand:#0b7f9c;--brand2:#0b2f6e}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1520;--fg:#e9eef5;--sub:#a5b2c4;--card:#162131;--line:#26364b;--brand:#3cc3d9}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic","Noto Sans JP",sans-serif;line-height:1.7}
+main{max-width:480px;margin:0 auto;padding:40px 16px 48px;text-align:center}
+.icon{width:96px;height:96px;border-radius:22px;box-shadow:0 6px 20px rgba(0,0,0,.15)}
+h1{font-size:1.5rem;margin:16px 0 4px}
+.lead{color:var(--sub);margin:0 0 28px}
+.btn{display:block;padding:16px;border-radius:14px;text-decoration:none;font-weight:700;font-size:1.05rem;margin:0 0 6px;border:2px solid var(--brand);color:var(--brand);background:var(--card)}
+.btn.main{background:linear-gradient(135deg,#0b7f9c,#0b2f6e);color:#fff;border-color:transparent}
+.note{color:var(--sub);font-size:.85rem;margin:0 0 22px}
+.points{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 18px;text-align:left;margin:8px 0 24px}
+.points p{margin:4px 0}
+footer{color:var(--sub);font-size:.8rem}
+footer a{color:var(--sub)}
+</style>
+</head>
+<body>
+<main>
+  <img class="icon" src="icons/icon-512.png" alt="ミチトのアイコン">
+  <h1>ミチト 仮免学科</h1>
+  <p class="lead">仮免学科の○×問題を、法令の根拠つきで。</p>
+
+  <a class="btn" id="ios" href="https://apps.apple.com/jp/app/id6821862608">iPhone の方：App Store で入手</a>
+  <p class="note">App Store のアプリ（無料）</p>
+
+  <a class="btn" id="android" href="./">Android の方：このまま開く</a>
+  <p class="note">Chrome で開いて「︙」→「ホーム画面に追加」で、アプリのように使えます</p>
+
+  <div class="points">
+    <p>・仮免学科の○×500問、すべて無料・登録不要</p>
+    <p>・答えの理由を、道路交通法などの条文と一緒に</p>
+    <p>・学習の記録はお使いの端末の中だけに保存</p>
+  </div>
+
+  <footer>
+    <p>教習所・警察・試験機関とは関係のない、個人の開発です。by ZG.Dev</p>
+    <p><a href="privacy.html">データの取り扱い</a></p>
+  </footer>
+</main>
+<script>
+(function () {
+  var ua = navigator.userAgent || "";
+  var ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  var android = /Android/.test(ua);
+  if (ios) document.getElementById("ios").className = "btn main";
+  else if (android) document.getElementById("android").className = "btn main";
+  else document.getElementById("ios").className = "btn main";
+})();
+</script>
+</body>
+</html>
