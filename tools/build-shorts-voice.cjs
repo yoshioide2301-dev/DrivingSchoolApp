@@ -1,5 +1,5 @@
 // 声入りのショート動画（縦 1080×1920）を、ミチトの問題から作る（10/16 本人：声は必須・声は春日部つむぎ・動画にふりがなは不要・強みとアプリへの導きを目立たせる）
-// 流れ：つかみ → 問題（読み上げ）→ 3・2・1（カチッという音）→ 答え・図・解説・根拠の札（解説を読み上げ）→ 強みと「App Store で『ミチト』と検索」
+// 流れ：つかみ → 問題（読み上げ）→ 3・2・1（カチッという音）→ 答え・図・解説・根拠の札（解説を読み上げ）→ 強みと「プロフィールのリンクから（iPhone・Android）」（10/24 iPhone と Android を同時に宣伝する方針に変更。「広告なし」は 10/17 から書かない）
 // 文は問題・解説・根拠をそのまま使う（新しい説明を足さない）。つかみも、根拠のない数字（「9割が間違える」など）は使わない。
 // 声は VOICEVOX（エンジンを 127.0.0.1:50021 で起動しておく）。読みは questions/furigana.js の照合済みの読みで漢字をかなにして渡す（誤読を防ぐ）。
 // クレジット：「VOICEVOX:春日部つむぎ」を動画と投稿の説明に必ず書く（キャラクターの規約）。
@@ -32,11 +32,12 @@ body{font-family:"Yu Gothic UI","Meiryo",sans-serif;color:#0A192F;background:lin
 .end{color:#fff;text-align:center;margin-top:70px}.end .name{font-size:120px;font-weight:900;line-height:1.1}.end .sub{font-size:44px;margin-top:10px}
 .pts{margin:46px auto 0;display:flex;flex-direction:column;gap:22px;width:900px}.pts div{background:rgba(255,255,255,.14);border:3px solid rgba(255,255,255,.5);border-radius:24px;padding:22px 28px;font-size:48px;font-weight:900;text-align:left;color:#fff}.pts em{font-style:normal;color:#FFD66B}
 .btn{margin:56px auto 0;width:900px;background:#FFD66B;color:#0A192F;border-radius:999px;padding:34px 20px;font-size:54px;font-weight:900;text-align:center;box-shadow:0 14px 30px rgba(0,0,0,.3)}
+.sub2{color:#fff;text-align:center;font-size:44px;font-weight:800;margin-top:22px}
 .credit{position:absolute;left:64px;top:1300px;color:rgba(255,255,255,.75);font-size:28px}
 .note{position:absolute;left:64px;right:64px;top:40px;color:rgba(255,255,255,.7);font-size:28px;text-align:right}`;
 const ICON = 'file:///' + path.join(ROOT, 'native-ios', 'assets', 'AppIcon-1024.png').replace(/\\/g, '/');
 const head = `<div class="top"><img src="${ICON}">ミチト 仮免学科</div>`;
-const page = body => `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body><div class="note">試作（非公開）</div>${body}</body></html>`;
+const page = body => `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${body}</body></html>`;
 const HOOK = { 'D-C016': ['2026年9月から<br><em>変わった</em><br>ルール、<br>知ってる？', '2026年9月から変わったルール、知ってる？'], 'D-C017': ['2026年9月から<br><em>変わった</em><br>ルール、<br>知ってる？', '2026年9月から変わったルール、知ってる？'], default: ['仮免の学科<br><em>○か×か？</em>', '仮免の学科、マルかバツか？'] };
 const OX_O = '<svg width="250" height="250" viewBox="0 0 250 250"><circle cx="125" cy="125" r="98" fill="none" stroke="#fff" stroke-width="38"/></svg>', OX_X = '<svg width="250" height="250" viewBox="0 0 250 250"><path d="M40 40L210 210M210 40L40 210" stroke="#FF6B7A" stroke-width="40" stroke-linecap="round"/></svg>';  // 太い〇と×（文字の○×は線が細いので図形で描く）
 const ox = n => `<div class="ox"><b${n >= 1 ? '' : ' style="visibility:hidden"'}>${OX_O}</b><i${n >= 2 ? '' : ' style="visibility:hidden"'}>or</i><b${n >= 3 ? '' : ' style="visibility:hidden"'}>${OX_X}</b></div>`;
@@ -76,7 +77,7 @@ const tts1 = async (text, wav) => {
       { html: head + qCard(q) + '<div class="cd"><b>2</b></div>', sfx: tick, min: 0.8 },
       { html: head + qCard(q) + '<div class="cd"><b>1</b></div>', sfx: tick, min: 0.8 },
       { html: head + `<div class="card"><div class="ans"><span class="mark" style="color:${ans === '○' ? '#0E7C86' : '#E5243B'}">${ans}</span><span class="tag">答え</span></div>${f ? `<div class="fig">${f.svg}</div>` : ''}<div class="e">${esc(q.explanation)}</div><div class="law"><small>根拠の条文</small>${esc(q.ref)}</div></div>`, say: '答えは、' + ansSay + '。' + kana(q, 'explanation'), pre: chime, min: 3 },
-      { html: head + `<div class="end"><div class="name">ミチト</div><div class="sub">仮免学科の○×アプリ</div></div><div class="pts"><div><em>500問</em>すべてに根拠の条文</div><div><em>2026年9月</em>の法改正に対応</div><div><em>無料</em>・広告なし</div></div><div class="btn">App Store で「ミチト」と検索</div><div class="credit">VOICEVOX:春日部つむぎ</div>`, say: '仮免の学科は、ミチト。アップストアで、ミチトと検索してね。', min: 2.5 }
+      { html: head + `<div class="end"><div class="name">ミチト</div><div class="sub">仮免学科の○×アプリ</div></div><div class="pts"><div><em>500問</em>すべてに根拠の条文</div><div><em>2026年9月</em>の法改正に対応</div><div><em>無料</em>・登録不要</div></div><div class="btn">プロフィールのリンクから</div><div class="sub2">iPhone・Android どちらも</div><div class="credit">VOICEVOX:春日部つむぎ</div>`, say: '仮免の学科は、ミチト。プロフィールのリンクから、無料で使えるよ。', min: 2.5 }
     ];
     const parts = [];
     for (let i = 0; i < scenes.length; i++) {
