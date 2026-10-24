@@ -14,6 +14,8 @@ const ids = fs.readFileSync(LIST, 'utf8').trim().split(/\s+/);
 const dur = f => { try { return parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f], { encoding: 'utf8' })).toFixed(1); } catch (e) { return ''; } };
 const TAGS = '#仮免 #仮免学科 #学科試験 #運転免許 #教習所 #ミチト';
 const LAW = new Set(['D-C016', 'D-C017']);
+// 10/24 時事の差し替えの1行目（当事者・企業名・ニュースの中身には触れない）
+const LEAD = { 'D-M183': '早めの点灯が呼びかけられる季節です。「夜間」の決まり、知っていますか？', 'D-C013': '横断歩道での歩行者の保護、正しく覚えていますか？', 'D-M024': '原付のヘルメットの決まり、知っていますか？' };
 (async () => {
   const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('30本');
   ws.columns = [['順番', 6], ['問題ID', 9], ['範囲', 14], ['問題', 46], ['答え', 5], ['長さ（秒）', 8], ['題名（YouTube）', 40], ['説明文（各サービス共通）', 60], ['あなたの判断', 16]].map(([header, width]) => ({ header, width }));
@@ -21,7 +23,7 @@ const LAW = new Set(['D-C016', 'D-C017']);
     const q = qs.find(x => x.id === id);
     const title = (LAW.has(id) ? '【2026年9月から】' : '【仮免学科】') + '○か×か？' + (q.kyoshuName ? '（' + q.kyoshuName + '）' : '');
     const body = [
-      (q.captionLead || (LAW.has(id) ? '2026年9月から変わった「生活道路の法定速度」の問題です。' : '仮免学科の○×問題です。')) + '答えは動画で。',
+      (q.captionLead || LEAD[id] || (LAW.has(id) ? '2026年9月から変わった「生活道路の法定速度」の問題です。' : '仮免学科の○×問題です。')) + '答えは動画で。',
       '根拠：' + q.ref,
       '',
       '仮免学科の○×アプリ「ミチト」',

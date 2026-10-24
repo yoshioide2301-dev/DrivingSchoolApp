@@ -51,7 +51,9 @@ body{font-family:"Yu Gothic UI","Meiryo",sans-serif;color:#0A192F;background:lin
 const ICON = 'file:///' + path.join(ROOT, 'native-ios', 'assets', 'AppIcon-1024.png').replace(/\\/g, '/');
 const head = `<div class="top"><img src="${ICON}"><div><b>ミチト</b><i>仮免学科試験対策アプリ</i></div></div>`;
 const page = body => `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${body}</body></html>`;
-const BAND = { 'D-C016': '9月から変わった！生活道路の法定速度', 'D-C017': '9月から変わった！生活道路の法定速度' };
+const BAND = { 'D-C016': '9月から変わった！生活道路の法定速度', 'D-C017': '9月から変わった！生活道路の法定速度',
+  // 10/24 時事の差し替え（GPT 依頼33 の種）
+  'D-M183': '早めの点灯の季節。「夜間」っていつから？', 'D-C013': '横断歩道、止まる？止まらない？', 'D-M024': '原付のヘルメット、知ってる？' };
 // 10/24 本人：ニュースでは「生活道路の法定速度の引き下げ」と呼ばれるので、その言葉を入れる（答えが分かる「引き下げ」は使わない）
 const HOOK = { 'D-C016': ['2026年9月から<br><em>生活道路</em>の<br>法定速度が<br>変わった！<small style="display:block;font-size:54px;font-weight:800;margin-top:30px">（生活道路＝中央線のない道など）</small>', '2026年9月から、生活道路の、法定速度が変わったの、知ってる？'], 'D-C017': ['2026年9月から<br><em>生活道路</em>の<br>法定速度が<br>変わった！<small style="display:block;font-size:54px;font-weight:800;margin-top:30px">（生活道路＝中央線のない道など）</small>', '2026年9月から、生活道路の、法定速度が変わったの、知ってる？'], default: ['仮免の学科<br><em>○か×か？</em>', '仮免の学科、マルかバツか？'] };
 const OX_O = '<svg width="250" height="250" viewBox="0 0 250 250"><circle cx="125" cy="125" r="98" fill="none" stroke="#fff" stroke-width="38"/></svg>', OX_X = '<svg width="250" height="250" viewBox="0 0 250 250"><path d="M40 40L210 210M210 40L40 210" stroke="#FF6B7A" stroke-width="40" stroke-linecap="round"/></svg>';  // 太い〇と×（文字の○×は線が細いので図形で描く）
