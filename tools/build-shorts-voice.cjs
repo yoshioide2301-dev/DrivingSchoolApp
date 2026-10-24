@@ -8,7 +8,8 @@ const fs = require('fs'), path = require('path'), os = require('os'), { execFile
 const ROOT = path.join(__dirname, '..');
 const OUT = process.argv[2], IDS = process.argv.slice(3);
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
-const VV = 'http://127.0.0.1:50021', SPEAKER = 8, SPEED = 1.2;  // 春日部つむぎ（ノーマル）
+const VV = 'http://127.0.0.1:50021', SPEAKER = 8, SPEED = 1.3;  // 10/24 15秒前後に収めるため 1.2→1.3
+// 声は春日部つむぎ（ノーマル）
 const load = (f, name) => new Function(fs.readFileSync(path.join(ROOT, f), 'utf8') + ';return ' + name + ';')();
 const src = fs.readFileSync(path.join(ROOT, 'questions', 'questions.js'), 'utf8');
 const qs = eval(src.slice(src.indexOf('['), src.lastIndexOf(']') + 1));
@@ -33,11 +34,19 @@ body{font-family:"Yu Gothic UI","Meiryo",sans-serif;color:#0A192F;background:lin
 .pts{margin:46px auto 0;display:flex;flex-direction:column;gap:22px;width:900px}.pts div{background:rgba(255,255,255,.14);border:3px solid rgba(255,255,255,.5);border-radius:24px;padding:22px 28px;font-size:48px;font-weight:900;text-align:left;color:#fff}.pts em{font-style:normal;color:#FFD66B}
 .btn{margin:56px auto 0;width:900px;background:#FFD66B;color:#0A192F;border-radius:999px;padding:34px 20px;font-size:54px;font-weight:900;text-align:center;box-shadow:0 14px 30px rgba(0,0,0,.3)}
 .sub2{color:#fff;text-align:center;font-size:44px;font-weight:800;margin-top:22px}
-.credit{position:absolute;left:64px;top:1300px;color:rgba(255,255,255,.75);font-size:28px}
+.follow{margin:48px auto 0;width:900px;border:4px dashed #FFD66B;border-radius:28px;padding:22px 20px;color:#FFD66B;text-align:center;font-size:52px;font-weight:900;line-height:1.4}
+.band{margin-top:40px;background:#FFD66B;color:#0A192F;border-radius:20px;padding:18px 26px;font-size:50px;font-weight:900;text-align:center;line-height:1.35}
+.pause{margin-top:22px;font-size:30px;color:#56657a;text-align:right}
+.end2{color:#fff;text-align:center;margin-top:120px}.end2 .name{font-size:150px;font-weight:900;line-height:1.1}.end2 .sub{font-size:48px;margin-top:16px;font-weight:800}
+.btn small{display:block;font-size:36px;margin-top:6px}
+.follow2{margin:60px auto 0;width:900px;border-radius:999px;padding:34px 20px;text-align:center;font-size:66px;font-weight:900;color:#fff;background:#E5243B;box-shadow:0 0 0 0 rgba(229,36,59,0)}.follow2 small{display:block;font-size:34px;font-weight:800;margin-top:4px}
+.follow2.on{background:#FF3B55;box-shadow:0 0 60px 18px rgba(255,214,107,.85);transform:scale(1.04)}
+.credit{position:absolute;left:64px;top:1560px;color:rgba(255,255,255,.75);font-size:28px}
 .note{position:absolute;left:64px;right:64px;top:40px;color:rgba(255,255,255,.7);font-size:28px;text-align:right}`;
 const ICON = 'file:///' + path.join(ROOT, 'native-ios', 'assets', 'AppIcon-1024.png').replace(/\\/g, '/');
 const head = `<div class="top"><img src="${ICON}">ミチト 仮免学科</div>`;
 const page = body => `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>${body}</body></html>`;
+const BAND = { 'D-C016': '9月から変わった！生活道路の法定速度', 'D-C017': '9月から変わった！生活道路の法定速度' };
 // 10/24 本人：ニュースでは「生活道路の法定速度の引き下げ」と呼ばれるので、その言葉を入れる（答えが分かる「引き下げ」は使わない）
 const HOOK = { 'D-C016': ['2026年9月から<br><em>生活道路</em>の<br>法定速度が<br>変わった！<small style="display:block;font-size:54px;font-weight:800;margin-top:30px">（生活道路＝中央線のない道など）</small>', '2026年9月から、生活道路の、法定速度が変わったの、知ってる？'], 'D-C017': ['2026年9月から<br><em>生活道路</em>の<br>法定速度が<br>変わった！<small style="display:block;font-size:54px;font-weight:800;margin-top:30px">（生活道路＝中央線のない道など）</small>', '2026年9月から、生活道路の、法定速度が変わったの、知ってる？'], default: ['仮免の学科<br><em>○か×か？</em>', '仮免の学科、マルかバツか？'] };
 const OX_O = '<svg width="250" height="250" viewBox="0 0 250 250"><circle cx="125" cy="125" r="98" fill="none" stroke="#fff" stroke-width="38"/></svg>', OX_X = '<svg width="250" height="250" viewBox="0 0 250 250"><path d="M40 40L210 210M210 40L40 210" stroke="#FF6B7A" stroke-width="40" stroke-linecap="round"/></svg>';  // 太い〇と×（文字の○×は線が細いので図形で描く）
@@ -66,19 +75,19 @@ const tts1 = async (text, wav) => {
     if (!q) { console.log('見つからない', id); continue; }
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'shorts-'));
     const ans = q.choices[q.correct], ansSay = ans === '○' ? 'マル' : 'バツ';
-    const hook = HOOK[id] || HOOK.default;
+    // 10/24 本人：15秒前後に。つかみの画面はやめ、最初から問題と帯（3秒で答えて）を出す。声は問題と「答えは○。」＋解説の最初の1文だけ。
+    // 解説の全文と条文は画面に出し、読みたい人は一時停止して読む。最後はフォローのボタンを点滅させ、声は入れない。
+    const band = BAND[id] || '3秒で答えて！';
+    const qTop = `<div class="band">${band}</div>`;
+    const ex1 = kana(q, 'explanation').split('。')[0] + '。';
+    const endPage = on => head + `<div class="end2"><div class="name">ミチト</div><div class="sub">仮免学科の○×アプリ・500問すべて無料</div></div><div class="btn">プロフィールのリンクから<small>iPhone・Android どちらも</small></div><div class="follow2${on ? ' on' : ''}">＋ フォローしてね<small>毎日1問ずつ出題中</small></div><div class="credit">VOICEVOX:春日部つむぎ</div>`;
     const scenes = [
-      { html: head + `<div class="hook">${hook[0]}</div>`, say: hook[1], min: 1.2 },
-      // 声の「マルか？」で〇、少しおいて「or」、「バツか？」で×を出す（耳で聞いた言葉を目で追えるように。本人 10/16）
-      { html: head + qCard(q), say: kana(q, 'question') + '。', min: 2.5 },
-      { html: head + qCard(q) + ox(1), say: 'マルか？', min: 0.5 },
-      { html: head + qCard(q) + ox(2), min: 0.3 },
-      { html: head + qCard(q) + ox(3), say: 'バツか？', min: 0.6 },
-      { html: head + qCard(q) + '<div class="cd"><b>3</b></div>', sfx: tick, min: 0.8 },
-      { html: head + qCard(q) + '<div class="cd"><b>2</b></div>', sfx: tick, min: 0.8 },
-      { html: head + qCard(q) + '<div class="cd"><b>1</b></div>', sfx: tick, min: 0.8 },
-      { html: head + `<div class="card"><div class="ans"><span class="mark" style="color:${ans === '○' ? '#0E7C86' : '#E5243B'}">${ans}</span><span class="tag">答え</span></div>${f ? `<div class="fig">${f.svg}</div>` : ''}<div class="e">${esc(q.explanation)}</div><div class="law"><small>根拠の条文</small>${esc(q.ref)}</div></div>`, say: '答えは、' + ansSay + '。' + kana(q, 'explanation'), pre: chime, min: 3 },
-      { html: head + `<div class="end"><div class="name">ミチト</div><div class="sub">仮免学科の○×アプリ</div></div><div class="pts"><div><em>500問</em>すべてに根拠の条文</div><div><em>2026年9月</em>の法改正に対応</div><div><em>無料</em>・登録不要</div></div><div class="btn">プロフィールのリンクから</div><div class="sub2">iPhone・Android どちらも</div><div class="credit">VOICEVOX:春日部つむぎ</div>`, say: '仮免の学科は、ミチト。プロフィールのリンクから、無料で使えるよ。', min: 2.5 }
+      { html: head + qTop + qCard(q), say: kana(q, 'question') + '。', min: 2 },
+      { html: head + qTop + qCard(q) + '<div class="cd"><b>3</b></div>', sfx: tick, min: 0.6 },
+      { html: head + qTop + qCard(q) + '<div class="cd"><b>2</b></div>', sfx: tick, min: 0.6 },
+      { html: head + qTop + qCard(q) + '<div class="cd"><b>1</b></div>', sfx: tick, min: 0.6 },
+      { html: head + `<div class="card"><div class="ans"><span class="mark" style="color:${ans === '○' ? '#0E7C86' : '#E5243B'}">${ans}</span><span class="tag">答え</span></div>${f ? `<div class="fig">${f.svg}</div>` : ''}<div class="e">${esc(q.explanation)}</div><div class="law"><small>根拠の条文</small>${esc(q.ref)}</div><div class="pause">くわしくは一時停止して読んでね</div></div>`, say: '答えは、' + ansSay + '。' + ex1, pre: chime, min: 3, answer: true },
+      { html: endPage(true), min: 0.3 }, { html: endPage(false), min: 0.3 }, { html: endPage(true), min: 0.3 }, { html: endPage(false), min: 0.3 }, { html: endPage(true), min: 0.5, end: true }
     ];
     const parts = [];
     for (let i = 0; i < scenes.length; i++) {
@@ -100,8 +109,8 @@ const tts1 = async (text, wav) => {
     fs.writeFileSync(list, parts.map(p => "file '" + p.replace(/\\/g, '/') + "'").join('\n'));
     const mp4 = path.join(OUT, 'michito-short-voice-' + id + '.mp4');
     ff(['-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', mp4]);
-    fs.copyFileSync(path.join(tmp, (scenes.length - 2) + '.png'), path.join(OUT, 'michito-short-voice-' + id + '-answer.png'));
-    fs.copyFileSync(path.join(tmp, (scenes.length - 1) + '.png'), path.join(OUT, 'michito-short-voice-end.png'));
+    fs.copyFileSync(path.join(tmp, scenes.findIndex(x => x.answer) + '.png'), path.join(OUT, 'michito-short-voice-' + id + '-answer.png'));
+    fs.copyFileSync(path.join(tmp, scenes.findIndex(x => x.end) + '.png'), path.join(OUT, 'michito-short-voice-end.png'));
     console.log('作成', path.basename(mp4), dur(mp4).toFixed(1) + '秒');
     fs.rmSync(tmp, { recursive: true, force: true });
   }
