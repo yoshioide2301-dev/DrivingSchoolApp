@@ -13,6 +13,8 @@ const VV = 'http://127.0.0.1:50021', SPEAKER = 8, SPEED = 1.3;  // 10/24 15秒�
 const load = (f, name) => new Function(fs.readFileSync(path.join(ROOT, f), 'utf8') + ';return ' + name + ';')();
 const src = fs.readFileSync(path.join(ROOT, 'questions', 'questions.js'), 'utf8');
 const qs = eval(src.slice(src.indexOf('['), src.lastIndexOf(']') + 1));
+// 10/24 時事の差し替え：アプリにまだ入っていない問題は EXTRA=<json> で渡す（答えの画面の「アプリで →」を出さない）
+if (process.env.EXTRA) JSON.parse(fs.readFileSync(process.env.EXTRA, 'utf8')).forEach(q => qs.push(Object.assign({ notInApp: true }, q)));
 const FURIGANA = load('questions/furigana.js', 'FURIGANA'), FIGURES = load('questions/figures.js', 'FIGURES');
 const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const yomi = s => s.replace(/km\/h/g, 'キロ').replace(/(\d+(?:\.\d+)?)m/g, '$1メートル').replace(/○/g, 'マル').replace(/×/g, 'バツ');
@@ -80,7 +82,7 @@ const tts1 = async (text, wav) => {
     const ans = q.choices[q.correct], ansSay = ans === '○' ? 'マル' : 'バツ';
     // 10/24 本人：15秒前後に。つかみの画面はやめ、最初から問題と帯（3秒で答えて）を出す。声は問題と「答えは○。」＋解説の最初の1文だけ。
     // 解説の全文と条文は画面に出し、読みたい人は一時停止して読む。最後はフォローのボタンを点滅させ、声は入れない。
-    const band = BAND[id] || '3秒で答えて！';
+    const band = q.band || BAND[id] || '3秒で答えて！';
     const qTop = `<div class="band">${band}</div>`;
     const ex1 = kana(q, 'explanation').split('。')[0] + '。';
     // 最後：まずプロフィールのリンク（赤で3回点滅）→ 次にフォロー（黄から赤に変わって3回点滅）。10/24 本人の設計
@@ -90,7 +92,7 @@ const tts1 = async (text, wav) => {
       { html: head + qTop + qCard(q) + '<div class="cd"><b>3</b></div>', sfx: tick, min: 0.6 },
       { html: head + qTop + qCard(q) + '<div class="cd"><b>2</b></div>', sfx: tick, min: 0.6 },
       { html: head + qTop + qCard(q) + '<div class="cd"><b>1</b></div>', sfx: tick, min: 0.6 },
-      { html: head + `<div class="card"><div class="ans"><span class="mark" style="color:${ans === '○' ? '#0E7C86' : '#F0436F'};font-size:${ans === '○' ? 160 : 230}px">${ans}</span><span class="tag">答え</span></div><div class="e">${esc(q.explanation.split('。')[0] + '。')}</div><div class="law"><small>根拠の条文</small>${esc(q.ref)}</div><div class="more">理由の続き・図解・条文の全文は<br>アプリで →</div></div>`, say: '答えは、' + ansSay + '。' + ex1, pre: chime, min: 3, answer: true },
+      { html: head + `<div class="card"><div class="ans"><span class="mark" style="color:${ans === '○' ? '#0E7C86' : '#F0436F'};font-size:${ans === '○' ? 160 : 230}px">${ans}</span><span class="tag">答え</span></div><div class="e">${esc(q.explanation.split('。')[0] + '。')}</div><div class="law"><small>根拠の条文</small>${esc(q.ref)}</div>${q.notInApp ? '' : '<div class="more">理由の続き・図解・条文の全文は<br>アプリで →</div>'}</div>`, say: '答えは、' + ansSay + '。' + ex1, pre: chime, min: 3, answer: true },
       { html: endPage(1, 1), say: '仮免学科対策アプリ、ミチトは、プロフィールのリンクから。', min: 0.35 }, { html: endPage(1, 0), min: 0.3 }, { html: endPage(1, 1), min: 0.3 }, { html: endPage(1, 0), min: 0.3 }, { html: endPage(1, 1), min: 0.3 }, { html: endPage(2, 1), say: '毎日出題するので、フォローしてね。', min: 0.35 }, { html: endPage(2, 0), min: 0.3 }, { html: endPage(2, 1), min: 0.3 }, { html: endPage(2, 0), min: 0.3 }, { html: endPage(2, 1), min: 0.6, end: true }
     ];
     const parts = [];
