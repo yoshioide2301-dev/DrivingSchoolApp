@@ -19,7 +19,7 @@ const yomi = s => s.replace(/km\/h/g, 'キロ').replace(/(\d+(?:\.\d+)?)m/g, '$1
 const kana = (q, field) => { const r = FURIGANA[q.id] && FURIGANA[q.id][field]; const s = r && r.replace(/《[^》]*》/g, '') === q[field] ? r.replace(/([一-鿿々〆ヶ]+)《([^》]*)》/g, '$2') : q[field]; return yomi(s); };
 const CSS = `*{box-sizing:border-box;margin:0}html,body{width:1080px;height:1920px;overflow:hidden}
 body{font-family:"Yu Gothic UI","Meiryo",sans-serif;color:#0A192F;background:linear-gradient(160deg,#0E7C86,#0A3D62);display:flex;flex-direction:column;padding:110px 64px 0}
-.top{display:flex;align-items:center;gap:26px;color:#fff;font-weight:900;background:rgba(0,0,0,.18);border-radius:32px;padding:18px 24px}.top img{width:140px;height:140px;border-radius:32px}.top b{display:block;font-size:76px;line-height:1.05}.top i{display:block;font-style:normal;font-size:42px;color:#FFD66B;margin-top:6px}
+.top{display:flex;align-items:center;gap:26px;color:#fff;font-weight:900;background:rgba(0,0,0,.18);border-radius:32px;padding:18px 24px}.top img{width:140px;height:140px;border-radius:32px}.top b{display:block;font-size:76px;line-height:1.05}.top i{display:block;font-style:normal;font-size:42px;color:#E8EEF3;margin-top:6px}
 .card{background:#fff;border-radius:44px;padding:60px 56px;margin-top:56px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
 .tag{display:inline-block;background:#FFD66B;border-radius:999px;padding:10px 30px;font-size:40px;font-weight:900}
 .q{font-size:68px;font-weight:800;line-height:1.55;margin-top:34px}
@@ -42,7 +42,7 @@ body{font-family:"Yu Gothic UI","Meiryo",sans-serif;color:#0A192F;background:lin
 .follow2{margin:60px auto 0;width:900px;border-radius:999px;padding:34px 20px;text-align:center;font-size:66px;font-weight:900;color:#fff;background:#E5243B;box-shadow:0 0 0 0 rgba(229,36,59,0)}.follow2 small{display:block;font-size:34px;font-weight:800;margin-top:4px}
 .follow2.on{background:#FF3B55;box-shadow:0 0 60px 18px rgba(255,214,107,.85);transform:scale(1.04)}
 .more{margin-top:26px;text-align:center;font-size:44px;font-weight:900;color:#E5243B;line-height:1.4}
-.cta{margin:50px auto 0;width:900px;border-radius:999px;padding:34px 20px;text-align:center;font-size:62px;font-weight:900;color:#0A192F;background:#FFD66B}.cta small{display:block;font-size:34px;font-weight:800;margin-top:4px}.cta.red{background:#C81E34;color:#fff}.cta.red.on{background:#FF3B55;box-shadow:0 0 60px 18px rgba(255,214,107,.9);transform:scale(1.05)}
+.cta{margin:36px auto 0;width:900px;border-radius:999px;padding:34px 20px;text-align:center;font-size:62px;font-weight:900;color:#0A192F;background:#FFD66B}.cta small{display:block;font-size:34px;font-weight:800;margin-top:4px}.cta small.up{font-size:40px;margin:0 0 6px}.plus{text-align:center;color:#fff;font-size:110px;font-weight:900;line-height:1;margin-top:36px}.cta.red{background:#C81E34;color:#fff}.cta.red.on{background:#FF3B55;box-shadow:0 0 60px 18px rgba(255,214,107,.9);transform:scale(1.05)}
 .credit{position:absolute;left:64px;top:1560px;color:rgba(255,255,255,.75);font-size:28px}
 .note{position:absolute;left:64px;right:64px;top:40px;color:rgba(255,255,255,.7);font-size:28px;text-align:right}`;
 const ICON = 'file:///' + path.join(ROOT, 'native-ios', 'assets', 'AppIcon-1024.png').replace(/\\/g, '/');
@@ -83,14 +83,14 @@ const tts1 = async (text, wav) => {
     const qTop = `<div class="band">${band}</div>`;
     const ex1 = kana(q, 'explanation').split('。')[0] + '。';
     // 最後：まずプロフィールのリンク（赤で3回点滅）→ 次にフォロー（黄から赤に変わって3回点滅）。10/24 本人の設計
-    const endPage = (step, on) => head + `<div class="end2"><div class="sub">500問すべて無料・登録不要<br>答えの理由はすべて条文つき</div></div><div class="cta${step === 1 ? ' red' : ''}${step === 1 && on ? ' on' : ''}">プロフィールのリンクから<small>iPhone・Android どちらも</small></div><div class="cta${step === 2 ? ' red' : ''}${step === 2 && on ? ' on' : ''}">＋ フォローしてね<small>毎日1問ずつ出題中</small></div><div class="credit">VOICEVOX:春日部つむぎ</div>`;
+    const endPage = (step, on) => head + `<div class="end2"><div class="sub">500問すべて無料・登録不要<br>答えの理由はすべて条文つき</div></div><div class="cta${step === 1 ? ' red' : ''}${step === 1 && on ? ' on' : ''}"><small class="up">仮免学科対策アプリ『ミチト』は、</small>プロフィールのリンクから<small>iPhone・Android どちらも</small></div><div class="plus">＋</div><div class="cta${step === 2 ? ' red' : ''}${step === 2 && on ? ' on' : ''}"><small class="up">毎日出題するので</small>フォローしてね</div><div class="credit">VOICEVOX:春日部つむぎ</div>`;
     const scenes = [
       { html: head + qTop + qCard(q), say: kana(q, 'question') + '。', min: 2 },
       { html: head + qTop + qCard(q) + '<div class="cd"><b>3</b></div>', sfx: tick, min: 0.6 },
       { html: head + qTop + qCard(q) + '<div class="cd"><b>2</b></div>', sfx: tick, min: 0.6 },
       { html: head + qTop + qCard(q) + '<div class="cd"><b>1</b></div>', sfx: tick, min: 0.6 },
       { html: head + `<div class="card"><div class="ans"><span class="mark" style="color:${ans === '○' ? '#0E7C86' : '#E5243B'}">${ans}</span><span class="tag">答え</span></div><div class="e">${esc(q.explanation.split('。')[0] + '。')}</div><div class="law"><small>根拠の条文</small>${esc(q.ref)}</div><div class="more">理由の続き・図解・条文の全文は<br>アプリで →</div></div>`, say: '答えは、' + ansSay + '。' + ex1, pre: chime, min: 3, answer: true },
-      { html: endPage(1, 1), min: 0.35 }, { html: endPage(1, 0), min: 0.35 }, { html: endPage(1, 1), min: 0.35 }, { html: endPage(1, 0), min: 0.35 }, { html: endPage(1, 1), min: 0.35 }, { html: endPage(1, 0), min: 0.35 }, { html: endPage(2, 1), min: 0.35 }, { html: endPage(2, 0), min: 0.35 }, { html: endPage(2, 1), min: 0.35 }, { html: endPage(2, 0), min: 0.35 }, { html: endPage(2, 1), min: 0.35 }, { html: endPage(2, 1), min: 0.8, end: true }
+      { html: endPage(1, 1), say: '仮免学科対策アプリ、ミチトは、プロフィールのリンクから。', min: 0.35 }, { html: endPage(1, 0), min: 0.3 }, { html: endPage(1, 1), min: 0.3 }, { html: endPage(1, 0), min: 0.3 }, { html: endPage(1, 1), min: 0.3 }, { html: endPage(2, 1), say: '毎日出題するので、フォローしてね。', min: 0.35 }, { html: endPage(2, 0), min: 0.3 }, { html: endPage(2, 1), min: 0.3 }, { html: endPage(2, 0), min: 0.3 }, { html: endPage(2, 1), min: 0.6, end: true }
     ];
     const parts = [];
     for (let i = 0; i < scenes.length; i++) {
