@@ -38,7 +38,7 @@ body{font-family:"Yu Gothic UI","Meiryo",sans-serif;color:#0A192F;background:lin
 .tag.qx{font-size:60px;padding:12px 36px}.tag.qx b{font-weight:900}.tag.qx b.x{font-size:1.8em;line-height:.8;vertical-align:-.06em}
 .band{margin-top:40px;background:#F0436F;color:#fff;border-radius:20px;padding:18px 26px;font-size:50px;font-weight:900;text-align:center;line-height:1.35}
 .pause{margin-top:22px;font-size:30px;color:#56657a;text-align:right}
-.end2{color:#fff;text-align:center;margin-top:90px}.end2 .name{font-size:150px;font-weight:900;line-height:1.1}.end2 .sub{font-size:56px;margin-top:16px;font-weight:900;line-height:1.5}
+.end2{color:#fff;text-align:center;margin-top:90px}.end2 .name{font-size:150px;font-weight:900;line-height:1.1}.end2 .sub{font-size:56px;margin-top:16px;font-weight:900;line-height:1.5}.end2 .sub3{font-size:46px;margin-top:22px;margin-bottom:110px}
 .btn small{display:block;font-size:36px;margin-top:6px}
 .follow2{margin:60px auto 0;width:900px;border-radius:999px;padding:34px 20px;text-align:center;font-size:66px;font-weight:900;color:#fff;background:#E5243B;box-shadow:0 0 0 0 rgba(229,36,59,0)}.follow2 small{display:block;font-size:34px;font-weight:800;margin-top:4px}
 .follow2.on{background:#FF3B55;box-shadow:0 0 60px 18px rgba(255,214,107,.85);transform:scale(1.04)}
@@ -84,7 +84,7 @@ const tts1 = async (text, wav) => {
     const qTop = `<div class="band">${band}</div>`;
     const ex1 = kana(q, 'explanation').split('。')[0] + '。';
     // 最後：まずプロフィールのリンク（赤で3回点滅）→ 次にフォロー（黄から赤に変わって3回点滅）。10/24 本人の設計
-    const endPage = (step, on) => head + `<div class="end2"><div class="sub">500問すべて無料・登録不要<br>答えの理由はすべて条文つき</div></div><div class="cta${step === 1 ? ' red' : ''}${step === 1 && on ? ' on' : ''}"><small class="up">仮免学科対策アプリ『ミチト』は、</small>プロフィールのリンクから<small>iPhone・Android どちらも</small></div><div class="plus">＋</div><div class="cta${step === 2 ? ' red' : ''}${step === 2 && on ? ' on' : ''}"><small class="up">毎日出題するので</small>フォローしてね</div><div class="credit">VOICEVOX:春日部つむぎ</div>`;
+    const endPage = (step, on) => head + `<div class="end2"><div class="sub">500問すべて無料・登録不要</div><div class="sub sub3">答えの理由は、すべて<br>丁寧な解説と、根拠となる条文つき</div></div><div class="cta${step === 1 ? ' red' : ''}${step === 1 && on ? ' on' : ''}"><small class="up">仮免学科対策アプリ『ミチト』は、</small>プロフィールのリンクから<small>iPhone・Android どちらも</small></div><div class="plus">＋</div><div class="cta${step === 2 ? ' red' : ''}${step === 2 && on ? ' on' : ''}"><small class="up">毎日出題するので</small>フォローしてね</div><div class="credit">VOICEVOX:春日部つむぎ</div>`;
     const scenes = [
       { html: head + qTop + qCard(q), say: 'マルかバツか？' + kana(q, 'question') + '。', min: 2 },
       { html: head + qTop + qCard(q) + '<div class="cd"><b>3</b></div>', sfx: tick, min: 0.6 },
