@@ -8,6 +8,8 @@ const ROOT = path.join(__dirname, '..');
 const [DIR, LIST, OUT] = process.argv.slice(2);
 const src = fs.readFileSync(path.join(ROOT, 'questions', 'questions.js'), 'utf8');
 const qs = eval(src.slice(src.indexOf('['), src.lastIndexOf(']') + 1));
+// 10/24 時事の差し替え：アプリにまだない問題は EXTRA=<json> で渡す（1行目は q.captionLead）
+if (process.env.EXTRA) JSON.parse(fs.readFileSync(process.env.EXTRA, 'utf8')).forEach(q => qs.push(q));
 const ids = fs.readFileSync(LIST, 'utf8').trim().split(/\s+/);
 const dur = f => { try { return parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f], { encoding: 'utf8' })).toFixed(1); } catch (e) { return ''; } };
 const TAGS = '#仮免 #仮免学科 #学科試験 #運転免許 #教習所 #ミチト';
@@ -19,7 +21,7 @@ const LAW = new Set(['D-C016', 'D-C017']);
     const q = qs.find(x => x.id === id);
     const title = (LAW.has(id) ? '【2026年9月から】' : '【仮免学科】') + '○か×か？' + (q.kyoshuName ? '（' + q.kyoshuName + '）' : '');
     const body = [
-      (LAW.has(id) ? '2026年9月から変わった「生活道路の法定速度」の問題です。' : '仮免学科の○×問題です。') + '答えは動画で。',
+      (q.captionLead || (LAW.has(id) ? '2026年9月から変わった「生活道路の法定速度」の問題です。' : '仮免学科の○×問題です。')) + '答えは動画で。',
       '根拠：' + q.ref,
       '',
       '仮免学科の○×アプリ「ミチト」',
