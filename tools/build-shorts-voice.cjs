@@ -20,29 +20,30 @@ const kana = (q, field) => { const r = FURIGANA[q.id] && FURIGANA[q.id][field]; 
 const CSS = `*{box-sizing:border-box;margin:0}html,body{width:1080px;height:1920px;overflow:hidden}
 body{font-family:"Yu Gothic UI","Meiryo",sans-serif;color:#0A192F;background:linear-gradient(160deg,#0E7C86,#0A3D62);display:flex;flex-direction:column;padding:110px 64px 0}
 .top{display:flex;align-items:center;gap:26px;color:#fff;font-weight:900;background:rgba(0,0,0,.18);border-radius:32px;padding:18px 24px}.top img{width:140px;height:140px;border-radius:32px}.top b{display:block;font-size:76px;line-height:1.05}.top i{display:block;font-style:normal;font-size:42px;color:#E8EEF3;margin-top:6px}
-.card{background:#fff;border-radius:44px;padding:60px 56px;margin-top:56px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
-.tag{display:inline-block;background:#FFD66B;border-radius:999px;padding:10px 30px;font-size:40px;font-weight:900}
+.card{background:#F4F8FB;border:6px solid #E4F5F7;border-radius:44px;padding:60px 56px;margin-top:56px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.tag{display:inline-block;background:#E4F5F7;color:#07747E;border-radius:999px;padding:10px 30px;font-size:40px;font-weight:900}
 .q{font-size:68px;font-weight:800;line-height:1.55;margin-top:34px}
-.cd{display:flex;justify-content:center;margin-top:70px}.cd b{display:flex;align-items:center;justify-content:center;width:300px;height:300px;border-radius:50%;background:#FFD66B;font-size:200px;font-weight:900;color:#0A192F}
+.cd{display:flex;justify-content:center;margin-top:70px}.cd b{display:flex;align-items:center;justify-content:center;width:300px;height:300px;border-radius:50%;background:#F0436F;font-size:200px;font-weight:900;color:#fff}
 .ox{display:flex;align-items:center;justify-content:center;gap:50px;margin-top:80px}.ox b{display:block;line-height:0;filter:drop-shadow(0 10px 18px rgba(0,0,0,.3))}.ox i{font-style:normal;font-size:90px;font-weight:900;color:#FFD66B}
 .ans{display:flex;align-items:center;gap:30px}.mark{font-size:160px;font-weight:900;line-height:1}
 .fig{margin-top:26px;border-radius:28px;overflow:hidden}.fig svg{display:block;width:100%;height:auto}
 .e{font-size:46px;line-height:1.6;margin-top:24px;font-weight:700}
-.law{margin-top:30px;background:#0E7C86;color:#fff;border-radius:22px;padding:18px 26px;font-size:36px;font-weight:800;line-height:1.45}.law small{display:block;font-size:28px;color:#FFD66B;margin-bottom:4px}
+.law{margin-top:30px;background:#07747E;color:#fff;border-radius:22px;padding:18px 26px;font-size:36px;font-weight:800;line-height:1.45}.law small{display:block;font-size:28px;color:#BFE9EE;margin-bottom:4px}
 .hook{color:#fff;font-size:100px;font-weight:900;line-height:1.4;margin-top:260px}.hook em{font-style:normal;color:#FFD66B}
 .end{color:#fff;text-align:center;margin-top:70px}.end .name{font-size:120px;font-weight:900;line-height:1.1}.end .sub{font-size:44px;margin-top:10px}
 .pts{margin:46px auto 0;display:flex;flex-direction:column;gap:22px;width:900px}.pts div{background:rgba(255,255,255,.14);border:3px solid rgba(255,255,255,.5);border-radius:24px;padding:22px 28px;font-size:48px;font-weight:900;text-align:left;color:#fff}.pts em{font-style:normal;color:#FFD66B}
 .btn{margin:56px auto 0;width:900px;background:#FFD66B;color:#0A192F;border-radius:999px;padding:34px 20px;font-size:54px;font-weight:900;text-align:center;box-shadow:0 14px 30px rgba(0,0,0,.3)}
 .sub2{color:#fff;text-align:center;font-size:44px;font-weight:800;margin-top:22px}
 .follow{margin:48px auto 0;width:900px;border:4px dashed #FFD66B;border-radius:28px;padding:22px 20px;color:#FFD66B;text-align:center;font-size:52px;font-weight:900;line-height:1.4}
-.band{margin-top:40px;background:#FFD66B;color:#0A192F;border-radius:20px;padding:18px 26px;font-size:50px;font-weight:900;text-align:center;line-height:1.35}
+.tag.qx{font-size:60px;padding:12px 36px}.tag.qx b{font-weight:900}.tag.qx b.x{font-size:1.8em;line-height:.8;vertical-align:-.06em}
+.band{margin-top:40px;background:#F0436F;color:#fff;border-radius:20px;padding:18px 26px;font-size:50px;font-weight:900;text-align:center;line-height:1.35}
 .pause{margin-top:22px;font-size:30px;color:#56657a;text-align:right}
 .end2{color:#fff;text-align:center;margin-top:90px}.end2 .name{font-size:150px;font-weight:900;line-height:1.1}.end2 .sub{font-size:56px;margin-top:16px;font-weight:900;line-height:1.5}
 .btn small{display:block;font-size:36px;margin-top:6px}
 .follow2{margin:60px auto 0;width:900px;border-radius:999px;padding:34px 20px;text-align:center;font-size:66px;font-weight:900;color:#fff;background:#E5243B;box-shadow:0 0 0 0 rgba(229,36,59,0)}.follow2 small{display:block;font-size:34px;font-weight:800;margin-top:4px}
 .follow2.on{background:#FF3B55;box-shadow:0 0 60px 18px rgba(255,214,107,.85);transform:scale(1.04)}
-.more{margin-top:26px;text-align:center;font-size:44px;font-weight:900;color:#E5243B;line-height:1.4}
-.cta{margin:36px auto 0;width:900px;border-radius:999px;padding:34px 20px;text-align:center;font-size:62px;font-weight:900;color:#0A192F;background:#FFD66B}.cta small{display:block;font-size:34px;font-weight:800;margin-top:4px}.cta small.up{font-size:40px;margin:0 0 6px}.plus{text-align:center;color:#fff;font-size:110px;font-weight:900;line-height:1;margin-top:36px}.cta.red{background:#C81E34;color:#fff}.cta.red.on{background:#FF3B55;box-shadow:0 0 60px 18px rgba(255,214,107,.9);transform:scale(1.05)}
+.more{margin-top:26px;text-align:center;font-size:44px;font-weight:900;color:#C2254F;line-height:1.4}
+.cta{margin:36px auto 0;width:900px;border-radius:999px;padding:34px 20px;text-align:center;font-size:62px;font-weight:900;color:#0A192F;background:#FFFFFF;color:#07747E}.cta small{display:block;font-size:34px;font-weight:800;margin-top:4px}.cta small.up{font-size:40px;margin:0 0 6px}.plus{text-align:center;color:#fff;font-size:110px;font-weight:900;line-height:1;margin-top:36px}.cta.red{background:#C92C56;color:#fff}.cta.red.on{background:#F0436F;box-shadow:0 0 60px 18px rgba(255,255,255,.85);transform:scale(1.05)}
 .credit{position:absolute;left:64px;top:1560px;color:rgba(255,255,255,.75);font-size:28px}
 .note{position:absolute;left:64px;right:64px;top:40px;color:rgba(255,255,255,.7);font-size:28px;text-align:right}`;
 const ICON = 'file:///' + path.join(ROOT, 'native-ios', 'assets', 'AppIcon-1024.png').replace(/\\/g, '/');
@@ -53,7 +54,7 @@ const BAND = { 'D-C016': '9月から変わった！生活道路の法定速度',
 const HOOK = { 'D-C016': ['2026年9月から<br><em>生活道路</em>の<br>法定速度が<br>変わった！<small style="display:block;font-size:54px;font-weight:800;margin-top:30px">（生活道路＝中央線のない道など）</small>', '2026年9月から、生活道路の、法定速度が変わったの、知ってる？'], 'D-C017': ['2026年9月から<br><em>生活道路</em>の<br>法定速度が<br>変わった！<small style="display:block;font-size:54px;font-weight:800;margin-top:30px">（生活道路＝中央線のない道など）</small>', '2026年9月から、生活道路の、法定速度が変わったの、知ってる？'], default: ['仮免の学科<br><em>○か×か？</em>', '仮免の学科、マルかバツか？'] };
 const OX_O = '<svg width="250" height="250" viewBox="0 0 250 250"><circle cx="125" cy="125" r="98" fill="none" stroke="#fff" stroke-width="38"/></svg>', OX_X = '<svg width="250" height="250" viewBox="0 0 250 250"><path d="M40 40L210 210M210 40L40 210" stroke="#FF6B7A" stroke-width="40" stroke-linecap="round"/></svg>';  // 太い〇と×（文字の○×は線が細いので図形で描く）
 const ox = n => `<div class="ox"><b${n >= 1 ? '' : ' style="visibility:hidden"'}>${OX_O}</b><i${n >= 2 ? '' : ' style="visibility:hidden"'}>or</i><b${n >= 3 ? '' : ' style="visibility:hidden"'}>${OX_X}</b></div>`;
-const qCard = q => `<div class="card"><span class="tag">○か×か</span><div class="q">${esc(q.question)}</div></div>`;
+const qCard = q => `<div class="card"><span class="tag qx"><b>○</b>か<b class="x">×</b>か？</span><div class="q">${esc(q.question)}</div></div>`;
 const ff = args => execFileSync('ffmpeg', ['-loglevel', 'error', '-y', ...args]);
 const dur = f => parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f], { encoding: 'utf8' }));
 const tts = async (text, wav, n = 0) => {
@@ -85,11 +86,11 @@ const tts1 = async (text, wav) => {
     // 最後：まずプロフィールのリンク（赤で3回点滅）→ 次にフォロー（黄から赤に変わって3回点滅）。10/24 本人の設計
     const endPage = (step, on) => head + `<div class="end2"><div class="sub">500問すべて無料・登録不要<br>答えの理由はすべて条文つき</div></div><div class="cta${step === 1 ? ' red' : ''}${step === 1 && on ? ' on' : ''}"><small class="up">仮免学科対策アプリ『ミチト』は、</small>プロフィールのリンクから<small>iPhone・Android どちらも</small></div><div class="plus">＋</div><div class="cta${step === 2 ? ' red' : ''}${step === 2 && on ? ' on' : ''}"><small class="up">毎日出題するので</small>フォローしてね</div><div class="credit">VOICEVOX:春日部つむぎ</div>`;
     const scenes = [
-      { html: head + qTop + qCard(q), say: kana(q, 'question') + '。', min: 2 },
+      { html: head + qTop + qCard(q), say: 'マルかバツか？' + kana(q, 'question') + '。', min: 2 },
       { html: head + qTop + qCard(q) + '<div class="cd"><b>3</b></div>', sfx: tick, min: 0.6 },
       { html: head + qTop + qCard(q) + '<div class="cd"><b>2</b></div>', sfx: tick, min: 0.6 },
       { html: head + qTop + qCard(q) + '<div class="cd"><b>1</b></div>', sfx: tick, min: 0.6 },
-      { html: head + `<div class="card"><div class="ans"><span class="mark" style="color:${ans === '○' ? '#0E7C86' : '#E5243B'}">${ans}</span><span class="tag">答え</span></div><div class="e">${esc(q.explanation.split('。')[0] + '。')}</div><div class="law"><small>根拠の条文</small>${esc(q.ref)}</div><div class="more">理由の続き・図解・条文の全文は<br>アプリで →</div></div>`, say: '答えは、' + ansSay + '。' + ex1, pre: chime, min: 3, answer: true },
+      { html: head + `<div class="card"><div class="ans"><span class="mark" style="color:${ans === '○' ? '#0E7C86' : '#F0436F'};font-size:${ans === '○' ? 160 : 230}px">${ans}</span><span class="tag">答え</span></div><div class="e">${esc(q.explanation.split('。')[0] + '。')}</div><div class="law"><small>根拠の条文</small>${esc(q.ref)}</div><div class="more">理由の続き・図解・条文の全文は<br>アプリで →</div></div>`, say: '答えは、' + ansSay + '。' + ex1, pre: chime, min: 3, answer: true },
       { html: endPage(1, 1), say: '仮免学科対策アプリ、ミチトは、プロフィールのリンクから。', min: 0.35 }, { html: endPage(1, 0), min: 0.3 }, { html: endPage(1, 1), min: 0.3 }, { html: endPage(1, 0), min: 0.3 }, { html: endPage(1, 1), min: 0.3 }, { html: endPage(2, 1), say: '毎日出題するので、フォローしてね。', min: 0.35 }, { html: endPage(2, 0), min: 0.3 }, { html: endPage(2, 1), min: 0.3 }, { html: endPage(2, 0), min: 0.3 }, { html: endPage(2, 1), min: 0.6, end: true }
     ];
     const parts = [];
