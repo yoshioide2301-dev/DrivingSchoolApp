@@ -65,7 +65,7 @@ footer a{color:var(--sub)}
   // 入口ページに来た回数を、来た先（ct）ごとに GoatCounter で数える（privacy.html に記載）。
   // 送るのは「/entry/ct」と固定の題名だけ。クッキーは使わず、セッションの記録はサイトの設定で切る。
   // GC は GoatCounter のサイト名。空のあいだは何も送らない。
-  var GC = "";
+  var GC = "michito-get";
   if (GC) {
     window.goatcounter = { no_onload: true };
     var sc = document.createElement("script");
