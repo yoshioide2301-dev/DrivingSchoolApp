@@ -35,6 +35,10 @@ footer a{color:var(--sub)}
 
   <a class="btn" id="android" href="./">Android の方：このまま開く</a>
   <p class="note">Chrome で開いて「︙」→「ホーム画面に追加」で、アプリのように使えます</p>
+  <div id="play" class="note" style="display:none">
+    <p>Google Play 版があったら使いますか？</p>
+    <button type="button" id="play-yes">はい</button> <button type="button" id="play-no">いいえ</button>
+  </div>
 
   <div class="points">
     <p>・仮免学科の○×500問、すべて無料・登録不要</p>
@@ -52,6 +56,7 @@ footer a{color:var(--sub)}
   var ua = navigator.userAgent || "";
   var ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   var android = /Android/.test(ua);
+  var os = ios ? "ios" : (android ? "android" : "other");
   // どこから来たか（get.html?from=yt など。line=LINE、friend=個人の SNS で友だちへ、old=旧 Web 版、share=アプリの「友だちに教える」）を App Store のキャンペーンの印（ct）に引き継ぐ。
   // ダウンロード数は App Store Connect の「キャンペーン」で数える。アプリの中では何も集めない。
   // PT は App Store Connect の提供元番号（キャンペーンリンクの pt）。
@@ -73,8 +78,21 @@ footer a{color:var(--sub)}
     sc.src = "https://gc.zgo.at/count.js";
     sc.setAttribute("data-goatcounter", "https://" + GC + ".goatcounter.com/count");
     sc.onload = function () {
-      window.goatcounter.count({ path: "/entry/" + ct, title: "入口ページ", referrer: "" });
+      // 端末の種類は iPhone／Android／その他の3つだけ（10/26 あなたの OK。Google Play 版を出すかの判断材料）。機種名などは送らない。
+      window.goatcounter.count({ path: "/entry/" + ct + "/" + os, title: "入口ページ", referrer: "" });
     };
+    // Android の人にだけ「Google Play 版があったら使いますか？」をたずね、押された数（/play/yes/ct・/play/no/ct）だけを数える。
+    if (android) {
+      document.getElementById("play").style.display = "block";
+      ["yes", "no"].forEach(function (a) {
+        document.getElementById("play-" + a).addEventListener("click", function () {
+          if (window.goatcounter && window.goatcounter.count) {
+            window.goatcounter.count({ path: "/play/" + a + "/" + ct, title: "Google Play 版の希望", referrer: "", event: true });
+          }
+          document.getElementById("play").innerHTML = "<p>お答えありがとうございました。</p>";
+        });
+      });
+    }
     // どちらのボタンを押したか（/tap/ios/ct・/tap/android/ct）も数える。Android（Web 版）はアプリの中で何も数えないため、ここが唯一の目安。
     ["ios", "android"].forEach(function (id) {
       document.getElementById(id).addEventListener("click", function () {
