@@ -52,14 +52,14 @@ footer a{color:var(--sub)}
   var ua = navigator.userAgent || "";
   var ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   var android = /Android/.test(ua);
-  // どの SNS から来たか（get.html?from=yt など）を App Store のキャンペーンの印（ct）に引き継ぐ。
+  // どこから来たか（get.html?from=yt など。line=LINE、friend=個人の SNS で友だちへ、old=旧 Web 版、share=アプリの「友だちに教える」）を App Store のキャンペーンの印（ct）に引き継ぐ。
   // 数えるのは App Store Connect の「キャンペーン」だけで、アプリの中では何も集めない。
   // PT は App Store Connect の提供元番号（キャンペーンリンクの pt）。
   var PT = "129555473";
   var m = /[?&]from=([a-z0-9_-]{1,20})/i.exec(location.search);
   if (PT && m) {
     var ct = m[1].toLowerCase();
-    if (!/^(yt|ig|fb|x|tt)$/.test(ct)) ct = "other";
+    if (!/^(yt|ig|fb|x|tt|line|friend|old|share)$/.test(ct)) ct = "other";
     document.getElementById("ios").href += "?pt=" + PT + "&ct=" + ct + "&mt=8";
   }
   if (ios) document.getElementById("ios").className = "btn main";
