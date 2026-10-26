@@ -54,11 +54,13 @@ footer a{color:var(--sub)}
   var android = /Android/.test(ua);
   // どの SNS から来たか（get.html?from=yt など）を App Store のキャンペーンの印（ct）に引き継ぐ。
   // 数えるのは App Store Connect の「キャンペーン」だけで、アプリの中では何も集めない。
-  // PT は App Store Connect の提供元番号。空のあいだは何も付けない。
-  var PT = "";
+  // PT は App Store Connect の提供元番号（キャンペーンリンクの pt）。
+  var PT = "129555473";
   var m = /[?&]from=([a-z0-9_-]{1,20})/i.exec(location.search);
   if (PT && m) {
-    document.getElementById("ios").href += "?pt=" + PT + "&ct=" + m[1].toLowerCase() + "&mt=8";
+    var ct = m[1].toLowerCase();
+    if (!/^(yt|ig|fb|x|tt)$/.test(ct)) ct = "other";
+    document.getElementById("ios").href += "?pt=" + PT + "&ct=" + ct + "&mt=8";
   }
   if (ios) document.getElementById("ios").className = "btn main";
   else if (android) document.getElementById("android").className = "btn main";
