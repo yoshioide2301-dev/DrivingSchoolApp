@@ -75,6 +75,14 @@ footer a{color:var(--sub)}
     sc.onload = function () {
       window.goatcounter.count({ path: "/entry/" + ct, title: "入口ページ", referrer: "" });
     };
+    // どちらのボタンを押したか（/tap/ios/ct・/tap/android/ct）も数える。Android（Web 版）はアプリの中で何も数えないため、ここが唯一の目安。
+    ["ios", "android"].forEach(function (id) {
+      document.getElementById(id).addEventListener("click", function () {
+        if (window.goatcounter && window.goatcounter.count) {
+          window.goatcounter.count({ path: "/tap/" + id + "/" + ct, title: "入口ページのボタン", referrer: "", event: true });
+        }
+      });
+    });
     document.head.appendChild(sc);
   }
   if (ios) document.getElementById("ios").className = "btn main";
