@@ -53,14 +53,29 @@ footer a{color:var(--sub)}
   var ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   var android = /Android/.test(ua);
   // どこから来たか（get.html?from=yt など。line=LINE、friend=個人の SNS で友だちへ、old=旧 Web 版、share=アプリの「友だちに教える」）を App Store のキャンペーンの印（ct）に引き継ぐ。
-  // 数えるのは App Store Connect の「キャンペーン」だけで、アプリの中では何も集めない。
+  // ダウンロード数は App Store Connect の「キャンペーン」で数える。アプリの中では何も集めない。
   // PT は App Store Connect の提供元番号（キャンペーンリンクの pt）。
   var PT = "129555473";
   var m = /[?&]from=([a-z0-9_-]{1,20})/i.exec(location.search);
+  var ct = m ? m[1].toLowerCase() : "none";
+  if (m && !/^(yt|ig|fb|x|tt|line|friend|old|share)$/.test(ct)) ct = "other";
   if (PT && m) {
-    var ct = m[1].toLowerCase();
-    if (!/^(yt|ig|fb|x|tt|line|friend|old|share)$/.test(ct)) ct = "other";
     document.getElementById("ios").href += "?pt=" + PT + "&ct=" + ct + "&mt=8";
+  }
+  // 入口ページに来た回数を、来た先（ct）ごとに GoatCounter で数える（privacy.html に記載）。
+  // 送るのは「/entry/ct」と固定の題名だけ。クッキーは使わず、セッションの記録はサイトの設定で切る。
+  // GC は GoatCounter のサイト名。空のあいだは何も送らない。
+  var GC = "";
+  if (GC) {
+    window.goatcounter = { no_onload: true };
+    var sc = document.createElement("script");
+    sc.async = true;
+    sc.src = "https://gc.zgo.at/count.js";
+    sc.setAttribute("data-goatcounter", "https://" + GC + ".goatcounter.com/count");
+    sc.onload = function () {
+      window.goatcounter.count({ path: "/entry/" + ct, title: "入口ページ", referrer: "" });
+    };
+    document.head.appendChild(sc);
   }
   if (ios) document.getElementById("ios").className = "btn main";
   else if (android) document.getElementById("android").className = "btn main";
