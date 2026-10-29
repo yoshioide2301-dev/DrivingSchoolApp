@@ -1,4 +1,4 @@
-// 間違えやすい問題の図（v1.1 試し：20問・16枚。10/16 本人OK「テスターの反応で効くか確かめる」）
+// 間違えやすい問題の図（v1.1 試し：20問・16枚。10/16 本人OK「テスターの反応で効くか確かめる」。10/29 D-C159 を追加して21問・17枚）
 // 図は各問題の解説と根拠の条文に書いてあることだけを描く（原文にないことは描かない）。
 // 道路は上から見た図。日本は左側通行なので、上へ進む車は道路の左半分を走る。
 // 10/17 本人OK「全部入れて良い」→ v1.1 のリリースに入れる（FIGURES_ENABLED）。
@@ -50,6 +50,44 @@ var FIGURES = (function () {
   F.laneArrows = { ids: ["D-C108"], title: "進む方向ごとの通行帯：合図だけでは右折できない", svg: svg('<rect x="70" y="0" width="180" height="200" fill="' + C.road + '"/>' + line(130, 0, 130, 200, C.edge, 2.5) + line(190, 0, 190, 200, C.edge, 2.5) + line(250, 0, 250, 200, "#FFD66B", 3) + '<path d="M104 152 V124 H92" stroke="#fff" stroke-width="4" fill="none"/><path d="M80 124 L93 114 L93 134 Z" fill="#fff"/>' + '<path d="M160 150 v-40" stroke="#fff" stroke-width="4" fill="none" marker-end="url(#ah)"/>' + '<path d="M216 152 V124 H228" stroke="#fff" stroke-width="4" fill="none"/><path d="M240 124 L227 114 L227 134 Z" fill="#fff"/>' + t(100, 172, "左折", { size: 10, color: "#fff" }) + t(160, 172, "直進", { size: 10, color: "#fff" }) + t(220, 172, "右折", { size: 10, color: "#fff" }) + car(160, 70, 0) + path("M160 52 Q164 28 200 22 L246 22", C.ng, true) + ngMark(282, 24) + t(286, 52, "合図だけ", { size: 9.5, color: C.ng, anchor: "end" }) + t(286, 66, "では×", { size: 9.5, color: C.ng, anchor: "end" })) };
   // 16 中央線のない一般道路の最高速度（D-C016）
   F.speed30 = { ids: ["D-C016"], title: "中央線などのない一般道路は30km/h（2026年9月から）", svg: svg('<line x1="160" y1="8" x2="160" y2="192" stroke="#C9D3DC" stroke-width="1.5"/>' + '<rect x="50" y="20" width="60" height="180" fill="' + C.road + '"/>' + car(80, 150, 0) + '<rect x="36" y="52" width="88" height="38" rx="10" fill="#fff" stroke="#0E7C86" stroke-width="2.5"/>' + t(80, 79, "30km/h", { size: 20, bold: true, color: "#0E7C86" }) + t(80, 14, "中央線などなし", { size: 10, bold: true }) + '<rect x="190" y="20" width="100" height="180" fill="' + C.road + '"/>' + line(240, 20, 240, 200, C.edge, 2.5) + car(216, 150, 0) + '<rect x="196" y="52" width="88" height="38" rx="10" fill="#fff" stroke="#0E7C86" stroke-width="2.5"/>' + t(240, 79, "60km/h", { size: 20, bold: true, color: "#0E7C86" }) + t(240, 14, "中央線などあり", { size: 10, bold: true }) + t(160, 196, "※速度の標識などで指定がないときの最高速度", { size: 9 })) };
+  // 17 左折可の標示がある交差点（D-C159、10/29 あなたの知人の意見「図がほしい」→ あなた OK）
+  // 標示の形は道路交通法施行規則 第3条・別記様式第一（40×20cm、白地に青の矢印と枠。信号機の背面板の下か左側の路端）
+  F.leftOk = (function () {
+    var BLUE = "#1F5FBF";
+    function leftOk(x, y, w) {
+      var s = w / 40; function P(a, b) { return (x + a * s).toFixed(1) + ' ' + (y + b * s).toFixed(1); }
+      return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + 20 * s + '" rx="' + 1.5 * s + '" fill="#fff" stroke="#9AA7B4" stroke-width=".8"/>'
+        + '<rect x="' + (x + 1.5 * s) + '" y="' + (y + 1.5 * s) + '" width="' + 37 * s + '" height="' + 17 * s + '" rx="' + s + '" fill="none" stroke="' + BLUE + '" stroke-width="' + 1.1 * s + '"/>'
+        + '<path d="M' + P(3.5, 10) + ' L' + P(16.5, 2.5) + ' L' + P(16.5, 7.25) + ' L' + P(33.5, 7.25) + ' L' + P(33.5, 12.75) + ' L' + P(16.5, 12.75) + ' L' + P(16.5, 17.5) + 'Z" fill="' + BLUE + '"/>';
+    }
+    // 上の段：運転席から見た交差点（信号は赤、その下に左折可の標示）
+    var view = '<rect x="0" y="0" width="320" height="150" fill="#DCEBF5"/><rect x="0" y="84" width="320" height="66" fill="#EEF5F0"/>'
+      + '<path d="M0 88 L320 88 L320 106 L0 106Z" fill="' + C.road + '"/>'
+      + '<path d="M40 150 L132 106 L188 106 L280 150Z" fill="' + C.road + '"/>'
+      + '<path d="M136 88 L184 88 L186 84 L134 84Z" fill="' + C.road + '"/>'
+      + line(160, 108, 160, 150, C.edge, 1.6, '6 5')
+      + '<path d="M86 128 L160 128 L160 132 L78 132Z" fill="#fff"/>'
+      + '<rect x="214" y="20" width="4" height="68" fill="#5A6573"/><rect x="140" y="22" width="78" height="4" fill="#5A6573"/>'
+      + '<rect x="132" y="12" width="74" height="28" rx="14" fill="#2B3440"/>'
+      + '<circle cx="148" cy="26" r="8.5" fill="#4A5562"/><circle cx="169" cy="26" r="8.5" fill="#4A5562"/><circle cx="190" cy="26" r="8.5" fill="#E5243B"/>'
+      + leftOk(147, 44, 44)
+      + t(118, 30, '赤信号', { color: C.ng, bold: true, size: 12, anchor: 'end' })
+      + t(118, 58, '左折可の標示', { bold: true, size: 11, anchor: 'end' }) + line(121, 55, 144, 55, C.text, 1)
+      + t(124, 142, '停止線', { size: 9.5, bold: true, color: '#fff', anchor: 'end' })
+      + path('M128 146 Q130 100 96 97 L20 97', C.ok)
+      + t(8, 12, '運転席から見ると', { size: 10, bold: true, anchor: 'start', color: '#43536a' });
+    var top = cross()
+      + stop(120, 146, 160, 146)
+      + signal(206, 148, [null, null, '#E5243B'])
+      + leftOk(217, 176, 44)
+      + path('M128 192 L128 152 Q128 132 108 132 L16 132', C.ok)
+      + path('M146 160 L146 30', C.ng, true)
+      + car(128, 180, 0)
+      + okMark(18, 170) + t(32, 174, '赤でも左折できる', { color: C.ok, anchor: 'start', bold: true })
+      + ngMark(106, 22) + t(94, 26, '直進はできない', { color: C.ng, anchor: 'end', bold: true })
+      + t(312, 50, '上から見ると', { size: 10, bold: true, anchor: 'end', color: '#43536a' });
+    return { ids: ["D-C159"], title: "左折可の標示があれば、赤や黄の信号でも左折できる（直進はできない）", svg: svg(view + line(0, 152, 320, 152, "#fff", 4) + '<g transform="translate(0 154)">' + top + "</g>", 354) };
+  })();
   var byId = {};
   Object.keys(F).forEach(function (k) { F[k].ids.forEach(function (id) { byId[id] = F[k]; }); });
   return byId;
