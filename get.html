@@ -29,13 +29,15 @@ footer a{color:var(--sub)}
   var ua = navigator.userAgent || "";
   var ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   var went = false; try { went = !!sessionStorage.getItem("michito-went"); } catch (e) {}
+  // App Store へ進んだ後・戻ってきたときは、選ぶ画面を出さず「開きました」だけにする（10/31 12時 あなたの指摘：裏に選ぶ画面が残る）。
+  if (ios && went) document.documentElement.className = "done";
   if (ios && !went) {
     document.documentElement.className = "going";
-    setTimeout(function () { document.documentElement.className = ""; }, 2000);
+    setTimeout(function () { if (document.documentElement.className === "going") document.documentElement.className = ""; }, 2000);
   }
 })();
 </script>
-<style>.going body { visibility: hidden; }</style>
+<style>.going body { visibility: hidden; } #done { display: none; } .done #done { display: block; } .done .choose { display: none; }</style>
 </head>
 <body>
 <main>
@@ -43,6 +45,13 @@ footer a{color:var(--sub)}
   <h1>ミチト 仮免学科</h1>
   <p class="lead">仮免学科の○×問題を、法令の根拠つきで。</p>
 
+  <div id="done">
+    <p class="lead">App Store を開きました。</p>
+    <a class="btn main" href="https://apps.apple.com/jp/app/id6821862608">App Store を開く</a>
+    <p class="note"><a href="#" id="showall">ほかの端末の方はこちら</a></p>
+  </div>
+
+  <div class="choose">
   <a class="btn" id="ios" href="https://apps.apple.com/jp/app/id6821862608">iPhone の方：App Store で入手</a>
   <p class="note">App Store のアプリ</p>
 
@@ -57,6 +66,7 @@ footer a{color:var(--sub)}
     <p>・仮免学科の○×500問、すべて無料・登録不要</p>
     <p>・答えの理由を、道路交通法などの条文と一緒に</p>
     <p>・学習の記録はお使いの端末の中だけに保存</p>
+  </div>
   </div>
 
   <footer>
@@ -125,8 +135,10 @@ footer a{color:var(--sub)}
     if (!ios || went) return;
     went = true;
     try { if (sessionStorage.getItem("michito-went")) return; sessionStorage.setItem("michito-went", "1"); } catch (e) {}
+    document.documentElement.className = "done";
     location.href = document.getElementById("ios").href;
   }
+  document.getElementById("showall").onclick = function () { document.documentElement.className = ""; return false; };
   if (ios) setTimeout(goIos, 1500);
   if (!GC) goIos();
   if (ios) document.getElementById("ios").className = "btn main";
