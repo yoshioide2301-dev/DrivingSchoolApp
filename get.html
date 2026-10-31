@@ -63,7 +63,7 @@ footer a{color:var(--sub)}
   var PT = "129555473";
   var m = /[?&]from=([a-z0-9_-]{1,20})/i.exec(location.search);
   var ct = m ? m[1].toLowerCase() : "none";
-  if (m && !/^(yt|ig|fb|x|tt|line|friend|old|share)$/.test(ct)) ct = "other";
+  if (m && !/^(yt|ytv|ig|fb|x|tt|line|friend|old|share)$/.test(ct)) ct = "other"; // ytv＝YouTube の「ミチトの使い方」の動画（10/31）
   if (PT && m) {
     document.getElementById("ios").href += "?pt=" + PT + "&ct=" + ct + "&mt=8";
   }
@@ -80,7 +80,9 @@ footer a{color:var(--sub)}
     sc.onload = function () {
       // 端末の種類は iPhone／Android／その他の3つだけ（10/26 あなたの OK。Google Play 版を出すかの判断材料）。機種名などは送らない。
       window.goatcounter.count({ path: "/entry/" + ct + "/" + os, title: "入口ページ", referrer: "" });
+      goIos();
     };
+    sc.onerror = goIos;
     // Android の人にだけ「Google Play 版があったら使いますか？」をたずね、押された数（/play/yes/ct・/play/no/ct）だけを数える。
     if (android) {
       document.getElementById("play").style.display = "block";
@@ -103,6 +105,17 @@ footer a{color:var(--sub)}
     });
     document.head.appendChild(sc);
   }
+  // iPhone の人は、ボタンを押さずに App Store へ自動で進む（10/31 あなたの OK：ひと手間を無くす）。
+  // 数え終わってから進む。数える道具が読めないときも 1.5 秒で進む。戻ってきたときは同じ回の中では二度進まない（ボタンで選べる）。
+  var went = false;
+  function goIos() {
+    if (!ios || went) return;
+    went = true;
+    try { if (sessionStorage.getItem("michito-went")) return; sessionStorage.setItem("michito-went", "1"); } catch (e) {}
+    location.href = document.getElementById("ios").href;
+  }
+  if (ios) setTimeout(goIos, 1500);
+  if (!GC) goIos();
   if (ios) document.getElementById("ios").className = "btn main";
   else if (android) document.getElementById("android").className = "btn main";
   else document.getElementById("ios").className = "btn main";
