@@ -86,7 +86,7 @@ footer a{color:var(--sub)}
   var PT = "129555473";
   var m = /[?&]from=([a-z0-9_-]{1,20})/i.exec(location.search);
   var ct = m ? m[1].toLowerCase() : "none";
-  if (m && !/^(yt|ytv|ig|fb|x|tt|line|friend|old|share)$/.test(ct)) ct = "other"; // ytv＝YouTube の「ミチトの使い方」の動画（10/31）
+  if (m && !/^(yt|ytv|ig|fb|x|tt|line|friend|old|share|mihon)$/.test(ct)) ct = "other"; // ytv＝YouTube の「ミチトの使い方」の動画（10/31）
   if (PT && m) {
     document.getElementById("ios").href += "?pt=" + PT + "&ct=" + ct + "&mt=8";
   }
