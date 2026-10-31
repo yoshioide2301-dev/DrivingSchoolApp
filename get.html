@@ -23,6 +23,19 @@ h1{font-size:1.5rem;margin:16px 0 4px}
 footer{color:var(--sub);font-size:.8rem}
 footer a{color:var(--sub)}
 </style>
+<script>
+// iPhone で初めて来たときは、画面を描かずに App Store へ進む（10/31 あなたの指摘：前の画面が一瞬見える）。進めなかったときは 2 秒で画面を出す。
+(function () {
+  var ua = navigator.userAgent || "";
+  var ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  var went = false; try { went = !!sessionStorage.getItem("michito-went"); } catch (e) {}
+  if (ios && !went) {
+    document.documentElement.className = "going";
+    setTimeout(function () { document.documentElement.className = ""; }, 2000);
+  }
+})();
+</script>
+<style>.going body { visibility: hidden; }</style>
 </head>
 <body>
 <main>
@@ -79,10 +92,8 @@ footer a{color:var(--sub)}
     sc.setAttribute("data-goatcounter", "https://" + GC + ".goatcounter.com/count");
     sc.onload = function () {
       // 端末の種類は iPhone／Android／その他の3つだけ（10/26 あなたの OK。Google Play 版を出すかの判断材料）。機種名などは送らない。
-      window.goatcounter.count({ path: "/entry/" + ct + "/" + os, title: "入口ページ", referrer: "" });
-      goIos();
+      if (!counted) window.goatcounter.count({ path: "/entry/" + ct + "/" + os, title: "入口ページ", referrer: "" });
     };
-    sc.onerror = goIos;
     // Android の人にだけ「Google Play 版があったら使いますか？」をたずね、押された数（/play/yes/ct・/play/no/ct）だけを数える。
     if (android) {
       document.getElementById("play").style.display = "block";
@@ -107,15 +118,23 @@ footer a{color:var(--sub)}
   }
   // iPhone の人は、ボタンを押さずに App Store へ自動で進む（10/31 あなたの OK：ひと手間を無くす）。
   // 数え終わってから進む。数える道具が読めないときも 1.5 秒で進む。戻ってきたときは同じ回の中では二度進まない（ボタンで選べる）。
-  var went = false;
+  var went = false, counted = false;
   function goIos() {
     if (!ios || went) return;
     went = true;
     try { if (sessionStorage.getItem("michito-went")) return; sessionStorage.setItem("michito-went", "1"); } catch (e) {}
     location.href = document.getElementById("ios").href;
   }
-  if (ios) setTimeout(goIos, 1500);
-  if (!GC) goIos();
+  if (ios) {
+    try {
+      if (GC && !sessionStorage.getItem("michito-went")) {
+        // 数える道具（count.js）が送るのと同じ形の要求を、ページを離れても届く形（keepalive）で送ってから、すぐ進む。
+        fetch("https://" + GC + ".goatcounter.com/count?p=" + encodeURIComponent("/entry/" + ct + "/ios") + "&t=" + encodeURIComponent("入口ページ") + "&r=&rnd=" + Math.random().toString(36).slice(2), { mode: "no-cors", keepalive: true, credentials: "omit" });
+        counted = true;
+      }
+    } catch (e) {}
+    goIos();
+  }
   if (ios) document.getElementById("ios").className = "btn main";
   else if (android) document.getElementById("android").className = "btn main";
   else document.getElementById("ios").className = "btn main";
