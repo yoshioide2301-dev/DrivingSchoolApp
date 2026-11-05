@@ -1,7 +1,7 @@
 (function(){
   // 意見・不具合・アンケートはメールで送る（ゼロナビと共通方式。サーバーなし）
   var MAIL='zg.dev2301@gmail.com', context={};
-  var choices=[['daily','今日の10問'],['exam','模試'],['explanation','解説'],['review','復習'],['graph','成長グラフ'],['stock','問題数'],['signs','標識・画像問題'],['operation','操作性']];
+  var choices=[['daily','今日の5問'],['exam','模試'],['explanation','解説'],['review','復習'],['graph','成長グラフ'],['stock','問題数'],['signs','標識・画像問題'],['operation','操作性']];
   var categoryLabels={suggestion:'改善の提案',bug:'不具合・問題の誤り',question:'質問'};
   var intentionLabels={yes:'また使いたい',unsure:'まだ分からない',no:'使い続けにくい'};
   var sourceLabels={family:'家族・友人',store:'App Storeなどの検索',sns:'SNS',school:'教習所',college:'大学・学校',other:'その他',unknown:'覚えていない'};
