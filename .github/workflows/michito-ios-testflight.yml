@@ -72,6 +72,15 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" ios/App/App/Info.plist || \
           /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" ios/App/App/Info.plist
 
+      - name: Info.plist（言語を日本語に。1.2 M-9：App Store の言語が「英語」と出ていたため）
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDevelopmentRegion ja" ios/App/App/Info.plist || \
+          /usr/libexec/PlistBuddy -c "Add :CFBundleDevelopmentRegion string ja" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleLocalizations" ios/App/App/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleLocalizations array" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :CFBundleLocalizations:0 string ja" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Print :CFBundleLocalizations" ios/App/App/Info.plist
+
       - name: Write API key and export options
         run: |
           umask 077
