@@ -25,7 +25,64 @@
 (function () {
   "use strict";
 
-  var APP_VERSION = "1.1";
+  var APP_VERSION = "1.2";
+  // 1.2 M-19：アップデートの履歴（ウェザップの型：今回の注目ポイント／【新機能】【改善】【不具合修正】【その他】）。新しい版を出すたびに先頭へ足す
+  var UPDATES = [
+    { v: "1.2", date: "2026年11月", point: "使い方とアプリの改善を、目に見える形でお届けします。", items: [
+      ["新機能", ["設定に「アップデートの履歴」を追加しました", "新しい版が出たら、ホームでお知らせします"]],
+      ["改善", ["まちがえやすい問題の図を1つ増やしました（左折可の標示）", "App Store の名前と画面の説明を分かりやすくしました"]],
+      ["不具合修正", ["アンケートの「今日の10問」の表記を「今日の5問」に直しました", "App Store で言語が「英語」と表示される点を直しました"]]
+    ], thanks: "ご意見やご報告をくださった皆さま、ありがとうございます！" },
+    { v: "1.1", date: "2026年10月23日", point: "500問と標識の学びで、苦手な範囲を少しずつ確かめられます。", items: [
+      ["改善", ["仮免の問題を500問に増やしました", "学びたい範囲を選んで5問ずつ解けます", "範囲ごとの理解度を見られます", "標識の一覧と覚え方を確かめられます", "問題と解説にふりがなを付けました"]],
+      ["その他", ["模試10回で500問を一巡できます（同じ端末で保存が有効な場合）"]]
+    ], thanks: "ご意見やご報告をくださった皆さま、ありがとうございました！" }
+  ];
+  // 1.2 M-20：新しい版のお知らせ。App Store の公開情報（版の番号だけ）を聞く。学習の記録は送らない
+  var STORE_APP_ID = "6821862608";
+  var STORE_URL = "https://apps.apple.com/jp/app/id" + STORE_APP_ID;
+  var UPDATE_SEEN_KEY = "michito_update_seen";
+  var LAST_VERSION_KEY = "michito_last_version";
+  function versionNewer(a, b) {
+    var x = String(a).split("."), y = String(b).split(".");
+    for (var i = 0; i < Math.max(x.length, y.length); i++) {
+      var d = (parseInt(x[i], 10) || 0) - (parseInt(y[i], 10) || 0);
+      if (d) return d > 0;
+    }
+    return false;
+  }
+  function checkStoreVersion() {
+    if (typeof fetch !== "function" || (typeof navigator !== "undefined" && navigator.onLine === false)) return;
+    fetch("https://itunes.apple.com/lookup?id=" + STORE_APP_ID + "&country=jp", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        var v = d && d.results && d.results[0] && d.results[0].version;
+        if (!v || !versionNewer(v, APP_VERSION) || getLocal(UPDATE_SEEN_KEY, "") === v) return;
+        state.storeVersion = v;
+        if (state.view === "home") render({ keepScroll: true });
+      })
+      .catch(function () { /* 通信できないときは何もしない */ });
+  }
+  function updateNoticeHtml() {
+    var h = "";
+    if (state.storeVersion) h += '<section class="panel update-notice" role="status"><p><strong>新しい版（' + escapeHtml(state.storeVersion) + '）があります。</strong>App Store で更新できます。</p><p><a class="btn-pill" href="' + STORE_URL + '" target="_blank" rel="noopener">App Store を開く</a> <button class="text-link" data-action="dismiss-update">あとで</button></p></section>';
+    if (state.justUpdated) h += '<section class="panel update-notice" role="status"><p><strong>ミチトが ' + escapeHtml(APP_VERSION) + ' になりました。</strong></p><p><button class="text-link" data-action="open-updates">変わったところを見る</button> <button class="text-link" data-action="dismiss-updated">閉じる</button></p></section>';
+    return h;
+  }
+  function viewUpdates() {
+    var html = '<div class="screen screen--settings">' + topBackHtml("open-settings");
+    html += '<h1 class="screen-title screen-title--left">アップデートの履歴</h1>';
+    html += '<p class="screen-lead screen-lead--left">ミチトは、いただいたご意見をもとに改善を続けています。</p>';
+    UPDATES.forEach(function (u) {
+      html += '<section class="panel update-entry"><h2>v' + escapeHtml(u.v) + '<span class="settings-note">　' + escapeHtml(u.date) + '</span></h2>';
+      html += '<p><strong>今回の注目ポイント</strong><br>' + escapeHtml(u.point) + '</p>';
+      u.items.forEach(function (it) {
+        html += '<p><strong>【' + escapeHtml(it[0]) + '】</strong></p><ul>' + it[1].map(function (t) { return '<li>' + escapeHtml(t) + '</li>'; }).join("") + '</ul>';
+      });
+      html += '<p>' + escapeHtml(u.thanks) + '</p></section>';
+    });
+    return html + '</div>';
+  }
   var SESSION_SIZE = 5; // v1.1：教習番号（範囲）を選んで5問ずつ
   var MAX_SAVED_SESSION = 10; // v1.0 の10問の途中保存も再開できるようにする
   var NOTE_MAX_LENGTH = 500;
@@ -2108,6 +2165,7 @@
     html += '<h1 class="screen-title screen-title--left">設定</h1>';
     html += '<p class="screen-lead screen-lead--left">見やすい文字の大きさと色合いを選べます。選ぶとすぐに切り替わります。</p>';
     html += '<button class="text-link" data-action="open-guide">使い方を見る（絵で6枚）</button>';
+    html += '<button class="text-link" data-action="open-updates">アップデートの履歴を見る</button>';
 
     html += '<section class="settings-group">';
     html += '<h2 class="settings-label" id="settings-font-size">文字の大きさ</h2>';
@@ -2230,7 +2288,7 @@
       case "mock": html=viewMock();break;
       case "mockResult": html=viewMockResult();break;
       case "home":
-        html = viewHome();
+        html = updateNoticeHtml() + viewHome();
         break;
       case "start":
         html = viewStart();
@@ -2273,6 +2331,9 @@
         break;
       case "progress":
         html = viewProgress();
+        break;
+      case "updates":
+        html = viewUpdates();
         break;
       case "devQuestions":
         html = viewDevQuestions();
@@ -2592,6 +2653,15 @@
       case "open-guide":
         openGuide();
         break;
+      case "open-updates":
+        state.view = "updates"; render();
+        break;
+      case "dismiss-update":
+        setLocal(UPDATE_SEEN_KEY, state.storeVersion || ""); state.storeVersion = null; render({ keepScroll: true });
+        break;
+      case "dismiss-updated":
+        state.justUpdated = false; render({ keepScroll: true });
+        break;
       case "guide-next":
         state.guideIndex = (state.guideIndex || 0) + 1; render(); window.scrollTo(0, 0);
         break;
@@ -2707,6 +2777,12 @@
     state.exam=loadMock();
     if(state.exam && state.exam.resumeOnLoad){state.view="mock";state.session=null;}
     if (state.view === "home" && !getLocal(GUIDE_KEY, false)) { state.guideIndex = 0; state.view = "guide"; }
+    var lastV = getLocal(LAST_VERSION_KEY, "");
+    // 1.1 には版の記録が無いので、案内を見たことがある人（前から使っている人）は 1.1 からの更新とみなす
+    if (!lastV && getLocal(GUIDE_KEY, false)) lastV = "1.1";
+    if (lastV && lastV !== APP_VERSION && versionNewer(APP_VERSION, lastV)) state.justUpdated = true;
+    setLocal(LAST_VERSION_KEY, APP_VERSION);
+    checkStoreVersion();
     mockTick();
     if(typeof setInterval==='function')setInterval(mockTick,1000);
     window.addEventListener("pagehide", function(){saveProgress();saveMock();});

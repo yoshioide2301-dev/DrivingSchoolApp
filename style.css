@@ -2471,3 +2471,10 @@ ruby rt { font-size: 0.5em; font-weight: 400; color: var(--text-sub); letter-spa
 .explain-figure { margin: 12px 0 4px; }
 .explain-figure svg { display: block; width: 100%; max-width: 420px; height: auto; margin: 0 auto; border-radius: 12px; }
 .explain-figure figcaption { text-align: center; font-size: 12px; color: var(--navy); opacity: 0.8; margin-top: 4px; }
+
+/* 1.2 M-20：新しい版のお知らせ（小さめに） */
+.update-notice{padding:12px 16px;margin:10px 12px}
+.update-notice p{margin:0 0 6px}
+.update-notice p:last-child{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:0}
+.update-notice .btn-pill{text-decoration:none;padding:8px 18px;font-size:.92em;width:auto}
+.update-entry h2{margin-bottom:6px}
