@@ -44,8 +44,8 @@ let ver = vers.json.data.find(v => EDITABLE.includes(v.attributes.appStoreState)
 // アプリ情報（名前・サブタイトル・カテゴリ・年齢区分）
 const infos = await api('GET', `/v1/apps/${appId}/appInfos?include=primaryCategory,secondaryCategory`);
 for (const i of infos.json.data) say('アプリ情報', i.id.slice(0, 6), i.attributes.appStoreState || i.attributes.state, 'カテゴリ=' + ((i.relationships.primaryCategory.data || {}).id || '-') + '/' + ((i.relationships.secondaryCategory.data || {}).id || '-'));
-const info = infos.json.data.find(i => !['READY_FOR_SALE', 'READY_FOR_DISTRIBUTION'].includes(i.attributes.appStoreState || i.attributes.state)) || infos.json.data[0];
-const infoLocs = await api('GET', `/v1/appInfos/${info.id}/appInfoLocalizations`);
+let info = infos.json.data.find(i => !['READY_FOR_SALE', 'READY_FOR_DISTRIBUTION'].includes(i.attributes.appStoreState || i.attributes.state)) || infos.json.data[0];
+let infoLocs = await api('GET', `/v1/appInfos/${info.id}/appInfoLocalizations`);
 for (const l of infoLocs.json.data) say('名前など', l.attributes.locale, 'name=' + l.attributes.name, 'subtitle=' + (l.attributes.subtitle || '-'), 'privacy=' + (l.attributes.privacyPolicyUrl ? 'あり' : 'なし'));
 const age = await api('GET', `/v1/appInfos/${info.id}/ageRatingDeclaration`);
 const ageNull = age.json ? Object.entries(age.json.data.attributes).filter(([, v]) => v === null).map(([k]) => k) : [];
@@ -114,6 +114,10 @@ if (T.whatsNew) locAttr.whatsNew = T.whatsNew; // 1.2 から：このバージ�
 if (loc) { const p = await api('PATCH', `/v1/appStoreVersionLocalizations/${loc.id}`, { type: 'appStoreVersionLocalizations', id: loc.id, attributes: locAttr }); say('掲載文', p.ok ? 'OK' : 'NG'); }
 else { const c = await api('POST', '/v1/appStoreVersionLocalizations', { type: 'appStoreVersionLocalizations', attributes: { locale: T.locale, ...locAttr }, relationships: { appStoreVersion: { data: { type: 'appStoreVersions', id: ver.id } } } }); loc = c.json && c.json.data; say('掲載文（新規）', c.ok ? 'OK' : 'NG'); }
 // 4) 名前・サブタイトル・プライバシーURL
+// 新しい版を作った直後は、編集できるアプリ情報が新しくできるので選び直す（11/6：1回目は公開中の情報を選んで名前が NG だった）
+{ const again = await api('GET', `/v1/apps/${appId}/appInfos`);
+  const ed = again.json && again.json.data.find(i => !['READY_FOR_SALE', 'READY_FOR_DISTRIBUTION'].includes(i.attributes.appStoreState || i.attributes.state));
+  if (ed && ed.id !== info.id) { info = ed; infoLocs = await api('GET', `/v1/appInfos/${info.id}/appInfoLocalizations`); say('アプリ情報を選び直し', info.id.slice(0, 6)); } }
 let il = infoLocs.json.data.find(l => l.attributes.locale === T.locale);
 const ilAttr = { name: T.name, subtitle: T.subtitle, privacyPolicyUrl: T.privacyPolicyUrl };
 if (il) { const p = await api('PATCH', `/v1/appInfoLocalizations/${il.id}`, { type: 'appInfoLocalizations', id: il.id, attributes: ilAttr }); say('名前・サブタイトル', p.ok ? 'OK' : 'NG'); }
