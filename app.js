@@ -41,6 +41,7 @@
   // 1.2 M-20：新しい版のお知らせ。App Store の公開情報（版の番号だけ）を聞く。学習の記録は送らない
   var STORE_APP_ID = "6821862608";
   var STORE_URL = "https://apps.apple.com/jp/app/id" + STORE_APP_ID;
+  var ANALYTICS_OFF_KEY = "michito_analytics_off";
   var UPDATE_SEEN_KEY = "michito_update_seen";
   var LAST_VERSION_KEY = "michito_last_version";
   function versionNewer(a, b) {
@@ -636,6 +637,7 @@
       feedbackReason: [], comment: "", appVersion: APP_VERSION });
     if (s.selectedIndex !== q.correct) addMistakeIds([q.id]);
     recordProgress([{ id: q.id, ok: s.selectedIndex === q.correct }]);
+    track("question_result", { qid: q.id, ok: s.selectedIndex === q.correct ? 1 : 0 });
   }
 
   // ---------- v1.1：範囲（教習番号）ごとの理解度 ----------
@@ -929,6 +931,11 @@
     render();
   }
 
+  // 利用状況の集計（1.3）：iOS アプリで、設定で止めていないときだけ。問題の番号と正誤・回数だけを送り、問題文・選んだ答え・メモは送らない
+  function track(name, params) {
+    try { if (window.michitoLog) window.michitoLog(name, params || {}); } catch (e) {}
+  }
+
   function finishSession() {
     var s = state.session;
     var correctCount = s.answers.filter(function (a) {
@@ -985,6 +992,7 @@
       questionIds: s.questions.map(function (q) { return q.id; }) // 「同じ範囲でもう5問」で重ならないように
     };
 
+    track("session_complete", { kyoshu: summary.kyoshu, count: summary.count, correct: correctCount });
     state.session = null;
     state.view = "result";
     render();
@@ -2166,6 +2174,12 @@
     html += '<p class="screen-lead screen-lead--left">見やすい文字の大きさと色合いを選べます。選ぶとすぐに切り替わります。</p>';
     html += '<button class="text-link" data-action="open-guide">使い方を見る（絵で6枚）</button>';
     html += '<button class="text-link" data-action="open-updates">アップデートの履歴を見る</button>';
+    if (window.michitoLog) {
+      var off = getLocal(ANALYTICS_OFF_KEY, false) === true;
+      html += '<section class="settings-group"><h2 class="settings-label">利用状況の集計</h2>' +
+        '<p class="screen-lead screen-lead--left">アプリをよくするため、使われた画面・問題の番号と正誤・不具合の記録を、個人を特定しない形で送ります（Google の Firebase）。問題文・選んだ答え・メモは送りません。</p>' +
+        '<button class="btn-pill' + (off ? '' : ' btn-pill--ghost') + '" data-action="toggle-analytics" aria-pressed="' + !off + '">' + (off ? '送らない（いまの設定）→ 送るにする' : '送る（いまの設定）→ 送らないにする') + '</button></section>';
+    }
 
     html += '<section class="settings-group">';
     html += '<h2 class="settings-label" id="settings-font-size">文字の大きさ</h2>';
@@ -2282,6 +2296,7 @@
 
   function render(options) {
     var html = "";
+    if (state.view !== state._trackedView) { state._trackedView = state.view; track("screen", { name: String(state.view) }); }
     switch (state.view) {
       case "support": html=window.MctSupport.view();break;
       case "mockSetup": html=viewMockSetup();break;
@@ -2415,6 +2430,7 @@
     var resultSaved=setLocal(MOCK_RESULT_KEY,r),historySaved=setLocal(STORAGE_KEYS.HISTORY,history);
     state.storageWarning=(!resultSaved||!historySaved)||state.storageWarning;
     if(resultSaved&&historySaved) { try{localStorage.removeItem(MOCK_KEY);}catch(err){state.storageWarning=true;} }
+    track('mock_complete',{score:score,reason:String(reason||'')});
     state.mockResult=r;state.exam=null;
     if(state.view==='mock')state.view='mockResult';
     render();
@@ -2655,6 +2671,12 @@
         break;
       case "open-updates":
         state.view = "updates"; render();
+        break;
+      case "toggle-analytics":
+        var nowOff = getLocal(ANALYTICS_OFF_KEY, false) !== true;
+        setLocal(ANALYTICS_OFF_KEY, nowOff);
+        try { if (window.michitoSetAnalytics) window.michitoSetAnalytics(!nowOff); } catch (e) {}
+        render({ keepScroll: true });
         break;
       case "dismiss-update":
         setLocal(UPDATE_SEEN_KEY, state.storeVersion || ""); state.storeVersion = null; render({ keepScroll: true });

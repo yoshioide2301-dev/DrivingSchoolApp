@@ -1,5 +1,8 @@
 import {Capacitor} from '@capacitor/core';
 import {Preferences} from '@capacitor/preferences';
+import {FirebaseAnalytics} from '@capacitor-firebase/analytics';
+import {FirebaseCrashlytics} from '@capacitor-firebase/crashlytics';
+import {FirebasePerformance} from '@capacitor-firebase/performance';
 window.Capacitor=Capacitor;
 const owned=k=>k.startsWith('michito_')||k.startsWith('zerodora_');
 const originalSet=Storage.prototype.setItem,originalRemove=Storage.prototype.removeItem;
@@ -17,4 +20,21 @@ if(Capacitor.isNativePlatform()){
   }
 }
 window.addEventListener('michito-native-storage-error',()=>{if(document.getElementById('native-storage-alert'))return;const p=document.createElement('p');p.id='native-storage-alert';p.setAttribute('role','alert');p.textContent='学習の保存ができません。アプリを閉じる前に保存先をご確認ください。';document.body.prepend(p);});
+// 利用状況の集計（1.3）。設定で「送らない」にした人からは何も送らない。広告の識別子は使わない
+if(Capacitor.isNativePlatform()){
+  const setAll=on=>Promise.all([
+    FirebaseAnalytics.setEnabled({enabled:on}),
+    FirebaseCrashlytics.setEnabled({enabled:on}),
+    FirebasePerformance.setEnabled({enabled:on})
+  ]).catch(()=>{});
+  let off=false;try{off=JSON.parse(localStorage.getItem('michito_analytics_off')||'false')===true;}catch(e){}
+  setAll(!off);
+  window.michitoSetAnalytics=on=>setAll(on);
+  window.michitoLog=(name,params)=>{
+    let o=false;try{o=JSON.parse(localStorage.getItem('michito_analytics_off')||'false')===true;}catch(e){}
+    if(o)return;
+    if(name==='screen'){FirebaseAnalytics.setCurrentScreen({screenName:String(params.name||'')}).catch(()=>{});return;}
+    FirebaseAnalytics.logEvent({name,params}).catch(()=>{});
+  };
+}
 const app=document.createElement('script');app.src='app.js';document.body.append(app);

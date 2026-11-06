@@ -9,9 +9,13 @@
     "open:ios": "cap open ios"
   },
   "dependencies": {
+    "@capacitor-firebase/analytics": "^8.6.0",
+    "@capacitor-firebase/crashlytics": "^8.6.0",
+    "@capacitor-firebase/performance": "^8.6.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/ios": "^8.0.0",
-    "@capacitor/preferences": "^8.0.0"
+    "@capacitor/preferences": "^8.0.0",
+    "firebase": "^12.19.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.0.0",

@@ -33,7 +33,8 @@ jobs:
       ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       BUILD_NUMBER: ${{ github.run_number }}
-      MARKETING_VERSION: "1.2"
+      MARKETING_VERSION: "1.3"
+      FIREBASE_IOS_PLIST_B64: ${{ secrets.FIREBASE_IOS_PLIST_B64 }}
     steps:
       - name: Check required secrets
         working-directory: .
@@ -66,6 +67,16 @@ jobs:
           npm run add:ios
           npm run sync:ios
           node install-ios-assets.mjs
+
+      # 1.3：Firebase の設定ファイルは公開の repo に入れず、秘密の保管庫から組み立ての時だけ書き出す（11/6 あなたの OK）
+      - name: Firebase の設定ファイルを書き出して Xcode に登録
+        run: |
+          [ -n "$FIREBASE_IOS_PLIST_B64" ] || { echo "Secret FIREBASE_IOS_PLIST_B64 is not set"; exit 1; }
+          umask 077
+          printf '%s' "$FIREBASE_IOS_PLIST_B64" | base64 --decode > ios/App/App/GoogleService-Info.plist
+          /usr/libexec/PlistBuddy -c "Print :BUNDLE_ID" ios/App/App/GoogleService-Info.plist | grep -qx "com.yoshioide2301.michito"
+          gem list -i xcodeproj >/dev/null || sudo gem install xcodeproj --no-document
+          ruby -e 'require "xcodeproj"; p=Xcodeproj::Project.open("ios/App/App.xcodeproj"); t=p.targets.find{|x| x.name=="App"}; g=p.main_group["App"]; r=g.files.find{|f| f.path=="GoogleService-Info.plist"} || g.new_file("GoogleService-Info.plist"); t.resources_build_phase.add_file_reference(r,true); p.save; puts "added"'
 
       - name: Info.plist（暗号化不使用の申告）
         run: |
@@ -156,4 +167,4 @@ jobs:
       - name: Remove API key
         if: always()
         working-directory: .
-        run: rm -f "$RUNNER_TEMP/AuthKey.p8"
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8" native-ios/ios/App/App/GoogleService-Info.plist
