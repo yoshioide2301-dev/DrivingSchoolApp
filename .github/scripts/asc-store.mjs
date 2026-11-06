@@ -80,6 +80,18 @@ if (ver) {
   say('審査の連絡先', r ? ['contactFirstName', 'contactLastName', 'contactPhone', 'contactEmail'].map(k => k + '=' + (r.attributes[k] ? 'あり' : 'なし')).join(' ') + ' メモ=' + (r.attributes.notes ? 'あり' : 'なし') : 'なし');
 } else say('編集できる版：なし');
 
+// MODE=submit：版 T.versionString（提出の準備中）を App Review に提出する。あなたの申請 OK の後だけ使う（1.2：11/6 あなた「申請OK」）
+if (MODE === 'submit') {
+  const v = vers.json.data.find(x => x.attributes.versionString === T.versionString && x.attributes.appStoreState === 'PREPARE_FOR_SUBMISSION');
+  if (!v) { say('提出できる版が無い', T.versionString); process.exit(1); }
+  const rs = await api('POST', '/v1/reviewSubmissions', { type: 'reviewSubmissions', attributes: { platform: 'IOS' }, relationships: { app: { data: { type: 'apps', id: appId } } } });
+  say('提出の箱', rs.ok ? 'OK' : 'NG ' + JSON.stringify(rs.json && rs.json.errors || '').slice(0, 400)); if (!rs.ok) process.exit(1);
+  const it = await api('POST', '/v1/reviewSubmissionItems', { type: 'reviewSubmissionItems', relationships: { reviewSubmission: { data: { type: 'reviewSubmissions', id: rs.json.data.id } }, appStoreVersion: { data: { type: 'appStoreVersions', id: v.id } } } });
+  say('版を入れる', it.ok ? 'OK' : 'NG ' + JSON.stringify(it.json && it.json.errors || '').slice(0, 600)); if (!it.ok) process.exit(1);
+  const sb = await api('PATCH', `/v1/reviewSubmissions/${rs.json.data.id}`, { type: 'reviewSubmissions', id: rs.json.data.id, attributes: { submitted: true } });
+  say('審査に提出', sb.ok ? 'OK ' + (sb.json.data.attributes.state || '') : 'NG ' + JSON.stringify(sb.json && sb.json.errors || '').slice(0, 600));
+  process.exit(sb.ok ? 0 : 1);
+}
 if (MODE !== 'apply') process.exit(0);
 say('--- 登録を始める ---');
 
