@@ -98,6 +98,7 @@ if (build) { const b = await api('PATCH', `/v1/appStoreVersions/${ver.id}/relati
 const locs = await api('GET', `/v1/appStoreVersions/${ver.id}/appStoreVersionLocalizations`);
 let loc = locs.json.data.find(l => l.attributes.locale === T.locale);
 const locAttr = { description: T.description, promotionalText: T.promotional_text, keywords: T.keywords, supportUrl: T.supportUrl };
+if (T.whatsNew) locAttr.whatsNew = T.whatsNew; // 1.2 から：このバージョンの新機能（最初の版では送れない）
 if (loc) { const p = await api('PATCH', `/v1/appStoreVersionLocalizations/${loc.id}`, { type: 'appStoreVersionLocalizations', id: loc.id, attributes: locAttr }); say('掲載文', p.ok ? 'OK' : 'NG'); }
 else { const c = await api('POST', '/v1/appStoreVersionLocalizations', { type: 'appStoreVersionLocalizations', attributes: { locale: T.locale, ...locAttr }, relationships: { appStoreVersion: { data: { type: 'appStoreVersions', id: ver.id } } } }); loc = c.json && c.json.data; say('掲載文（新規）', c.ok ? 'OK' : 'NG'); }
 // 4) 名前・サブタイトル・プライバシーURL
