@@ -9,11 +9,13 @@
     "open:ios": "cap open ios"
   },
   "dependencies": {
+    "@capacitor-community/in-app-review": "^8.0.0",
     "@capacitor-firebase/analytics": "^8.6.0",
     "@capacitor-firebase/crashlytics": "^8.6.0",
     "@capacitor-firebase/performance": "^8.6.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/ios": "^8.0.0",
+    "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/preferences": "^8.0.0",
     "firebase": "^12.19.0"
   },

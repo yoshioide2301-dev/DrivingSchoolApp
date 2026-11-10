@@ -25,9 +25,14 @@
 (function () {
   "use strict";
 
-  var APP_VERSION = "1.2.1";
+  var APP_VERSION = "1.2.2";
   // 1.2 M-19：アップデートの履歴（ウェザップの型：今回の注目ポイント／【新機能】【改善】【不具合修正】【その他】）。新しい版を出すたびに先頭へ足す
   var UPDATES = [
+    { v: "1.2.2", date: "2026年11月", point: "毎日少しずつ続けやすく、問題もより今の決まりに合わせました。", items: [
+      ["新機能", ["設定に「学習の通知」を追加しました（最初はオフ。時刻を選んでオンにできます）"]],
+      ["改善", ["マイナ免許証（免許の情報を記録したマイナンバーカード）に合わせて、免許証の問題の解説を直しました", "常識だけで解ける4問を、仮免の人に役立つ4問に入れ替えました（500問のまま）"]],
+      ["その他", ["模試を終えたとき、App Store の評価をお願いすることがあります（Apple の仕組みで、表示の回数は限られます）"]]
+    ], thanks: "ご意見やご報告をくださった皆さま、ありがとうございます！" },
     { v: "1.2.1", date: "2026年11月", point: "使われ方を知り、まちがいの多い問題から手直しするための準備です。", items: [
       ["新機能", ["設定に「利用状況の集計」を追加しました（送らない設定にもできます）"]],
       ["その他", ["アプリが止まったときの記録を受け取り、不具合を早く直せるようにしました", "問題文・選んだ答え・メモは送りません"]]
@@ -48,6 +53,10 @@
   var ANALYTICS_OFF_KEY = "michito_analytics_off";
   var UPDATE_SEEN_KEY = "michito_update_seen";
   var LAST_VERSION_KEY = "michito_last_version";
+  // 1.2.2：学習の通知（端末の中だけ・最初はオフ・1日1回・学んだ日は出さない）と、App Store の評価のお願い（模試の終わり・点数で選ばない）
+  var REMINDER_KEY = "michito_reminder";
+  var REVIEW_ASKED_KEY = "michito_review_asked";
+  var REMINDER_TIMES = ["07:00", "12:00", "18:00", "20:00", "21:00"];
   function versionNewer(a, b) {
     var x = String(a).split("."), y = String(b).split(".");
     for (var i = 0; i < Math.max(x.length, y.length); i++) {
@@ -672,6 +681,36 @@
     var now = Date.now();
     items.forEach(function (x) { p[x.id] = { ok: !!x.ok, t: now }; });
     if (!setLocal(STORAGE_KEYS.PROGRESS, p)) state.storageWarning = true;
+    if (state.reminderPlannedFor !== todayDateString()) planReminders();
+  }
+  function studiedToday() {
+    var p = getProgress(), t = new Date(); t.setHours(0, 0, 0, 0);
+    for (var k in p) { if (p[k] && p[k].t >= t.getTime()) return true; }
+    return false;
+  }
+  // 今日を含む14日分を予約し直す。学んだ日（今日）は出さない。2週間開かなければ自然に止まる
+  function planReminders() {
+    if (!window.michitoNotify) return;
+    var r = getLocal(REMINDER_KEY, null);
+    if (!r || !r.on) { state.reminderPlannedFor = null; window.michitoNotify.cancel(); return; }
+    var hm = String(r.time || "20:00").split(":"), list = [], skipToday = studiedToday();
+    for (var i = 0; i < 14; i++) {
+      var d = new Date(); d.setDate(d.getDate() + i); d.setHours(parseInt(hm[0], 10) || 20, parseInt(hm[1], 10) || 0, 0, 0);
+      if (i === 0 && (skipToday || d.getTime() <= Date.now() + 60000)) continue;
+      list.push(d.getTime());
+    }
+    state.reminderPlannedFor = skipToday ? todayDateString() : null;
+    window.michitoNotify.schedule(list);
+  }
+  // 2日以上学んだ人が模試を終えたとき、版ごとに1回だけ。出すかどうかは Apple が決める（年3回まで）
+  function maybeAskReview() {
+    if (!window.michitoReview || getLocal(REVIEW_ASKED_KEY, "") === APP_VERSION) return;
+    var h = getLocal(STORAGE_KEYS.HISTORY, []), days = {};
+    if (!Array.isArray(h)) return;
+    h.forEach(function (x) { if (x && x.date) days[x.date] = 1; });
+    if (Object.keys(days).length < 2) return;
+    setLocal(REVIEW_ASKED_KEY, APP_VERSION);
+    setTimeout(function () { try { window.michitoReview(); } catch (e) {} }, 1500);
   }
   // 範囲ごとに：問題数・解いた数・最後に正解した数
   function chapterProgress() {
@@ -2184,6 +2223,17 @@
         '<p class="screen-lead screen-lead--left">アプリをよくするため、使われた画面・問題の番号と正誤・不具合の記録を、個人を特定しない形で送ります（Google の Firebase）。問題文・選んだ答え・メモは送りません。</p>' +
         '<button class="btn-pill' + (off ? '' : ' btn-pill--ghost') + '" data-action="toggle-analytics" aria-pressed="' + !off + '">' + (off ? '送らない（いまの設定）→ 送るにする' : '送る（いまの設定）→ 送らないにする') + '</button></section>';
     }
+    if (window.michitoNotify) {
+      var rm = getLocal(REMINDER_KEY, null) || { on: false, time: "20:00" };
+      html += '<section class="settings-group"><h2 class="settings-label" id="settings-reminder">学習の通知</h2>' +
+        '<p class="screen-lead screen-lead--left">1日1回、選んだ時刻に「今日の5問」をお知らせします。その日にもう学んだときは出しません。通知はこの iPhone の中だけで作り、どこにも送りません。2週間アプリを開かないと、自然に止まります。</p>' +
+        '<div class="option-grid" role="group" aria-labelledby="settings-reminder">';
+      REMINDER_TIMES.forEach(function (t) {
+        html += '<button class="btn-pill' + (rm.time === t ? '' : ' btn-pill--ghost') + '" data-action="reminder-time" data-time="' + t + '" aria-pressed="' + (rm.time === t) + '">' + t.replace(/^0/, '') + '</button>';
+      });
+      html += '</div><button class="btn-pill' + (rm.on ? '' : ' btn-pill--ghost') + '" data-action="toggle-reminder" aria-pressed="' + !!rm.on + '">' + (rm.on ? 'オン（いまの設定）→ オフにする' : 'オフ（いまの設定）→ オンにする') + '</button>' +
+        (state.reminderDenied ? '<p class="settings-note" role="alert">通知が許可されていません。iPhone の「設定」→「通知」→「ミチト」で許可してください。</p>' : '') + '</section>';
+    }
 
     html += '<section class="settings-group">';
     html += '<h2 class="settings-label" id="settings-font-size">文字の大きさ</h2>';
@@ -2438,6 +2488,7 @@
     state.mockResult=r;state.exam=null;
     if(state.view==='mock')state.view='mockResult';
     render();
+    if(reason==='manual'||reason==='timeout')maybeAskReview();
   }
   function mockTick() {
     if(!state.exam)return;
@@ -2676,6 +2727,20 @@
       case "open-updates":
         state.view = "updates"; render();
         break;
+      case "reminder-time":
+        var rt = getLocal(REMINDER_KEY, null) || { on: false, time: "20:00" };
+        rt.time = target.getAttribute("data-time") || "20:00"; setLocal(REMINDER_KEY, rt); planReminders(); render({ keepScroll: true });
+        break;
+      case "toggle-reminder":
+        var ro = getLocal(REMINDER_KEY, null) || { on: false, time: "20:00" };
+        if (ro.on) { ro.on = false; setLocal(REMINDER_KEY, ro); state.reminderDenied = false; planReminders(); render({ keepScroll: true }); break; }
+        if (!window.michitoNotify) break;
+        window.michitoNotify.request().then(function (ok) {
+          state.reminderDenied = !ok;
+          if (ok) { ro.on = true; setLocal(REMINDER_KEY, ro); planReminders(); }
+          render({ keepScroll: true });
+        });
+        break;
       case "toggle-analytics":
         var nowOff = getLocal(ANALYTICS_OFF_KEY, false) !== true;
         setLocal(ANALYTICS_OFF_KEY, nowOff);
@@ -2809,6 +2874,7 @@
     if (lastV && lastV !== APP_VERSION && versionNewer(APP_VERSION, lastV)) state.justUpdated = true;
     setLocal(LAST_VERSION_KEY, APP_VERSION);
     checkStoreVersion();
+    planReminders();
     mockTick();
     if(typeof setInterval==='function')setInterval(mockTick,1000);
     window.addEventListener("pagehide", function(){saveProgress();saveMock();});

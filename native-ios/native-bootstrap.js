@@ -3,6 +3,8 @@ import {Preferences} from '@capacitor/preferences';
 import {FirebaseAnalytics} from '@capacitor-firebase/analytics';
 import {FirebaseCrashlytics} from '@capacitor-firebase/crashlytics';
 import {FirebasePerformance} from '@capacitor-firebase/performance';
+import {LocalNotifications} from '@capacitor/local-notifications';
+import {InAppReview} from '@capacitor-community/in-app-review';
 window.Capacitor=Capacitor;
 const owned=k=>k.startsWith('michito_')||k.startsWith('zerodora_');
 const originalSet=Storage.prototype.setItem,originalRemove=Storage.prototype.removeItem;
@@ -36,5 +38,18 @@ if(Capacitor.isNativePlatform()){
     if(name==='screen'){FirebaseAnalytics.setCurrentScreen({screenName:String(params.name||'')}).catch(()=>{});return;}
     FirebaseAnalytics.logEvent({name,params}).catch(()=>{});
   };
+}
+// 1.2.2 学習の通知（端末の中だけで予約。どこにも送らない）と App Store の評価のお願い（Apple 標準）
+if(Capacitor.isNativePlatform()){
+  const ids=()=>LocalNotifications.getPending().then(r=>(r.notifications||[]).map(n=>({id:n.id}))).catch(()=>[]);
+  const cancel=async()=>{const n=await ids();if(n.length)await LocalNotifications.cancel({notifications:n}).catch(()=>{});};
+  let chain=Promise.resolve();
+  window.michitoNotify={
+    request:()=>LocalNotifications.requestPermissions().then(p=>p.display==='granted').catch(()=>false),
+    cancel:()=>{chain=chain.then(cancel);return chain;},
+    schedule:list=>{chain=chain.then(async()=>{await cancel();if(!list.length)return;
+      await LocalNotifications.schedule({notifications:list.map((at,i)=>({id:2200+i,title:'ミチト',body:'今日の5問、やってみませんか？',schedule:{at:new Date(at),allowWhileIdle:true}}))}).catch(()=>{});});return chain;}
+  };
+  window.michitoReview=()=>InAppReview.requestReview().catch(()=>{});
 }
 const app=document.createElement('script');app.src='app.js';document.body.append(app);

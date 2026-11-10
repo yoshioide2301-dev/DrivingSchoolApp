@@ -33,7 +33,7 @@ jobs:
       ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       BUILD_NUMBER: ${{ github.run_number }}
-      MARKETING_VERSION: "1.2.1"
+      MARKETING_VERSION: "1.2.2"
       FIREBASE_IOS_PLIST_B64: ${{ secrets.FIREBASE_IOS_PLIST_B64 }}
     steps:
       - name: Check required secrets
@@ -150,7 +150,9 @@ jobs:
           echo "Uploaded build number $BUILD_NUMBER"
 
       # 外部グループ「モニター」（QR の公開リンクで入る外の人）へ追加し、ベータ版の審査に出す。グループが無い・失敗してもビルドは成功のまま
+      # 1.2.2：タグ名に internal が入るときは外部へ配らない（あなたの確認前の問題を外の人に出さないため。家族の内部グループには自動で届く）
       - name: 外部グループ「モニター」へ追加
+        if: ${{ !contains(github.ref_name, 'internal') }}
         working-directory: .
         timeout-minutes: 35
         continue-on-error: true
