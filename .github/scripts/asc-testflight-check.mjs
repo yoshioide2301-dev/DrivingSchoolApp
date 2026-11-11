@@ -26,6 +26,8 @@ for (const g of groups.json.data) {
   const t = await get('/v1/betaGroups/' + g.id + '/betaTesters?limit=200');
   const a = g.attributes;
   console.log(`${a.name}｜内部=${a.isInternalGroup}｜全ビルドが自動で届く=${a.hasAccessToAllBuilds}｜人数=${t.ok ? t.json.data.length : '?'}`);
+  // 誰かは、メールの指紋（sha256 の頭10文字）だけを出す。名前・メールは出さない。手元で知っているメールと照らし合わせる
+  if (t.ok) for (const x of t.json.data) console.log('  指紋 ' + crypto.createHash('sha256').update(String(x.attributes.email || '').trim().toLowerCase()).digest('hex').slice(0, 10) + '｜状態=' + x.attributes.state);
 }
 
 console.log('== 最近のビルド ==');
