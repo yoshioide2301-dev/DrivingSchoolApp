@@ -60,6 +60,7 @@ test('2 出題は500問ちょうどで、画面にも500問と出る', async ({ 
 test('3 開発用メニューの「最近直した」と「外した問題」が問題データと一致', async ({ page }) => {
   await dev(page);
   await page.locator('[data-preset="latest"]').click(); expect(await devIds(page)).toEqual(latest);
+  await settings(page); // 一覧の画面から設定へ戻ってから、もう一つの一覧を開く
   await page.locator('[data-preset="excluded"]').click(); expect(await devIds(page)).toEqual(excluded);
 });
 test('4 外した問題は普段の5問にも模試にも出ない', async ({ page }) => {
@@ -100,7 +101,9 @@ test('7 設定の学習の通知：最初はオフ・オンで14日分・学ん�
   expect(await page.evaluate(() => window.calls.cancel)).toBeGreaterThan(0);
 });
 test('8 評価のお願い：学んだ日が1日なら出さない・2日以上で1回・同じ版では2回目を出さない', async ({ page }) => {
-  await seed(page, { zerodora_history: [{ date: '2026-10-20', sessionId: 'a', count: 5 }] });
+  // 模試を終えると今日の記録が足されるので、「1日だけ」は今日の日付で作る
+  const today = await page.evaluate(() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); });
+  await seed(page, { zerodora_history: [{ date: today, sessionId: 'a', count: 5 }] });
   await mockDone(page); await page.waitForTimeout(1700);
   expect(await page.evaluate(() => window.calls.review)).toBe(0);
   await seed(page, { zerodora_history: [{ date: '2026-10-19', sessionId: 'a', count: 5 }, { date: '2026-10-20', sessionId: 'b', count: 5 }] });
