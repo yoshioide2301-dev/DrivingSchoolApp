@@ -8,7 +8,7 @@ permissions:
   contents: read
 jobs:
   webkit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # Playwright 1.49 の WebKit が入る版に固定（26.04 では入らなかった 11/11）
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
