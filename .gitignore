@@ -6,3 +6,7 @@ node_modules/
 Thumbs.db
 .vscode/
 .idea/
+
+# 自動テストの結果
+test-results/
+playwright-report/

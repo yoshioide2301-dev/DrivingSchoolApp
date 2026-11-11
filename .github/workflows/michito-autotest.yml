@@ -1,0 +1,45 @@
+# ミチトの自動テスト（GPT 依頼106 の下書きを採用）。変更を送るたびに数分で自動で確かめる。手順書：管理 repo ledgers/AUTO-TEST-PLAYBOOK.md
+name: ミチト自動テスト
+on:
+  push:
+    branches: ['michito/v1.3']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  webkit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 準備
+        run: |
+          npm install --no-save @playwright/test@1.49.1 http-server@14.1.1
+          npx playwright install --with-deps webkit
+      - name: 自動テスト
+        id: tests
+        continue-on-error: true
+        run: npx playwright test
+      - name: 日本語の要約
+        if: always()
+        run: |
+          node --input-type=module <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          import fs from 'node:fs';
+          let rows=[];
+          try {
+            const r=JSON.parse(fs.readFileSync('test-results/results.json','utf8'));
+            const walk=s=>{for(const x of s.specs||[])for(const t of x.tests||[]){const z=t.results.at(-1)||{};rows.push([x.title,z.status,(z.error&&z.error.message||'').split('\n')[0].slice(0,200)]);}for(const c of s.suites||[])walk(c)};
+            for(const s of r.suites||[])walk(s);
+          } catch {rows=[['結果ファイルを読めない','failed','']]}
+          console.log('## ミチトの自動テスト（WebKit）');
+          for(const [n,s,e] of rows)console.log('- '+(s==='passed'?'合格':'不合格')+'：'+n+(s==='passed'?'':'　'+e));
+          console.log('\n全体：'+(rows.length&&rows.every(x=>x[1]==='passed')?'合格':'不合格'));
+          NODE
+      - name: 不合格を反映
+        if: steps.tests.outcome != 'success'
+        run: exit 1
