@@ -29,7 +29,7 @@
   // 1.2 M-19：アップデートの履歴（ウェザップの型：今回の注目ポイント／【新機能】【改善】【不具合修正】【その他】）。新しい版を出すたびに先頭へ足す
   var UPDATES = [
     { v: "1.2.2", date: "2026年11月", point: "毎日少しずつ続けやすく、問題もより今の決まりに合わせました。", items: [
-      ["新機能", ["設定に「学習の通知」を追加しました（最初はオフ。時刻を選んでオンにできます）"]],
+      ["新機能", ["「学習の通知」を追加しました。5問を解き終えたときに、毎日のお知らせを受け取るかをお聞きします（設定で時刻の変更やオフにもできます）"]],
       ["改善", ["マイナ免許証（免許の情報を記録したマイナンバーカード）に合わせて、免許証の問題の解説を直しました", "常識だけで解ける4問を、仮免の人に役立つ4問に入れ替えました（500問のまま）"]],
       ["その他", ["模試を終えたとき、App Store の評価をお願いすることがあります（Apple の仕組みで、表示の回数は限られます）"]]
     ], thanks: "ご意見やご報告をくださった皆さま、ありがとうございます！" },
@@ -57,6 +57,9 @@
   var REMINDER_KEY = "michito_reminder";
   var REVIEW_ASKED_KEY = "michito_review_asked";
   var REMINDER_TIMES = ["07:00", "12:00", "18:00", "20:00", "21:00"];
+  // 5問の後の問いかけ：{ next: 次に聞いてよい時刻（ミリ秒）, never: 今後は聞かない }。「あとで」は3日後にもう一度
+  var REMINDER_ASK_KEY = "michito_reminder_ask";
+  var REMINDER_ASK_DAYS = 3;
   function versionNewer(a, b) {
     var x = String(a).split("."), y = String(b).split(".");
     for (var i = 0; i < Math.max(x.length, y.length); i++) {
@@ -702,6 +705,33 @@
     state.reminderPlannedFor = skipToday ? todayDateString() : null;
     window.michitoNotify.schedule(list);
   }
+  function shouldAskReminder() {
+    if (!window.michitoNotify) return false;
+    var r = getLocal(REMINDER_KEY, null);
+    if (r && r.on) return false;
+    var a = getLocal(REMINDER_ASK_KEY, null) || {};
+    if (a.never) return false;
+    return !(a.next && Date.now() < a.next);
+  }
+  function postponeReminderAsk() {
+    var a = getLocal(REMINDER_ASK_KEY, null) || {};
+    a.next = Date.now() + REMINDER_ASK_DAYS * 86400000; setLocal(REMINDER_ASK_KEY, a);
+  }
+  function reminderAskHtml(data) {
+    if (data.reminderAskDone === "on") return '<div class="retry-card retry-card--clear" data-testid="reminder-ask-done"><p class="retry-card-sub">毎日 ' + reminderTimeLabel() + ' にお知らせします。時刻の変更やお知らせを止めるのは、設定からいつでもできます。</p></div>';
+    if (data.reminderAskDone === "denied") return '<div class="retry-card" data-testid="reminder-ask-denied"><p class="retry-card-sub">通知が許可されていません。iPhone の「設定」→「通知」→「ミチト」で許可すると、お知らせが届きます。</p></div>';
+    if (!data.askReminder) return '';
+    return '<div class="retry-card" data-testid="reminder-ask"><span class="retry-card-title">毎日のお知らせ</span>' +
+      '<p class="retry-card-sub">毎日 ' + reminderTimeLabel() + ' に、「今日の5問」のお知らせを送りましょうか？ その日にもう解いていれば、お知らせは出しません。</p>' +
+      '<button class="btn-pill btn-pill--wide" data-action="reminder-ask-yes">はい、お知らせを受け取る</button>' +
+      '<button class="btn-pill btn-pill--wide btn-pill--ghost" data-action="reminder-ask-later">あとで</button>' +
+      '<p class="retry-card-sub">「あとで」を選ぶと、3日後にもう一度お聞きします。時刻の変更やお知らせを止めるのは、設定からいつでもできます。</p>' +
+      '<button class="text-link" data-action="reminder-ask-never">今後は聞かない</button></div>';
+  }
+  function reminderTimeLabel() {
+    var r = getLocal(REMINDER_KEY, null);
+    return String((r && r.time) || "20:00").replace(/^0/, "").replace(/:00$/, "時");
+  }
   // 2日以上学んだ人が模試を終えたとき、版ごとに1回だけ。出すかどうかは Apple が決める（年3回まで）
   function maybeAskReview() {
     if (!window.michitoReview || getLocal(REVIEW_ASKED_KEY, "") === APP_VERSION) return;
@@ -1032,7 +1062,8 @@
       mistakeTotal: mistakes.length, // 復習の進捗表示用（正解して一覧から消えても変化しない当初件数）
       mistakeAll: mistakes.slice(), // 一覧表示用（クリア済みも「クリア」として表示する）
       kyoshu: s.kyoshu || 0,
-      questionIds: s.questions.map(function (q) { return q.id; }) // 「同じ範囲でもう5問」で重ならないように
+      questionIds: s.questions.map(function (q) { return q.id; }), // 「同じ範囲でもう5問」で重ならないように
+      askReminder: shouldAskReminder()
     };
 
     track("session_complete", { kyoshu: summary.kyoshu, count: summary.count, correct: correctCount });
@@ -1762,6 +1793,7 @@
     html += '<div class="result-accuracy">正答率 ' + s.accuracy + "%</div>";
     html += '<p class="result-time">学習時間 ' + timeText + "</p>";
     html += '<p class="result-message">今日もお疲れさまでした。<br>少しずつでも、ちゃんと前に進んでいます。</p>';
+    html += reminderAskHtml(data);
 
     if (mistakeCount > 0) {
       html +=
@@ -2731,9 +2763,25 @@
         var rt = getLocal(REMINDER_KEY, null) || { on: false, time: "20:00" };
         rt.time = target.getAttribute("data-time") || "20:00"; setLocal(REMINDER_KEY, rt); planReminders(); render({ keepScroll: true });
         break;
+      case "reminder-ask-yes":
+        if (!window.michitoNotify || !state.lastSession) break;
+        window.michitoNotify.request().then(function (ok) {
+          var ry = getLocal(REMINDER_KEY, null) || { on: false, time: "20:00" };
+          if (ok) { ry.on = true; setLocal(REMINDER_KEY, ry); planReminders(); state.lastSession.reminderAskDone = "on"; }
+          else { postponeReminderAsk(); state.lastSession.reminderAskDone = "denied"; state.reminderDenied = true; }
+          state.lastSession.askReminder = false; render({ keepScroll: true });
+        });
+        break;
+      case "reminder-ask-later":
+        postponeReminderAsk(); if (state.lastSession) state.lastSession.askReminder = false; render({ keepScroll: true });
+        break;
+      case "reminder-ask-never":
+        var nv = getLocal(REMINDER_ASK_KEY, null) || {}; nv.never = true; setLocal(REMINDER_ASK_KEY, nv);
+        if (state.lastSession) state.lastSession.askReminder = false; render({ keepScroll: true });
+        break;
       case "toggle-reminder":
         var ro = getLocal(REMINDER_KEY, null) || { on: false, time: "20:00" };
-        if (ro.on) { ro.on = false; setLocal(REMINDER_KEY, ro); state.reminderDenied = false; planReminders(); render({ keepScroll: true }); break; }
+        if (ro.on) { ro.on = false; setLocal(REMINDER_KEY, ro); var na = getLocal(REMINDER_ASK_KEY, null) || {}; na.never = true; setLocal(REMINDER_ASK_KEY, na); state.reminderDenied = false; planReminders(); render({ keepScroll: true }); break; }
         if (!window.michitoNotify) break;
         window.michitoNotify.request().then(function (ok) {
           state.reminderDenied = !ok;
