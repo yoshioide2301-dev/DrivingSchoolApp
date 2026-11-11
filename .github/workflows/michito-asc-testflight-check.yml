@@ -1,0 +1,24 @@
+# ミチト：TestFlight の配り先を読むだけで確かめる（何も変えない）。起動：タグ asc-tf-check-* の push
+name: Michito TestFlight check
+on:
+  push:
+    tags:
+      - "asc-tf-check-*"
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 配り先
+        run: node .github/scripts/asc-testflight-check.mjs
