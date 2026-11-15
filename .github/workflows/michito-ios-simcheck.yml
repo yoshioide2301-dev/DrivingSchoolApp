@@ -1,0 +1,79 @@
+# ミチトのシミュレーターの点検（11/16）。端末の機能（通知の許可・予約の件数・評価のお願い）を実際の iOS の部品で確かめ、写真を撮る。
+# ブラウザの自動テスト（michito-autotest.yml）で確かめられない「1割」を受け持つ。手順書：管理 repo ledgers/AUTO-TEST-PLAYBOOK.md
+# 点検の台本（native-ios/selftest/mself.js）は、この組み立てのときだけ入れる。TestFlight・App Store の版には入らない。
+name: ミチトのシミュレーターの点検
+on:
+  workflow_dispatch:
+  push:
+    tags: ['michito-simcheck-*']
+permissions:
+  contents: read
+jobs:
+  simcheck:
+    runs-on: macos-26
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: native-ios
+    env:
+      FIREBASE_IOS_PLIST_B64: ${{ secrets.FIREBASE_IOS_PLIST_B64 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: native-ios/package-lock.json
+      - name: iOS の組み立ての準備（TestFlight と同じ手順）
+        run: |
+          npm ci
+          npm run prepare:web
+          npm run add:ios
+          npm run sync:ios
+          node install-ios-assets.mjs
+      - name: 点検の台本を入れる（この組み立てだけ）
+        run: |
+          cp selftest/mself.js ios/App/App/public/mself.js
+          sed -i '' 's#</body>#<script src="mself.js" defer></script></body>#' ios/App/App/public/index.html
+          grep -c 'mself.js' ios/App/App/public/index.html
+      - name: Firebase の設定（集計は止めたまま）
+        run: |
+          umask 077
+          printf '%s' "$FIREBASE_IOS_PLIST_B64" | base64 --decode > ios/App/App/GoogleService-Info.plist
+          /usr/libexec/PlistBuddy -c "Add :FIREBASE_ANALYTICS_COLLECTION_DEACTIVATED bool true" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :FirebaseCrashlyticsCollectionEnabled bool false" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :FirebasePerformanceCollectionEnabled bool false" ios/App/App/Info.plist
+          gem list -i xcodeproj >/dev/null || sudo gem install xcodeproj --no-document
+          ruby -e 'require "xcodeproj"; p=Xcodeproj::Project.open("ios/App/App.xcodeproj"); t=p.targets.find{|x| x.name=="App"}; g=p.main_group["App"]; r=g.files.find{|f| f.path=="GoogleService-Info.plist"} || g.new_file("GoogleService-Info.plist"); t.resources_build_phase.add_file_reference(r,true); p.save'
+      - name: シミュレーター用に組み立てる
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build -quiet
+      - name: 画面を押す道具（idb）を入れる
+        run: |
+          brew tap facebook/fb >/dev/null && brew install idb-companion >/dev/null
+          python3 -m pip install --quiet --break-system-packages fb-idb || python3 -m pip install --quiet --user fb-idb
+          echo "$(python3 -m site --user-base)/bin" >> "$GITHUB_PATH"
+      - name: 点検
+        run: bash ../.github/scripts/sim-check.sh build/Build/Products/Debug-iphonesimulator/App.app "$RUNNER_TEMP/simcheck"
+      - name: 日本語の要約
+        if: always()
+        run: |
+          {
+            echo '## ミチトのシミュレーターの点検'
+            if [ -s "$RUNNER_TEMP/simcheck/results.txt" ]; then
+              sed -e 's/^MSELF:RESULT:PASS:/- 合格：/' -e 's/^MSELF:RESULT:FAIL:/- 不合格：/' "$RUNNER_TEMP/simcheck/results.txt"
+              grep -q ':FAIL:' "$RUNNER_TEMP/simcheck/results.txt" && echo $'\n全体：不合格' || echo $'\n全体：合格'
+            else echo '- 結果がない（台本が動かなかった）'; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          rm -f ios/App/App/GoogleService-Info.plist
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: michito-simcheck
+          path: ${{ runner.temp }}/simcheck
+          retention-days: 14
+      - name: 不合格を反映
+        run: |
+          [ -s "$RUNNER_TEMP/simcheck/results.txt" ] && ! grep -q ':FAIL:' "$RUNNER_TEMP/simcheck/results.txt"
