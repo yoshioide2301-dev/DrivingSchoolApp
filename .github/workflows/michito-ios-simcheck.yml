@@ -52,7 +52,8 @@ jobs:
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build -quiet
       - name: 画面を押す道具（idb）を入れる
         run: |
-          brew tap facebook/fb >/dev/null && brew install idb-companion >/dev/null
+          # Homebrew は信頼の指定が無い入手先から入れない（11/16 確認）。点検用の Mac の中だけで使う
+          brew tap facebook/fb >/dev/null && brew trust facebook/fb && brew install idb-companion >/dev/null
           python3 -m pip install --quiet --break-system-packages fb-idb || python3 -m pip install --quiet --user fb-idb
           echo "$(python3 -m site --user-base)/bin" >> "$GITHUB_PATH"
       - name: 点検
