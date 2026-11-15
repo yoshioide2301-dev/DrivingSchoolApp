@@ -16,8 +16,8 @@ xcrun simctl launch --terminate-running-process --stdout="$LOG" --stderr="$LOG" 
 SEEN=0; END=$((SECONDS+420))
 while [ $SECONDS -lt $END ]; do
   sleep 1
-  xcrun simctl spawn "$UDID" defaults read "$BUNDLE" CapacitorStorage.mself_log > "$OUT/mself-log.txt" 2>/dev/null || true
-  LINES=$(grep -a -o 'MSELF:.*' "$OUT/mself-log.txt" | tail -n +$((SEEN+1)))
+  # 合図はアプリの画面出力（Capacitor の [log]）から読む（11/16：UserDefaults は外から読めなかった）
+  LINES=$(grep -a -o 'MSELF:.*' "$LOG" | tail -n +$((SEEN+1)))
   [ -z "$LINES" ] && continue
   while IFS= read -r L; do
     SEEN=$((SEEN+1)); echo "$L"
@@ -40,6 +40,6 @@ for e in json.load(sys.stdin):
     esac
   done <<< "$LINES"
 done
-grep -a -o 'MSELF:RESULT:.*' "$OUT/mself-log.txt" > "$OUT/results.txt" || true
-grep -q 'MSELF:DONE' "$OUT/mself-log.txt" || echo 'MSELF:RESULT:FAIL:台本が最後まで進まなかった（時間切れ）:' >> "$OUT/results.txt"
+grep -a -o 'MSELF:RESULT:.*' "$LOG" > "$OUT/results.txt" || true
+grep -a -q 'MSELF:DONE' "$LOG" || echo 'MSELF:RESULT:FAIL:台本が最後まで進まなかった（時間切れ）:' >> "$OUT/results.txt"
 cat "$OUT/results.txt"
