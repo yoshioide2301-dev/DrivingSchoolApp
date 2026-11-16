@@ -13,7 +13,8 @@
   var act = function (a) { var list = document.querySelectorAll('[data-action="' + a + '"]'); for (var i = 0; i < list.length; i++) if (list[i].offsetParent !== null) { list[i].click(); return true; } return false; };
   var waitFor = async function (sel, ms) { for (var t = 0; t < (ms || 8000); t += 200) { if (vis(sel)) return vis(sel); await sleep(200); } return null; };
   var result = function (name, ok, detail) { log('RESULT:' + (ok ? 'PASS' : 'FAIL') + ':' + name + ':' + (detail || '')); };
-  var shot = async function (name) { log('SHOT:' + name); await sleep(2500); };
+  // 写真の合図の後は長めに待つ（11/16：起動直後は合図が数秒遅れて届き、前の場面の写真にならなかった）
+  var shot = async function (name) { log('SHOT:' + name); await sleep(7000); };
   var stage = sessionStorage.getItem('mself_stage') || 'A';
   window.confirm = function () { return true }; window.alert = function () {};
 
