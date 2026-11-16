@@ -48,7 +48,9 @@
     // 3. 「はい」→ iOS の許可の画面（外の台本が写真を撮って「許可」を押す）
     log('WAIT_PERMISSION'); act('reminder-ask-yes');
     var ok = await waitFor('[data-testid="reminder-ask-done"]', 60000);
-    result('許可の後に「毎日20時にお知らせ」が出る', !!ok, '');
+    var perm = '?';
+    try { perm = (await window.Capacitor.Plugins.LocalNotifications.checkPermissions()).display; } catch (e) { perm = 'err ' + e.message; }
+    result('許可の後に「毎日20時にお知らせ」が出る', !!ok, 'iOS の許可の状態=' + perm);
     if (ok) ok.scrollIntoView({ block: 'center' });
     await shot('04_通知オン');
     // 4. 予約の件数（今日は学んだので13件）

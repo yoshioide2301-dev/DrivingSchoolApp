@@ -33,7 +33,7 @@ for e in json.load(sys.stdin):
     l=(e.get('AXLabel') or '')
     if l in ('Allow','許可'):
         f=e['frame'];print(int(f['x']+f['width']/2),int(f['y']+f['height']/2));break")
-          if [ -n "$XY" ]; then idb ui tap --udid "$UDID" $XY && echo "許可を押した：$XY" && break; fi
+          if [ -n "$XY" ]; then idb ui tap --udid "$UDID" $XY && echo "許可を押した：$XY" && sleep 3 && xcrun simctl io "$UDID" screenshot "$OUT/03b_許可を押した直後.png" >/dev/null 2>&1 && break; fi
           sleep 2
         done ;;
       MSELF:DONE) END=0 ;;
