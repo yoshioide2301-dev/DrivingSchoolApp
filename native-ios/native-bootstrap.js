@@ -31,6 +31,8 @@ if(Capacitor.isNativePlatform()){
   ]).catch(()=>{});
   // M-54（11/16）：開発用アプリ「ミチト開発」は本番の数字に混ざらないよう、何も送らない
   const dev=__MICHITO_DEV__;
+  // 11/17 開発版はどの画面でも見分けられるよう、上の端に黄色の帯「開発版」を出す（本番には出ない）
+  if(dev){const b=()=>{if(document.getElementById('michito-dev-badge'))return;const e=document.createElement('div');e.id='michito-dev-badge';e.textContent='開発版';e.setAttribute('aria-hidden','true');e.style.cssText='position:fixed;top:env(safe-area-inset-top,0px);left:50%;transform:translateX(-50%);z-index:2147483647;background:#FFE97A;color:#0B2F6E;font:700 11px/1 -apple-system,sans-serif;padding:3px 10px;border-radius:0 0 8px 8px;pointer-events:none;';document.body.appendChild(e);};document.body?b():document.addEventListener('DOMContentLoaded',b);}
   let off=dev;try{off=dev||JSON.parse(localStorage.getItem('michito_analytics_off')||'false')===true;}catch(e){}
   setAll(!off);
   window.michitoSetAnalytics=on=>setAll(on&&!dev);

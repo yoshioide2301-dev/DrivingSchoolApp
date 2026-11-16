@@ -1,7 +1,8 @@
 import {copyFileSync,writeFileSync,mkdirSync,readFileSync} from 'node:fs';
 const target='ios/App/App/Assets.xcassets/AppIcon.appiconset';
 mkdirSync(target,{recursive:true});
-copyFileSync('assets/AppIcon-1024.png',target+'/AppIcon-1024.png');
+// 11/17 開発用アプリ「ミチト開発」は M と点線を薄い黄色にして、本番と見分ける
+copyFileSync(process.env.MICHITO_DEV==='1'?'assets/AppIcon-dev-1024.png':'assets/AppIcon-1024.png',target+'/AppIcon-1024.png');
 writeFileSync(target+'/Contents.json',JSON.stringify({images:[{filename:'AppIcon-1024.png',idiom:'universal',platform:'ios',size:'1024x1024'}],info:{author:'xcode',version:1}},null,2));
 copyFileSync('PrivacyInfo.xcprivacy','ios/App/App/PrivacyInfo.xcprivacy');
 // A copied manifest is not automatically a target resource. Add an explicit file/build reference.
