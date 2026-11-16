@@ -25,9 +25,13 @@
 (function () {
   "use strict";
 
-  var APP_VERSION = "1.2.2";
+  var APP_VERSION = "1.2.3";
   // 1.2 M-19：アップデートの履歴（ウェザップの型：今回の注目ポイント／【新機能】【改善】【不具合修正】【その他】）。新しい版を出すたびに先頭へ足す
   var UPDATES = [
+    { v: "1.2.3", date: "2026年11月", point: "評価のお願いを、確実に届く形にしました。", items: [
+      ["新機能", ["設定に「App Store で評価する」を追加しました。いつでも App Store の評価・レビューの画面を開けます"]],
+      ["不具合修正", ["模試を終えたときの評価のお願いが、表示されないことがある点を見直しました（表示するかどうかは Apple の仕組みで決まります）"]]
+    ], thanks: "ご意見やご報告をくださった皆さま、ありがとうございます！" },
     { v: "1.2.2", date: "2026年11月", point: "毎日少しずつ続けやすく、問題もより今の決まりに合わせました。", items: [
       ["新機能", ["「学習の通知」を追加しました。5問を解き終えたときに、毎日のお知らせを受け取るかをお聞きします（設定で時刻の変更やオフにもできます）"]],
       ["改善", ["マイナ免許証（免許の情報を記録したマイナンバーカード）に合わせて、免許証の問題の解説を直しました", "常識だけで解ける4問を、仮免の人に役立つ4問に入れ替えました（500問のまま）"]],
@@ -56,6 +60,8 @@
   // 1.2.2：学習の通知（端末の中だけ・最初はオフ・1日1回・学んだ日は出さない）と、App Store の評価のお願い（模試の終わり・点数で選ばない）
   var REMINDER_KEY = "michito_reminder";
   var REVIEW_ASKED_KEY = "michito_review_asked";
+  var REVIEW_LOG_KEY = "michito_review_log";
+  var REVIEW_URL = "https://apps.apple.com/jp/app/id" + STORE_APP_ID + "?action=write-review";
   var REMINDER_TIMES = ["07:00", "12:00", "18:00", "20:00", "21:00"];
   // 5問の後の問いかけ：{ next: 次に聞いてよい時刻（ミリ秒）, never: 今後は聞かない }。「あとで」は3日後にもう一度
   var REMINDER_ASK_KEY = "michito_reminder_ask";
@@ -733,12 +739,17 @@
     return String((r && r.time) || "20:00").replace(/^0/, "").replace(/:00$/, "時");
   }
   // 2日以上学んだ人が模試を終えたとき、版ごとに1回だけ。出すかどうかは Apple が決める（年3回まで）
+  // 1.2.3（11/17）：呼んだか・呼ばなかった理由を端末に残し、集計にも送る（出すかは Apple が決めるので、呼んだ回数を数える）
   function maybeAskReview() {
-    if (!window.michitoReview || getLocal(REVIEW_ASKED_KEY, "") === APP_VERSION) return;
     var h = getLocal(STORAGE_KEYS.HISTORY, []), days = {};
-    if (!Array.isArray(h)) return;
-    h.forEach(function (x) { if (x && x.date) days[x.date] = 1; });
-    if (Object.keys(days).length < 2) return;
+    if (Array.isArray(h)) h.forEach(function (x) { if (x && x.date) days[x.date] = 1; });
+    var n = Object.keys(days).length, why = "";
+    if (!window.michitoReview) why = "no_native";
+    else if (getLocal(REVIEW_ASKED_KEY, "") === APP_VERSION) why = "asked_this_version";
+    else if (n < 2) why = "days_lt_2";
+    setLocal(REVIEW_LOG_KEY, { v: APP_VERSION, at: new Date().toISOString(), result: why || "requested", days: n });
+    track(why ? "review_skip" : "review_request", { reason: why, days: n });
+    if (why) return;
     setLocal(REVIEW_ASKED_KEY, APP_VERSION);
     setTimeout(function () { try { window.michitoReview(); } catch (e) {} }, 1500);
   }
@@ -1008,6 +1019,7 @@
   function track(name, params) {
     try { if (window.michitoLog) window.michitoLog(name, params || {}); } catch (e) {}
   }
+  document.addEventListener("click", function (e) { if (e.target && e.target.closest && e.target.closest(".review-link")) track("review_link_tap", {}); });
 
   function finishSession() {
     var s = state.session;
@@ -2329,6 +2341,13 @@
     html += "</div>";
     html += "</section>";
 
+    // 1.2.3（11/17）：評価の画面をいつでも開ける（Apple の窓は回数が限られるため）
+    html += '<section class="settings-group">';
+    html += '<h2 class="settings-label">ミチトを応援する</h2>';
+    html += '<p class="settings-note">役に立ったと感じていただけたら、App Store で評価やレビューを書いていただけると励みになります。</p>';
+    html += '<p><a class="btn-pill review-link" data-testid="review-link" href="' + REVIEW_URL + '" target="_blank" rel="noopener">App Store で評価する</a></p>';
+    html += '</section>';
+
     // 協力してくださった方へ（10/16 本人：名前を出さない形 A。名簿は集めない）
     html += '<section class="settings-group">';
     html += '<h2 class="settings-label">協力してくださった方へ</h2>';
@@ -2575,6 +2594,11 @@
   function latestVerifiedDate() {
     return (questions || []).reduce(function (m, q) { return q.lastVerifiedDate && q.lastVerifiedDate > m ? q.lastVerifiedDate : m; }, '');
   }
+  function reviewLogText() {
+    var g = getLocal(REVIEW_LOG_KEY, null), why = { requested: "Apple の評価の窓を呼んだ", no_native: "呼んでいない（iOS アプリではない）", asked_this_version: "呼んでいない（この版ではもう呼んだ）", days_lt_2: "呼んでいない（学んだ日が2日未満）" };
+    if (!g) return "まだ模試を終えていません（この版で呼んだ版：" + (getLocal(REVIEW_ASKED_KEY, "") || "なし") + "）";
+    return "最後：" + String(g.at || "").replace("T", " ").slice(0, 16) + "（UTC）・版 " + g.v + "・" + (why[g.result] || g.result) + "・学んだ日 " + g.days + "日";
+  }
   function devSettingsHtml() {
     var d = latestVerifiedDate();
     return '<section class="settings-group dev-panel"><h2 class="settings-label">開発用：問題を番号で表示</h2>' +
@@ -2583,6 +2607,8 @@
       '<button class="btn-pill" data-action="dev-show">表示する</button>' +
       '<button class="text-link" data-action="dev-show" data-preset="latest">最近直した・入れた問題（' + escapeHtml(d) + '）</button>' +
       '<button class="text-link" data-action="dev-show" data-preset="excluded">出題から外した問題</button>' +
+      '<h2 class="settings-label">開発用：評価のお願い</h2>' +
+      '<p class="settings-note" data-testid="review-log">' + escapeHtml(reviewLogText()) + '</p>' +
       '<h2 class="settings-label">開発用：あなたの現在地</h2>' +
       '<p class="settings-note">試しの記録：' + (getLocal(DEV_SAMPLE_KEY, false) ? "表示中（本当の記録は変わりません。解いても記録されません）" : "使っていない") + '</p>' +
       '<button class="text-link" data-action="dev-sample">試しの記録を' + (getLocal(DEV_SAMPLE_KEY, false) ? "やめる" : "表示する") + '</button>' +

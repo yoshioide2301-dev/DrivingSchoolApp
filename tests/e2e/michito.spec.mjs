@@ -106,11 +106,19 @@ test('8 評価のお願い：学んだ日が1日なら出さない・2日以上�
   await seed(page, { zerodora_history: [{ date: today, sessionId: 'a', count: 5 }] });
   await mockDone(page); await page.waitForTimeout(1700);
   expect(await page.evaluate(() => window.calls.review)).toBe(0);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('michito_review_log')).result)).toBe('days_lt_2'); // 1.2.3 呼ばなかった理由を残す
   await seed(page, { zerodora_history: [{ date: '2026-10-19', sessionId: 'a', count: 5 }, { date: '2026-10-20', sessionId: 'b', count: 5 }] });
   await mockDone(page); await expect.poll(() => page.evaluate(() => window.calls.review), { timeout: 4000 }).toBe(1);
   expect(await page.evaluate(() => localStorage.getItem('michito_review_asked'))).toContain(version);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('michito_review_log')))).toMatchObject({ v: version, result: 'requested' });
   await page.reload(); await mockDone(page); await page.waitForTimeout(1700);
   expect(await page.evaluate(() => window.calls.review)).toBe(0); // 読み込み直しで数え直すので、2回目に呼ばれなければ0のまま
+});
+test('8b 設定の「App Store で評価する」：評価を書く画面へのリンクがある（1.2.3）', async ({ page }) => {
+  await page.goto('/index.html'); await settings(page);
+  const link = page.locator('[data-testid="review-link"]');
+  await expect(link).toBeVisible();
+  expect(await link.getAttribute('href')).toBe('https://apps.apple.com/jp/app/id6821862608?action=write-review');
 });
 test('9 5問の後の問いかけ：はい→許可→毎日20時でオン', async ({ page }) => {
   await five(page); await expect(ask(page)).toBeVisible();
