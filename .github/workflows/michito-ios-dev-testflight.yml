@@ -1,0 +1,172 @@
+# M-54（11/16 あなたの OK）：開発用の別アプリ「ミチト開発」（Bundle ID com.yoshioide2301.michito.dev）を TestFlight の内部グループだけに配る
+# - App Store 版のミチトと並べて同じ iPhone に入れられる（別アプリなので App Store 版の学習の記録には触れない）
+# - 外部グループ・審査には出さない。利用状況（Firebase）は送らない（MICHITO_DEV=1 と Info.plist で収集を止める）
+# - 事前に App Store Connect で「ミチト開発」のアプリを登録しておくこと（初回だけ）
+# - 起動：タグ michito-ios-dev-v* の push、または Actions 画面から手動実行
+name: Michito DEV iOS TestFlight upload
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "michito-ios-dev-v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: michito-ios-dev-testflight
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: macos-26
+    timeout-minutes: 100
+    defaults:
+      run:
+        working-directory: native-ios
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      BUILD_NUMBER: ${{ github.run_number }}
+      MARKETING_VERSION: "1.2.2"
+      FIREBASE_IOS_PLIST_B64: ${{ secrets.FIREBASE_IOS_PLIST_B64 }}
+      MICHITO_DEV: "1"
+    steps:
+      - name: Check required secrets
+        working-directory: .
+        run: |
+          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 APPLE_TEAM_ID; do
+            [ -n "${!v}" ] || { echo "Secret $v is not set"; exit 1; }
+          done
+
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify default Xcode is 26 or later
+        run: |
+          xcodebuild -version
+          MAJOR=$(xcodebuild -version | awk 'NR==1{split($2,v,"."); print v[1]}')
+          case "$MAJOR" in ''|*[!0-9]*) echo "Could not parse Xcode version"; exit 1;; esac
+          [ "$MAJOR" -ge 26 ] || { echo "Xcode $MAJOR < 26 (requires 26+)"; exit 1; }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: native-ios/package-lock.json
+
+      - name: Generate iOS project (same steps as the unsigned validation)
+        run: |
+          npm ci
+          node -e "const f='capacitor.config.json',c=JSON.parse(require('fs').readFileSync(f));c.appId='com.yoshioide2301.michito.dev';c.appName='ミチト開発';require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+          cat capacitor.config.json
+          npm run prepare:web
+          npm run add:ios
+          npm run sync:ios
+          node install-ios-assets.mjs
+
+      # 1.2.1：Firebase の設定ファイルは公開の repo に入れず、秘密の保管庫から組み立ての時だけ書き出す（11/6 あなたの OK）
+      - name: Firebase の設定ファイルを書き出して Xcode に登録
+        run: |
+          [ -n "$FIREBASE_IOS_PLIST_B64" ] || { echo "Secret FIREBASE_IOS_PLIST_B64 is not set"; exit 1; }
+          umask 077
+          printf '%s' "$FIREBASE_IOS_PLIST_B64" | base64 --decode > ios/App/App/GoogleService-Info.plist
+          gem list -i xcodeproj >/dev/null || sudo gem install xcodeproj --no-document
+          ruby -e 'require "xcodeproj"; p=Xcodeproj::Project.open("ios/App/App.xcodeproj"); t=p.targets.find{|x| x.name=="App"}; g=p.main_group["App"]; r=g.files.find{|f| f.path=="GoogleService-Info.plist"} || g.new_file("GoogleService-Info.plist"); t.resources_build_phase.add_file_reference(r,true); p.save; puts "added"'
+
+      - name: Info.plist（開発用：名前「ミチト開発」・Firebase の収集を最初から止める）
+        run: |
+          P=ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ミチト開発" $P || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string ミチト開発" $P
+          for k in FIREBASE_ANALYTICS_COLLECTION_ENABLED FirebaseCrashlyticsCollectionEnabled firebase_performance_collection_enabled; do
+            /usr/libexec/PlistBuddy -c "Add :$k bool false" $P || /usr/libexec/PlistBuddy -c "Set :$k false" $P
+          done
+          grep -q "com.yoshioide2301.michito.dev" ios/App/App.xcodeproj/project.pbxproj
+
+      - name: Info.plist（暗号化不使用の申告）
+        run: |
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" ios/App/App/Info.plist || \
+          /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" ios/App/App/Info.plist
+
+      - name: Info.plist（言語を日本語に。1.2 M-9：App Store の言語が「英語」と出ていたため）
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDevelopmentRegion ja" ios/App/App/Info.plist || \
+          /usr/libexec/PlistBuddy -c "Add :CFBundleDevelopmentRegion string ja" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleLocalizations" ios/App/App/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleLocalizations array" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :CFBundleLocalizations:0 string ja" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Print :CFBundleLocalizations" ios/App/App/Info.plist
+
+      - name: Write API key and export options
+        run: |
+          umask 077
+          printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          EOF
+
+      # 証明書の上限対策（本人承認 10/12）：ビルド前の一覧を残し、最後にこの回に作った開発用の証明書だけを取り消す
+      - name: 署名用の証明書の一覧（ビルド前）
+        working-directory: .
+        run: node .github/scripts/asc-certs.mjs list | tee "$RUNNER_TEMP/certs-before.txt"
+
+      - name: Archive (signed)
+        run: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -derivedDataPath build/DerivedData \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            TARGETED_DEVICE_FAMILY=1 \
+            MARKETING_VERSION="$MARKETING_VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            archive
+
+      - name: Export and upload to App Store Connect
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "Uploaded build number $BUILD_NUMBER"
+
+      # 安全確認：ビルド前に無かった・開発用だけ・作られたばかり・2枚まで（asc-certs.mjs）。配布用やリリース中のアプリには触れない
+      - name: この回に作った開発用の証明書を取り消す
+        if: always()
+        working-directory: .
+        run: |
+          [ -f "$RUNNER_TEMP/certs-before.txt" ] || { echo "ビルド前の一覧が無いので取り消さない"; exit 0; }
+          node .github/scripts/asc-certs.mjs revoke-new "$RUNNER_TEMP/certs-before.txt" || echo "取り消しに失敗（ビルドの結果には影響しない）"
+
+      - name: Remove API key
+        if: always()
+        working-directory: .
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8" native-ios/ios/App/App/GoogleService-Info.plist

@@ -29,10 +29,13 @@ if(Capacitor.isNativePlatform()){
     FirebaseCrashlytics.setEnabled({enabled:on}),
     FirebasePerformance.setEnabled({enabled:on})
   ]).catch(()=>{});
-  let off=false;try{off=JSON.parse(localStorage.getItem('michito_analytics_off')||'false')===true;}catch(e){}
+  // M-54（11/16）：開発用アプリ「ミチト開発」は本番の数字に混ざらないよう、何も送らない
+  const dev=__MICHITO_DEV__;
+  let off=dev;try{off=dev||JSON.parse(localStorage.getItem('michito_analytics_off')||'false')===true;}catch(e){}
   setAll(!off);
-  window.michitoSetAnalytics=on=>setAll(on);
+  window.michitoSetAnalytics=on=>setAll(on&&!dev);
   window.michitoLog=(name,params)=>{
+    if(dev)return;
     let o=false;try{o=JSON.parse(localStorage.getItem('michito_analytics_off')||'false')===true;}catch(e){}
     if(o)return;
     if(name==='screen'){FirebaseAnalytics.setCurrentScreen({screenName:String(params.name||'')}).catch(()=>{});return;}

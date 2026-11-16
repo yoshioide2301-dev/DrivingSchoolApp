@@ -8,5 +8,5 @@ mkdirSync('www/guide',{recursive:true});for(const f of readdirSync('../guide'))c
 for(const file of files)copyFileSync('../'+file,'www/'+file);
 let html=readFileSync('../index.html','utf8').replace('<script src="app.js"></script>','<script type="module" src="native-bootstrap.js"></script>');
 writeFileSync('www/index.html',html);
-await build({entryPoints:['native-bootstrap.js'],outfile:'www/native-bootstrap.js',bundle:true,format:'esm',platform:'browser',target:'safari15',sourcemap:false});
+await build({entryPoints:['native-bootstrap.js'],outfile:'www/native-bootstrap.js',bundle:true,format:'esm',platform:'browser',target:'safari15',sourcemap:false,define:{__MICHITO_DEV__:process.env.MICHITO_DEV==='1'?'true':'false'}}); // M-54：開発用アプリ（ミチト開発）では利用状況を送らない
 console.log('Bundled offline learning assets. Run Capacitor sync and verify with Xcode.');
