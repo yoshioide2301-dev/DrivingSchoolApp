@@ -8,10 +8,10 @@
   "privacyPolicyUrl": "https://yoshioide2301-dev.github.io/DrivingSchoolApp/privacy.html",
   "supportUrl": "https://yoshioide2301-dev.github.io/DrivingSchoolApp/privacy.html",
   "copyright": "2026 Yoshio Ide",
-  "versionString": "1.2.2",
-  "buildNumber": 33,
+  "versionString": "1.2.3",
+  "buildNumber": 34,
   "primaryCategory": "EDUCATION",
   "secondaryCategory": "REFERENCE",
   "reviewNotes": "Michito is an independent study app for the Japanese provisional driving licence written test. It contains 500 original true/false practice questions. Each question is written from the text of Japanese traffic laws (Road Traffic Act, its Enforcement Order and Regulations, and the Order on Road Signs and Markings), and the legal basis is shown under each explanation. Features: five questions at a time by lesson range, a 50-question 30-minute mock exam with scoring and a score chart, a review list of incorrectly answered questions, a list of road signs, and simple diagrams for some questions. No account or login is required. Learning records are saved on the device. The app sends anonymous usage analytics, crash reports and performance data through Google Firebase (screens opened, question numbers with correct/incorrect results; no question text, chosen answers, memos, names or IDFA, and no tracking). Users can turn this off in Settings under the usage analytics item. The optional feedback screen only opens the user's own mail app with a pre-filled message; nothing is sent unless the user sends the e-mail. Apart from this analytics and a version check against the public App Store lookup, the app does not access the network. It is not affiliated with any driving school, the police, or the examination authority.\n\nVersion 1.2.2: adds an optional daily study reminder using local notifications only (no server, no push). It is off by default; the app asks only after the user finishes a 5-question set, and the time can be changed or turned off in Settings.",
-  "whatsNew": "今回の注目ポイント：\n毎日少しずつ続けられるように、お知らせと問題を見直しました。\n\n【新機能】\n・毎日のお知らせ：5問を解いた後にお聞きし、「はい」を選んだときだけ毎日決まった時刻にお知らせします（最初はオフ）。その日にもう解いていれば出しません。時刻の変更や停止は設定からいつでもできます。お知らせは端末の中だけで作り、外部には送りません。\n\n【問題の見直し】\n・運転免許証の2問を、マイナ免許証に合わせた問題に入れ替えました\n・常識で解ける4問を、より学びになる問題に入れ替えました（500問のままです）\n\nご意見やご報告をいただいた皆さま、ありがとうございます！"
+  "whatsNew": "今回の注目ポイント：\n評価のお願いを、確実に届く形にしました。\n\n【新機能】\n・設定に「App Store で評価する」を追加しました。いつでも App Store の評価・レビューの画面を開けます\n\n【不具合修正】\n・模試を終えたときの評価のお願いが、表示されないことがある点を見直しました（表示するかどうかは Apple の仕組みで決まります）\n\nご意見やご報告をくださった皆さま、ありがとうございます！"
 }
