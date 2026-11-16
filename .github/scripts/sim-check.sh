@@ -12,7 +12,8 @@ xcrun simctl install "$UDID" "$APP"
 # 試験の起動を利用状況の集計に混ぜない（アプリの「送らない」を先に入れておく）
 xcrun simctl spawn "$UDID" defaults write "$BUNDLE" CapacitorStorage.michito_analytics_off -string true
 LOG="$OUT/app-log.txt"; : > "$LOG"
-xcrun simctl launch --terminate-running-process --stdout="$LOG" --stderr="$LOG" "$UDID" "$BUNDLE"
+# 画面出力をため込まずにすぐ書かせる（Xcode と同じ設定。11/16：まとめて遅れて届き、写真と「許可」が遅れた）
+SIMCTL_CHILD_NSUnbufferedIO=YES xcrun simctl launch --terminate-running-process --stdout="$LOG" --stderr="$LOG" "$UDID" "$BUNDLE"
 SEEN=0; END=$((SECONDS+420))
 while [ $SECONDS -lt $END ]; do
   sleep 1
