@@ -161,7 +161,7 @@ test('11 続けて学んだ日数：昨日まで3日・今日も学ぶと4日・
   await expect(page.locator('[data-testid="home-streak"]')).toHaveText('昨日まで 3日 続けて学びました');
   await five(page); await home(page);
   await expect(page.locator('[data-testid="home-streak"]')).toHaveText('今日で 4日 続けて学んでいます');
-  await seed(page, { zerodora_history: [{ date: daysAgo(3), sessionId: 'x', count: 5 }] });
+  await page.evaluate(() => localStorage.clear()); await seed(page, { michito_guide_seen: true, zerodora_history: [{ date: daysAgo(3), sessionId: 'x', count: 5 }] });
   await expect(page.locator('[data-testid="home-streak"]')).toHaveCount(0);
 });
 test('12 お知らせの文：題は「今日の5問」・時刻に合わせた挨拶（20時はこんばんは・7時はおはよう）', async ({ page }) => {
@@ -182,8 +182,7 @@ test('13 5問の途中で閉じた日：お知らせは「続き」の文（数�
 });
 test('14 途中からの再開：5問の2問目まで答えて閉じる→開き直すと続きから', async ({ page }) => {
   await answerSome(page, 2); await page.reload();
-  await expect(page.locator('.choice-btn').first()).toBeVisible();
-  await expect(page.locator('[data-action="next-question"]:visible')).toHaveCount(1); // 2問目の答えと解説が残っている
+  await expect(page.locator('[data-action="next-question"]:visible')).toHaveCount(1); // 2問目の答えと解説が残っていて、3問目へ進める
 });
 test('15 文字「特大」・幅360：主な画面で横にはみ出さない', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 });

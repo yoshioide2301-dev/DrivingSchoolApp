@@ -1097,6 +1097,7 @@
     if (setLocal(STORAGE_KEYS.HISTORY, history)) {
       clearSavedSession();
       state.storageWarning = false;
+      try { planReminders(); } catch (e) {} // 1.2.3：解き終えたら「続き」の予約を元に戻す（今日の分は出さない）
     } else {
       // 最終回答の保存を残し、再起動後に完了保存を再試行できるようにする。
       state.storageWarning = true;
