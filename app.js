@@ -732,7 +732,7 @@
     else if (k.today) t = "今日も学びました。明日もまた少しだけ";
     else if (k.n >= 2) t = "昨日まで <strong>" + k.n + "日</strong> 続けて学びました";
     else return "";
-    return '<p class="home-streak" data-testid="home-streak">' + t + "</p>";
+    return '<p class="home-streak" data-testid="home-streak"><span class="home-streak-text">' + t + '</span><span class="home-streak-star" aria-hidden="true">✦</span></p>';
   }
   function interruptedAt() {
     var st = getLocal(STORAGE_KEYS.SESSION, null), s = savedSession();

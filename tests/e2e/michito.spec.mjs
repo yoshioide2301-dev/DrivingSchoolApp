@@ -158,9 +158,9 @@ const hide = p => p.evaluate(() => { Object.defineProperty(document, 'hidden', {
 test('11 続けて学んだ日数：昨日まで3日・今日も学ぶと4日・途切れたら出さない（責めない）', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-11-11T10:00:00') });
   await seed(page, { zerodora_history: [1, 2, 3].map(n => ({ date: daysAgo(n), sessionId: 's' + n, count: 5 })) });
-  await expect(page.locator('[data-testid="home-streak"]')).toHaveText('昨日まで 3日 続けて学びました');
+  await expect(page.locator('[data-testid="home-streak"] .home-streak-text')).toHaveText('昨日まで 3日 続けて学びました');
   await five(page); await home(page);
-  await expect(page.locator('[data-testid="home-streak"]')).toHaveText('今日で 4日 続けて学んでいます');
+  await expect(page.locator('[data-testid="home-streak"] .home-streak-text')).toHaveText('今日で 4日 続けて学んでいます');
   await page.evaluate(() => localStorage.clear()); await seed(page, { michito_guide_seen: true, zerodora_history: [{ date: daysAgo(3), sessionId: 'x', count: 5 }] });
   await expect(page.locator('[data-testid="home-streak"]')).toHaveCount(0);
 });
