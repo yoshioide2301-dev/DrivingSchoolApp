@@ -1867,7 +1867,7 @@
     }
     html += '<button class="btn-pill btn-pill--wide" data-action="start-same-chapter">同じ範囲でもう5問 <span aria-hidden="true">→</span></button>' +
       '<button class="text-link" data-action="open-start">ほかの範囲を選ぶ</button>';
-    if (!data.surveySubmitted) html += '<details class="session-survey"><summary>使い心地を伝える（任意）</summary>' +
+    if (!data.surveySubmitted) html += '<details class="session-survey"><summary><span class="survey-pill">使い心地を伝える（任意）</span><span class="survey-hint">分かりにくい所があれば、お知らせください。直します。</span></summary>' +
       '<label for="session-survey-comment">気になったこと・改善してほしいこと</label>' +
       '<textarea id="session-survey-comment" class="comment-input" maxlength="500"></textarea>' +
       '<p>この端末にだけ保存されます。</p><button class="btn-pill" data-action="submit-session-survey">保存する</button></details>';
