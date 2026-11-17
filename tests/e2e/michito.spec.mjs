@@ -143,3 +143,55 @@ test('12 5問の後の問いかけ：許可しないときは iPhone の設定�
   const r = await page.evaluate(() => JSON.parse(localStorage.getItem('michito_reminder') || 'null'));
   expect(!!(r && r.on)).toBe(false);
 });
+
+// ===== 1.2.3（11/17）：続けて学んだ日数・お知らせの挨拶と「続き」・特大の文字・途中からの再開 =====
+const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const daysAgo = n => { const d = new Date('2026-11-11T10:00:00'); d.setDate(d.getDate() - n); return ymd(d); };
+async function answerSome(p, n) {
+  await home(p); await act(p, 'open-start'); await p.locator('[data-action="start-chapter"]:visible').first().click();
+  for (let k = 0; k < n; k++) {
+    await p.locator('.choice-btn:not([disabled]):visible').first().click();
+    if (k < n - 1) await p.locator('[data-action="next-question"]:visible').first().click();
+  }
+}
+const hide = p => p.evaluate(() => { Object.defineProperty(document, 'hidden', { value: true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+test('11 続けて学んだ日数：昨日まで3日・今日も学ぶと4日・途切れたら出さない（責めない）', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-11-11T10:00:00') });
+  await seed(page, { zerodora_history: [1, 2, 3].map(n => ({ date: daysAgo(n), sessionId: 's' + n, count: 5 })) });
+  await expect(page.locator('[data-testid="home-streak"]')).toHaveText('昨日まで 3日 続けて学びました');
+  await five(page); await home(page);
+  await expect(page.locator('[data-testid="home-streak"]')).toHaveText('今日で 4日 続けて学んでいます');
+  await seed(page, { zerodora_history: [{ date: daysAgo(3), sessionId: 'x', count: 5 }] });
+  await expect(page.locator('[data-testid="home-streak"]')).toHaveCount(0);
+});
+test('12 お知らせの文：題は「今日の5問」・時刻に合わせた挨拶（20時はこんばんは・7時はおはよう）', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-11-11T10:00:00') }); await page.reload();
+  await settings(page); await page.locator('[data-action="reminder-time"][data-time="20:00"]').click(); await act(page, 'toggle-reminder');
+  await expect.poll(() => page.evaluate(() => window.calls.schedules.at(-1)?.[0]?.title)).toBe('今日の5問');
+  expect(await page.evaluate(() => window.calls.schedules.at(-1)[0].body)).toBe('こんばんは。今日の5問、少しだけやってみませんか？');
+  const t7 = page.locator('[data-action="reminder-time"][data-time="07:00"]');
+  if (await t7.count()) { await t7.click(); await expect.poll(() => page.evaluate(() => window.calls.schedules.at(-1)[0].body)).toMatch(/^おはようございます。/); }
+});
+test('13 5問の途中で閉じた日：お知らせは「続き」の文（数は14のまま）・解き終えたら元に戻る', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-11-11T10:00:00') }); await page.reload();
+  await settings(page); await page.locator('[data-action="reminder-time"][data-time="20:00"]').click(); await act(page, 'toggle-reminder');
+  await answerSome(page, 2); await hide(page);
+  await expect.poll(() => page.evaluate(() => window.calls.schedules.at(-1)[0].title)).toBe('今日の5問の続き');
+  expect(await page.evaluate(() => window.calls.schedules.at(-1).length)).toBe(14);
+  expect(await page.evaluate(() => window.calls.schedules.at(-1)[0].body)).toBe('こんばんは。3問目から続きができます。');
+});
+test('14 途中からの再開：5問の2問目まで答えて閉じる→開き直すと続きから', async ({ page }) => {
+  await answerSome(page, 2); await page.reload();
+  await expect(page.locator('.choice-btn').first()).toBeVisible();
+  await expect(page.locator('[data-action="next-question"]:visible')).toHaveCount(1); // 2問目の答えと解説が残っている
+});
+test('15 文字「特大」・幅360：主な画面で横にはみ出さない', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await seed(page, { michito_settings: { fontSize: 'xlarge', theme: 'sora', furigana: 'on' }, zerodora_history: [1, 2].map(n => ({ date: daysAgo(n), sessionId: 's' + n, count: 5 })) });
+  const over = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(await over(), 'ホーム').toBeLessThanOrEqual(0);
+  await answerSome(page, 1); expect(await over(), '問題と解説').toBeLessThanOrEqual(0);
+  await home(page); await act(page, 'mock-open'); expect(await over(), '模試の入口').toBeLessThanOrEqual(0);
+  await act(page, 'mock-start'); expect(await over(), '模試').toBeLessThanOrEqual(0);
+  await settings(page); expect(await over(), '設定').toBeLessThanOrEqual(0);
+});

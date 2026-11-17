@@ -533,6 +533,23 @@ h1, h2, h3, p {
   color: var(--navy);
 }
 
+/* 1.2.3 M-56 続けて学んだ日数（責めない言い方。ホームの挨拶の下） */
+.home-streak {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  margin: 6px calc(var(--pad-left) + 6px) 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--surface);
+  opacity: 0.94;
+  color: var(--navy);
+  font-size: calc(14px * var(--fs));
+  font-weight: 700;
+  line-height: 1.5;
+}
+.home-streak strong { color: var(--teal); font-size: 1.15em; }
+
 /* 今日の10問カード */
 .today-card {
   position: relative;

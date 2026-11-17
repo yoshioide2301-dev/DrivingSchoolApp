@@ -28,9 +28,10 @@
   var APP_VERSION = "1.2.3";
   // 1.2 M-19：アップデートの履歴（ウェザップの型：今回の注目ポイント／【新機能】【改善】【不具合修正】【その他】）。新しい版を出すたびに先頭へ足す
   var UPDATES = [
-    { v: "1.2.3", date: "2026年11月", point: "評価のお願いを、確実に届く形にしました。", items: [
-      ["新機能", ["設定に「App Store で評価する」を追加しました。いつでも App Store の評価・レビューの画面を開けます"]],
-      ["不具合修正", ["模試を終えたときの評価のお願いが、表示されないことがある点を見直しました（表示するかどうかは Apple の仕組みで決まります）"]]
+    { v: "1.2.3", date: "2026年11月", point: "毎日の積み重ねが、目に見えるようになりました。", items: [
+      ["新機能", ["ホームに「続けて学んだ日数」を表示します。忙しくて1日空いても大丈夫です。責めたりせず、また今日から一緒に数えます", "設定に「App Store で評価する」を追加しました。「ここが分かりにくい」「これが役に立った」の一言が、次の改良のいちばんの手がかりになります"]],
+      ["改善", ["電車を降りるときや急な用事で、5問の途中でアプリを閉じた日は、お知らせで「3問目から続きができます」のようにお伝えします。お知らせの数は増えません", "お知らせを見ただけで用件が分かるよう、題を「今日の5問」にし、時刻に合わせて「おはようございます」「こんにちは」「こんばんは」とごあいさつするようにしました"]],
+      ["ご存じですか", ["5問や模試の途中でアプリを閉じても、次に開くと、答えた問題や解説も含めて続きから始まります"]]
     ], thanks: "ご意見やご報告をくださった皆さま、ありがとうございます！" },
     { v: "1.2.2", date: "2026年11月", point: "毎日少しずつ続けやすく、問題もより今の決まりに合わせました。", items: [
       ["新機能", ["「学習の通知」を追加しました。5問を解き終えたときに、毎日のお知らせを受け取るかをお聞きします（設定で時刻の変更やオフにもできます）"]],
@@ -702,15 +703,49 @@
     if (!window.michitoNotify) return;
     var r = getLocal(REMINDER_KEY, null);
     if (!r || !r.on) { state.reminderPlannedFor = null; window.michitoNotify.cancel(); return; }
-    var hm = String(r.time || "20:00").split(":"), list = [], skipToday = studiedToday();
+    // 1.2.3（11/17）：5問の途中で閉じたままなら、その日も出し、文を「続き」にする。数は増やさない
+    var cont = interruptedAt(), hm = String(r.time || "20:00").split(":"), list = [], skipToday = studiedToday() && !cont;
     for (var i = 0; i < 14; i++) {
       var d = new Date(); d.setDate(d.getDate() + i); d.setHours(parseInt(hm[0], 10) || 20, parseInt(hm[1], 10) || 0, 0, 0);
       if (i === 0 && (skipToday || d.getTime() <= Date.now() + 60000)) continue;
-      list.push(d.getTime());
+      list.push(reminderText(d, cont));
     }
     state.reminderPlannedFor = skipToday ? todayDateString() : null;
     window.michitoNotify.schedule(list);
   }
+  // 途中で閉じた5問があれば、次に解く問題の番号（1から）。無ければ 0
+  // 1.2.3 M-56：続けて学んだ日数。途切れても責めない（数えるのは学んだ日だけ。空いた日のことは言わない）
+  function streakDays() {
+    var days = {};
+    (getLocal(STORAGE_KEYS.HISTORY, []) || []).forEach(function (x) { if (x && x.date) days[x.date] = 1; });
+    if (studiedToday()) days[todayDateString()] = 1;
+    var d = new Date(), key = function (t) { return t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0"); };
+    var today = !!days[key(d)];
+    if (!today) d.setDate(d.getDate() - 1);
+    var n = 0;
+    while (days[key(d)]) { n++; d.setDate(d.getDate() - 1); }
+    return { n: n, today: today };
+  }
+  function streakHtml() {
+    var k = streakDays(), t;
+    if (k.today && k.n >= 2) t = "今日で <strong>" + k.n + "日</strong> 続けて学んでいます";
+    else if (k.today) t = "今日も学びました。明日もまた少しだけ";
+    else if (k.n >= 2) t = "昨日まで <strong>" + k.n + "日</strong> 続けて学びました";
+    else return "";
+    return '<p class="home-streak" data-testid="home-streak">' + t + "</p>";
+  }
+  function interruptedAt() {
+    var st = getLocal(STORAGE_KEYS.SESSION, null), s = savedSession();
+    if (!st || st.resumeOnLoad !== true || !s) return 0;
+    return s.answers.length < s.questions.length ? s.answers.length + 1 : 0;
+  }
+  function reminderText(d, cont) {
+    var h = d.getHours(), greet = h >= 4 && h < 11 ? "おはようございます。" : h >= 11 && h < 18 ? "こんにちは。" : "こんばんは。";
+    return cont ? { at: d.getTime(), title: "今日の5問の続き", body: greet + cont + "問目から続きができます。" }
+      : { at: d.getTime(), title: "今日の5問", body: greet + "今日の5問、少しだけやってみませんか？" };
+  }
+  // アプリを離れるときに予約を今の状態に合わせる（途中で閉じた・解き終えた）
+  document.addEventListener("visibilitychange", function () { if (document.hidden) { try { planReminders(); } catch (e) {} } });
   function shouldAskReminder() {
     if (!window.michitoNotify) return false;
     var r = getLocal(REMINDER_KEY, null);
@@ -1195,6 +1230,7 @@
       '<section class="home-hero">' +
       sceneSvg("hero") +
       '<h1 class="home-greeting">' + greetingText() + '<br>今日も少しだけ進もう。</h1>' +
+      streakHtml() +
       "</section>";
 
     html +=
@@ -2270,7 +2306,7 @@
     if (window.michitoNotify) {
       var rm = getLocal(REMINDER_KEY, null) || { on: false, time: "20:00" };
       html += '<section class="settings-group"><h2 class="settings-label" id="settings-reminder">学習の通知</h2>' +
-        '<p class="screen-lead screen-lead--left">1日1回、選んだ時刻に「今日の5問」をお知らせします。その日にもう学んだときは出しません。通知はこの iPhone の中だけで作り、どこにも送りません。2週間アプリを開かないと、自然に止まります。</p>' +
+        '<p class="screen-lead screen-lead--left">1日1回、選んだ時刻に「今日の5問」をお知らせします。その日にもう学んだときは出しません（5問の途中で閉じた日は、続きができることをお知らせします）。通知はこの iPhone の中だけで作り、どこにも送りません。2週間アプリを開かないと、自然に止まります。</p>' +
         '<div class="option-grid" role="group" aria-labelledby="settings-reminder">';
       REMINDER_TIMES.forEach(function (t) {
         html += '<button class="btn-pill' + (rm.time === t ? '' : ' btn-pill--ghost') + '" data-action="reminder-time" data-time="' + t + '" aria-pressed="' + (rm.time === t) + '">' + t.replace(/^0/, '') + '</button>';
