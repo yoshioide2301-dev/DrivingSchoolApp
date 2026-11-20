@@ -884,12 +884,12 @@ const questions = [
       "×"
     ],
     "correct": 0,
-    "explanation": "横断歩道とその手前30m以内では、普通乗用車などの追越しが禁止される。",
+    "explanation": "横断歩道とその手前30m以内では、歩行者がいなくても、普通乗用車などの追越しが禁止される。車線を変えずに、前を進む車の横を通ってその前に出る追抜きも、同じく禁止される。",
     "source": "e-Gov法令検索 道路交通法",
     "sourceURL": "https://laws.e-gov.go.jp/law/335AC0000000105",
     "sourceVersion": "e-Gov 現行版（道路交通法 2026-07-21・施行令 2026-09-01・施行規則 2026-09-01・標識令 2026-09-01 施行）",
-    "sourceSection": "道路交通法 第30条第3号",
-    "lastVerifiedDate": "2026-10-12",
+    "sourceSection": "道路交通法 第30条第3号、第38条第3項",
+    "lastVerifiedDate": "2026-11-21",
     "difficulty": 2,
     "tags": [
       "追越し"
@@ -897,7 +897,7 @@ const questions = [
     "type": "truefalse",
     "kyoshu": 9,
     "kyoshuName": "優先・追越し・行き違い",
-    "ref": "道路交通法 第30条第3号",
+    "ref": "道路交通法 第30条第3号、第38条第3項",
     "reviewMethod": "v15 案：条文の引用を機械照合・Claude の独立確認・本人の決まり1〜10で見直し（GPT 照合前、テスト配布用）"
   },
   {
