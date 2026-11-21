@@ -54,7 +54,7 @@ if(Capacitor.isNativePlatform()){
     cancel:()=>{chain=chain.then(cancel);return chain;},
     schedule:list=>{chain=chain.then(async()=>{await cancel();if(!list.length)return;
       // 1.2.3：時刻だけ（古い形）でも、{at,title,body}（挨拶・続きの文）でも受け取る
-      await LocalNotifications.schedule({notifications:list.map((x,i)=>{const o=typeof x==='object'&&x?x:{at:x};return {id:2200+i,title:o.title||'今日の5問',body:o.body||'今日の5問、少しだけやってみませんか？',schedule:{at:new Date(o.at),allowWhileIdle:true}};})}).catch(()=>{});});return chain;}
+      await LocalNotifications.schedule({notifications:list.map((x,i)=>{const o=typeof x==='object'&&x?x:{at:x};return {id:2200+i,title:(dev?'【開発版】':'')+(o.title||'今日の5問'),body:o.body||'今日の5問、少しだけやってみませんか？',schedule:{at:new Date(o.at),allowWhileIdle:true}};})}).catch(()=>{});});return chain;}
   };
   window.michitoReview=()=>InAppReview.requestReview().catch(()=>{});
 }
