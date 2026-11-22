@@ -1893,7 +1893,7 @@
     if (!data.surveySubmitted) html += '<details class="session-survey"><summary><span class="survey-pill">使い心地を伝える（任意）</span><span class="survey-hint">分かりにくい所があれば、お知らせください。直します。</span></summary>' +
       '<label for="session-survey-comment">気になったこと・改善してほしいこと</label>' +
       '<textarea id="session-survey-comment" class="comment-input" maxlength="500"></textarea>' +
-      '<p>この端末にだけ保存されます。</p><button class="btn-pill" data-action="submit-session-survey">保存する</button></details>';
+      '<p>「メールで送る」を押すとメールの画面が開きます。そのまま送信すると、運営者に届きます。</p><button class="btn-pill" data-action="submit-session-survey">メールで送る</button></details>';
     else html += '<p>感想を保存しました。</p>';
     html += '<button class="text-link" data-action="go-home">ホームへ戻る</button>';
     html += "</div>";
@@ -1908,8 +1908,11 @@
     if (!Array.isArray(log)) log = [];
     log.push({ sessionId: data.summary.sessionId, timestamp: new Date().toISOString(),
       comment: el.value.trim().slice(0, 500), appVersion: APP_VERSION });
-    if (setLocal(STORAGE_KEYS.SURVEY, log)) { data.surveySubmitted = true; render(); }
-    else showToast("保存できませんでした。");
+    setLocal(STORAGE_KEYS.SURVEY, log);
+    // 11/22 あなたの指摘：「伝える」なのに端末に保存するだけで運営者に届かなかった → サポートと同じ宛先へメールで送る
+    var body = el.value.trim().slice(0, 500) + "\n\n――\nミチト " + APP_VERSION + "／5問の結果：" + data.summary.correctCount + "/" + data.summary.count;
+    data.surveySubmitted = true; render();
+    location.href = "mailto:zg.dev2301@gmail.com?subject=" + encodeURIComponent("【ミチト】使い心地") + "&body=" + encodeURIComponent(body);
   }
 
   function backHomeButtonHtml() {
