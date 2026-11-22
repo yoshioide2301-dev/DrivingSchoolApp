@@ -28,8 +28,8 @@
   var APP_VERSION = "1.2.4";
   // 1.2 M-19：アップデートの履歴（ウェザップの型：今回の注目ポイント／【新機能】【改善】【不具合修正】【その他】）。新しい版を出すたびに先頭へ足す
   var UPDATES = [
-    { v: "1.2.4", date: "2026年11月", point: "図を見れば、場面がひと目で分かる解説が増えました。", items: [
-      ["新機能", ["交差点・横断歩道・追越しなど10問の解説に、場面が分かる図を付けました"]],
+    { v: "1.2.4", date: "2026年11月", point: "解説で、正しい運転の動きをアニメ動画で確かめられるようになりました。", items: [
+      ["新機能", ["横断歩道・一時停止・進路変更・追越しなど17問の解説に、正しい運転の動きが分かるアニメ動画を付けました（「もう一度見る」で何度でも）"]],
       ["改善", ["これまでの図の線をなめらかにし、文字は道路の外の白い札にまとめて見やすくしました。自分の車には「あなた」と表示します", "横断歩道の手前の追抜きの問題の解説に、根拠の条文（道路交通法 第38条第3項）を足しました", "結果の画面の「使い心地を伝える」を見つけやすくしました"]]
     ], thanks: "ご意見やご報告をくださった皆さま、ありがとうございます！" },
     { v: "1.2.3", date: "2026年11月", point: "毎日の積み重ねが、目に見えるようになりました。", items: [
@@ -1683,11 +1683,30 @@
   }
 
   // 間違えやすい問題の図（questions/figures.js）。図は解説と根拠の条文に書いてあることだけを描く
+  // 11/22 アニメ動画（ショートと同じ台本の解答の動き）がある問題は、静止の図の代わりに動きで見せる
+  function animeScene(id) { return typeof ANIME_SCENES !== "undefined" && typeof AnimeCore !== "undefined" ? ANIME_SCENES[id] : null; }
   function figureHtml(q) {
+    if (animeScene(q.id)) return '<figure class="explain-figure explain-anime" data-anime="' + escapeHtml(q.id) + '"><div class="anime-host" aria-label="正しい動きのアニメ動画"></div><button class="text-link anime-replay" data-action="anime-replay" data-anime-id="' + escapeHtml(q.id) + '">もう一度見る</button></figure>';
     var f = typeof FIGURES_ENABLED !== "undefined" && FIGURES_ENABLED && typeof FIGURES !== "undefined" ? FIGURES[q.id] : null;
     return f ? '<figure class="explain-figure">' + f.svg + "<figcaption>図：" + escapeHtml(f.title) + "</figcaption></figure>" : "";
   }
 
+  var animeRuns = [];
+  function mountAnimes() {
+    animeRuns.forEach(function (r) { r.stop = true; }); animeRuns = [];
+    [].slice.call(appEl.querySelectorAll("[data-anime]")).forEach(function (fig) {
+      var sc = animeScene(fig.getAttribute("data-anime")), host = fig.querySelector(".anime-host"); if (!sc || !host) return;
+      var base = typeof FIGURES !== "undefined" && FIGURES[sc.fig] ? FIGURES[sc.fig].svg : "";
+      var A; try { A = AnimeCore.mount(host, base, sc, "a"); } catch (e) { host.innerHTML = base; return; }
+      var run = { stop: false, id: sc.id, start: function () { var t0 = null; var self = this;
+        var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (still) { A.seek(A.dur); return; }
+        function step(ts) { if (self.stop || !document.body.contains(host)) return; if (t0 === null) t0 = ts; var t = (ts - t0) / 1000;
+          if (t > A.dur + 1.5) { t0 = ts; t = 0; } A.seek(Math.min(t, A.dur)); requestAnimationFrame(step); }
+        requestAnimationFrame(step); } };
+      animeRuns.push(run); run.start();
+    });
+  }
   function explanationBodyHtml(q, isCorrect, selectedIndex) {
     var correctLabel = q.type === "truefalse" ? q.choices[q.correct] + (q.correct === 0 ? "（正しい）" : "（誤り）") : (CHOICE_LETTERS[q.correct] || q.correct + 1) + ". " + (q.choices[q.correct] || "");
     var html = '<section class="explain-section">';
@@ -2514,6 +2533,7 @@
     if (state.resumeNotice) html = '<p class="panel" role="status">' + escapeHtml(state.resumeNotice) + "</p>" + html;
     if (state.storageWarning) html = '<p class="panel" role="alert">学習の保存ができません。この画面を閉じると続きから再開できない可能性があります。</p>' + html;
     appEl.innerHTML = html;
+    mountAnimes();
     if (!(options && options.keepScroll)) {
       window.scrollTo(0, 0);
     }
@@ -2642,17 +2662,27 @@
   }
   // 11/22 あなたの要望：開発版で「この版の確認」を項目ごとに OK・指摘できるように（結果はメールかコピーで Claude へ）
   var DEV_REVIEW = { v: "1.2.4", items: [
-    ["new-C034", "新しい図：D-C034 横断歩道（片側2車線）", "D-C034"], ["new-C163", "新しい図：D-C163 進路変更（片側2車線ずつ）", "D-C163"],
-    ["new-C005", "新しい図：D-C005 一時停止の交差点", "D-C005"], ["new-N003", "新しい図：D-N003", "D-N003"],
-    ["new-M168", "新しい図：D-M168 小型特殊自動車（トラクター・フォークリフト）", "D-M168"], ["new-C004", "新しい図：D-C004", "D-C004"],
-    ["new-C006", "新しい図：D-C006", "D-C006"], ["new-C010", "新しい図：D-C010", "D-C010"],
-    ["new-C011", "新しい図：D-C011 優先道路でない交差点", "D-C011"], ["new-C015", "新しい図：D-C015", "D-C015"],
-    ["fix-figs", "直した図11枚：線をなめらかに・字を道路の外の白い札に・自分の車に「あなた」（C003・C007・C008・C012・C013・C014・C016・C021・C035・C108・C115）", "D-C003 D-C007 D-C008 D-C012 D-C013 D-C014 D-C016 D-C021 D-C035 D-C108 D-C115"],
-    ["C028", "D-C028 の解説と根拠に第38条第3項（追抜き）を足した", "D-C028"],
-    ["feedback", "結果の画面の「使い心地を伝える」を目立たせた（5問を解き終えた画面の下の方で見る）", ""],
+    ["anime-C005", "アニメ動画：D-C005（解説で正しい動きが動く）", "D-C005"],
+    ["anime-C011", "アニメ動画：D-C011（解説で正しい動きが動く）", "D-C011"],
+    ["anime-C013", "アニメ動画：D-C013（解説で正しい動きが動く）", "D-C013"],
+    ["anime-C026", "アニメ動画：D-C026（解説で正しい動きが動く）", "D-C026"],
+    ["anime-C028", "アニメ動画：D-C028（解説で正しい動きが動く）", "D-C028"],
+    ["anime-C034", "アニメ動画：D-C034（解説で正しい動きが動く）", "D-C034"],
+    ["anime-C092", "アニメ動画：D-C092（解説で正しい動きが動く）", "D-C092"],
+    ["anime-C094", "アニメ動画：D-C094（解説で正しい動きが動く）", "D-C094"],
+    ["anime-C105", "アニメ動画：D-C105（解説で正しい動きが動く）", "D-C105"],
+    ["anime-C114", "アニメ動画：D-C114（解説で正しい動きが動く）", "D-C114"],
+    ["anime-C120", "アニメ動画：D-C120（解説で正しい動きが動く）", "D-C120"],
+    ["anime-C121", "アニメ動画：D-C121（解説で正しい動きが動く）", "D-C121"],
+    ["anime-C163", "アニメ動画：D-C163（解説で正しい動きが動く）", "D-C163"],
+    ["anime-M095", "アニメ動画：D-M095（解説で正しい動きが動く）", "D-M095"],
+    ["anime-M140", "アニメ動画：D-M140（解説で正しい動きが動く）", "D-M140"],
+    ["anime-M142", "アニメ動画：D-M142（解説で正しい動きが動く）", "D-M142"],
+    ["anime-M243", "アニメ動画：D-M243（解説で正しい動きが動く）", "D-M243"],
+    ["feedback", "結果の画面の「使い心地を伝える」を目立たせた（「見る」で試しの結果の画面を開く）", "@result"],
     ["history", "設定の「アップデートの履歴」の 1.2.4 の文", ""]
   ] };
-  var DEV_REVIEW_KEY = "michito_dev_review_" + DEV_REVIEW.v;
+  var DEV_REVIEW_KEY = "michito_dev_review_" + DEV_REVIEW.v + "b";
   function devReviewGet() { var g = getLocal(DEV_REVIEW_KEY, null); return g && typeof g === "object" ? g : {}; }
   function devReviewText() {
     var g = devReviewGet(), lines = ["【ミチト開発の確認】" + DEV_REVIEW.v];
@@ -2666,7 +2696,7 @@
     DEV_REVIEW.items.forEach(function (it) {
       var r = g[it[0]] || {};
       h += '<li class="dev-review-item' + (r.ok ? ' is-ok' : '') + '" data-rv="' + it[0] + '"><label class="dev-review-check"><input type="checkbox" data-rv-ok="' + it[0] + '"' + (r.ok ? ' checked' : '') + '><span>' + escapeHtml(it[1]) + '</span></label>' +
-        (it[2] ? '<button class="text-link" data-action="dev-show" data-ids="' + it[2] + '">見る</button>' : '') +
+        (it[2] === '@result' ? '<button class="text-link" data-action="dev-result-preview">見る</button>' : it[2] ? '<button class="text-link" data-action="dev-show" data-ids="' + it[2] + '">見る</button>' : '') +
         '<textarea class="dev-ids" rows="2" data-rv-note="' + it[0] + '" placeholder="指摘があれば">' + escapeHtml(r.note || '') + '</textarea></li>';
     });
     return h + '</ol><button class="btn-pill" data-action="dev-review-mail">結果を送る（メール）</button><button class="text-link" data-action="dev-review-copy">結果をコピー（チャットに貼る）</button></div>';
@@ -2749,6 +2779,8 @@
       render({ keepScroll: true }); return;
     }
     if (action === 'dev-off') { setLocal(DEV_KEY, false); render(); return; }
+    if (action === 'anime-replay') { mountAnimes(); return; }
+    if (action === 'dev-result-preview') { state.lastSession = { summary: { count: 5, correctCount: 4, accuracy: 0.8, durationSec: 95 }, mistakes: [], kyoshu: null, surveySubmitted: false, devPreview: true }; state.view = 'result'; render(); return; }
     if (action === 'dev-review-mail') { location.href = 'mailto:zg.dev2301@gmail.com?subject=' + encodeURIComponent('【ミチト開発の確認】' + DEV_REVIEW.v) + '&body=' + encodeURIComponent(devReviewText()); return; }
     if (action === 'dev-review-copy') { var tx = devReviewText(); try { navigator.clipboard.writeText(tx).then(function () { target.textContent = 'コピーしました'; }, function () { window.prompt('コピーしてください', tx); }); } catch (e) { window.prompt('コピーしてください', tx); } return; }
     if (action === 'dev-show') {

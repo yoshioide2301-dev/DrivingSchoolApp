@@ -2551,3 +2551,7 @@ ruby rt { font-size: 0.5em; font-weight: 400; color: var(--text-sub); letter-spa
 .dev-review-check{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
 .dev-review-check input{width:24px;height:24px;flex:none;margin-top:2px;accent-color:#2BB673}
 .dev-review-item .dev-ids{margin:6px 0 0}
+
+/* 11/22 解説のアニメ動画 */
+.explain-anime .anime-host svg{width:100%;height:auto;display:block;border-radius:12px}
+.explain-anime .anime-replay{display:block;margin:6px auto 0}
