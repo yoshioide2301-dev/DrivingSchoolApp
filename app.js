@@ -595,6 +595,7 @@
   }
 
   function startSession(kyoshu, avoidIds) {
+    state.devRealFlow = false;
     kyoshu = kyoshu || 0;
     state.view="home"; saveMock();
     saveProgress();
@@ -1452,6 +1453,23 @@
   }
 
   // 指定した問題だけで「今日の5問」と同じ流れを始める（標識から問題へ）
+  // 11/22 開発版だけ：本番と同じ5問の画面で、この版の確認の問題を順に解く。結果画面の「もう5問」でも続きの5問へ（11/22 あなたの指摘：普通の問題に進んでしまった）
+  function devRealFlow(cont) {
+    if (!cont) state.devRealSeen = [];
+    var gg = devReviewGet(), all = DEV_REVIEW.items.filter(function (x) { return x[2] && x[2].charAt(0) !== '@'; }).map(function (x) { return [x[0], x[2]]; });
+    var seen = state.devRealSeen || [];
+    var want = all.filter(function (x) { return !(gg[x[0]] || {}).ok && seen.indexOf(x[1]) < 0; }).map(function (x) { return x[1]; });
+    if (!want.length) { state.devRealSeen = []; want = all.filter(function (x) { return !(gg[x[0]] || {}).ok; }).map(function (x) { return x[1]; }); }
+    if (!want.length) want = all.map(function (x) { return x[1]; });
+    want = want.slice(0, SESSION_SIZE);
+    var pool2 = getReviewedQuestions().filter(function (q) { return want.indexOf(q.id) >= 0; });
+    pool2.sort(function (x, y) { return want.indexOf(x.id) - want.indexOf(y.id); });
+    if (!pool2.length) return;
+    startSession(0); if (!state.session) return;
+    state.session.questions = pool2.map(function (q, idx) { return Object.assign({}, q, withShuffledChoices(q), { _instanceKey: q.id + "_" + idx }); });
+    state.session.kyoshu = 3; state.devRealFlow = true; state.devRealSeen = (state.devRealSeen || []).concat(want); saveProgress(); render();
+  }
+
   function startSessionWithIds(ids) {
     var pool = getReviewedQuestions().filter(function (q) { return ids.indexOf(q.id) >= 0; });
     if (!pool.length) return;
@@ -2804,17 +2822,7 @@
     }
     if (action === 'dev-off') { setLocal(DEV_KEY, false); render(); return; }
     if (action === 'anime-replay') { mountAnimes(); return; }
-    if (action === 'dev-real-flow') {
-      var gg = devReviewGet(), want = DEV_REVIEW.items.filter(function (x) { return x[2] && x[2].charAt(0) !== '@' && !(gg[x[0]] || {}).ok; }).map(function (x) { return x[2]; });
-      if (!want.length) want = DEV_REVIEW.items.filter(function (x) { return x[2] && x[2].charAt(0) !== '@'; }).map(function (x) { return x[2]; });
-      want = want.slice(0, SESSION_SIZE);
-      var pool2 = getReviewedQuestions().filter(function (q) { return want.indexOf(q.id) >= 0; });
-      pool2.sort(function (x, y) { return want.indexOf(x.id) - want.indexOf(y.id); });
-      if (!pool2.length) return;
-      startSession(0); if (!state.session) return;
-      state.session.questions = pool2.map(function (q, idx) { return Object.assign({}, q, withShuffledChoices(q), { _instanceKey: q.id + "_" + idx }); });
-      state.session.kyoshu = 3; state.devRealFlow = true; saveProgress(); render(); return;
-    }
+    if (action === 'dev-real-flow') { devRealFlow(false); return; }
     if (action === 'dev-review-back') {
       var from = state.devReviewKey, g = devReviewGet(), keys = DEV_REVIEW.items.map(function (x) { return x[0]; }), i = keys.indexOf(from), next = null;
       for (var j = 1; j <= keys.length; j++) { var kk = keys[(i + j) % keys.length]; if (!(g[kk] || {}).ok) { next = kk; break; } }
@@ -2880,6 +2888,7 @@
         startSession(parseInt(target.getAttribute("data-kyoshu"), 10) || 0);
         break;
       case "start-same-chapter":
+        if (state.devRealFlow && isDevMode()) { devRealFlow(true); break; }
         if (state.lastSession) startSession(state.lastSession.kyoshu || 0, state.lastSession.questionIds);
         else openStart();
         break;
