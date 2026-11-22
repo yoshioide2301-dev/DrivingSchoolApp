@@ -2542,3 +2542,12 @@ ruby rt { font-size: 0.5em; font-weight: 400; color: var(--text-sub); letter-spa
 .update-notice p:last-child{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:0}
 .update-notice .btn-pill{text-decoration:none;padding:8px 18px;font-size:.92em;width:auto}
 .update-entry h2{margin-bottom:6px}
+
+/* 11/22 開発版：この版の確認（両側に緑の線で目立たせる） */
+.dev-review{margin:16px 0;padding:12px 14px;border-left:5px solid #2BB673;border-right:5px solid #2BB673;border-radius:10px;background:rgba(43,182,115,.08)}
+.dev-review-list{margin:8px 0;padding-left:1.4em}
+.dev-review-item{margin:10px 0;padding:8px;border-radius:8px}
+.dev-review-item.is-ok{background:rgba(43,182,115,.15)}
+.dev-review-check{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.dev-review-check input{width:24px;height:24px;flex:none;margin-top:2px;accent-color:#2BB673}
+.dev-review-item .dev-ids{margin:6px 0 0}

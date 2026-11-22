@@ -2640,13 +2640,44 @@
     if (!g) return "まだ模試を終えていません（この版で呼んだ版：" + (getLocal(REVIEW_ASKED_KEY, "") || "なし") + "）";
     return "最後：" + String(g.at || "").replace("T", " ").slice(0, 16) + "（UTC）・版 " + g.v + "・" + (why[g.result] || g.result) + "・学んだ日 " + g.days + "日";
   }
+  // 11/22 あなたの要望：開発版で「この版の確認」を項目ごとに OK・指摘できるように（結果はメールかコピーで Claude へ）
+  var DEV_REVIEW = { v: "1.2.4", items: [
+    ["new-C034", "新しい図：D-C034 横断歩道（片側2車線）", "D-C034"], ["new-C163", "新しい図：D-C163 進路変更（片側2車線ずつ）", "D-C163"],
+    ["new-C005", "新しい図：D-C005 一時停止の交差点", "D-C005"], ["new-N003", "新しい図：D-N003", "D-N003"],
+    ["new-M168", "新しい図：D-M168 小型特殊自動車（トラクター・フォークリフト）", "D-M168"], ["new-C004", "新しい図：D-C004", "D-C004"],
+    ["new-C006", "新しい図：D-C006", "D-C006"], ["new-C010", "新しい図：D-C010", "D-C010"],
+    ["new-C011", "新しい図：D-C011 優先道路でない交差点", "D-C011"], ["new-C015", "新しい図：D-C015", "D-C015"],
+    ["fix-figs", "直した図11枚：線をなめらかに・字を道路の外の白い札に・自分の車に「あなた」（C003・C007・C008・C012・C013・C014・C016・C021・C035・C108・C115）", "D-C003 D-C007 D-C008 D-C012 D-C013 D-C014 D-C016 D-C021 D-C035 D-C108 D-C115"],
+    ["C028", "D-C028 の解説と根拠に第38条第3項（追抜き）を足した", "D-C028"],
+    ["feedback", "結果の画面の「使い心地を伝える」を目立たせた（5問を解き終えた画面の下の方で見る）", ""],
+    ["history", "設定の「アップデートの履歴」の 1.2.4 の文", ""]
+  ] };
+  var DEV_REVIEW_KEY = "michito_dev_review_" + DEV_REVIEW.v;
+  function devReviewGet() { var g = getLocal(DEV_REVIEW_KEY, null); return g && typeof g === "object" ? g : {}; }
+  function devReviewText() {
+    var g = devReviewGet(), lines = ["【ミチト開発の確認】" + DEV_REVIEW.v];
+    DEV_REVIEW.items.forEach(function (it, i) { var r = g[it[0]] || {}; lines.push((i + 1) + ". " + (r.ok ? "OK" : (r.note ? "指摘" : "未")) + "｜" + it[1] + (r.note ? "\n   → " + r.note : "")); });
+    return lines.join("\n");
+  }
+  function devReviewHtml() {
+    var g = devReviewGet(), n = DEV_REVIEW.items.filter(function (it) { return (g[it[0]] || {}).ok; }).length;
+    var h = '<div class="dev-review"><h2 class="settings-label">開発用：この版の確認（' + DEV_REVIEW.v + '）</h2>' +
+      '<p class="settings-note">上から順に「見る」で確かめ、よければ OK に印を、気になる所は下の欄に書いてください。最後に「結果を送る」。OK <span id="dev-review-count">' + n + '</span>／' + DEV_REVIEW.items.length + '</p><ol class="dev-review-list">';
+    DEV_REVIEW.items.forEach(function (it) {
+      var r = g[it[0]] || {};
+      h += '<li class="dev-review-item' + (r.ok ? ' is-ok' : '') + '" data-rv="' + it[0] + '"><label class="dev-review-check"><input type="checkbox" data-rv-ok="' + it[0] + '"' + (r.ok ? ' checked' : '') + '><span>' + escapeHtml(it[1]) + '</span></label>' +
+        (it[2] ? '<button class="text-link" data-action="dev-show" data-ids="' + it[2] + '">見る</button>' : '') +
+        '<textarea class="dev-ids" rows="2" data-rv-note="' + it[0] + '" placeholder="指摘があれば">' + escapeHtml(r.note || '') + '</textarea></li>';
+    });
+    return h + '</ol><button class="btn-pill" data-action="dev-review-mail">結果を送る（メール）</button><button class="text-link" data-action="dev-review-copy">結果をコピー（チャットに貼る）</button></div>';
+  }
   function devSettingsHtml() {
     var d = latestVerifiedDate();
     return '<section class="settings-group dev-panel"><h2 class="settings-label">開発用：問題を番号で表示</h2>' +
       '<p class="settings-note">番号を空白か「,」で区切って入れます。ID（D-M080）でも元の番号（M7D-07-004）でもかまいません。範囲は「D-M264〜D-M308」。</p>' +
       '<textarea id="dev-ids" class="dev-ids" rows="3" placeholder="D-C106 D-M080 M7F-01-005">' + escapeHtml(state.devQuery || '') + '</textarea>' +
       '<button class="btn-pill" data-action="dev-show">表示する</button>' +
-      '<button class="text-link" data-action="dev-show" data-preset="latest">最近直した・入れた問題（' + escapeHtml(d) + '）</button>' +
+      devReviewHtml() +
       '<button class="text-link" data-action="dev-show" data-preset="excluded">出題から外した問題</button>' +
       '<h2 class="settings-label">開発用：評価のお願い</h2>' +
       '<p class="settings-note" data-testid="review-log">' + escapeHtml(reviewLogText()) + '</p>' +
@@ -2718,10 +2749,13 @@
       render({ keepScroll: true }); return;
     }
     if (action === 'dev-off') { setLocal(DEV_KEY, false); render(); return; }
+    if (action === 'dev-review-mail') { location.href = 'mailto:zg.dev2301@gmail.com?subject=' + encodeURIComponent('【ミチト開発の確認】' + DEV_REVIEW.v) + '&body=' + encodeURIComponent(devReviewText()); return; }
+    if (action === 'dev-review-copy') { var tx = devReviewText(); try { navigator.clipboard.writeText(tx).then(function () { target.textContent = 'コピーしました'; }, function () { window.prompt('コピーしてください', tx); }); } catch (e) { window.prompt('コピーしてください', tx); } return; }
     if (action === 'dev-show') {
       var preset = target.getAttribute('data-preset');
       if (preset === 'latest') { var d = latestVerifiedDate(); state.devResult = { list: questions.filter(function (q) { return q.lastVerifiedDate === d; }), missing: [] }; }
       else if (preset === 'excluded') state.devResult = { list: questions.filter(function (q) { return q.reviewStatus !== REVIEWED_STATUS && q.reviewStatus !== 'mock'; }), missing: [] };
+      else if (target.getAttribute('data-ids')) state.devResult = devFind(target.getAttribute('data-ids'));
       else { var el = document.getElementById('dev-ids'); state.devQuery = el ? el.value : ''; state.devResult = devFind(state.devQuery); }
       state.view = 'devQuestions'; render();
     }
@@ -2950,6 +2984,17 @@
   });
 
   // トレーニングメモの文字数表示
+  // この版の確認：OK の印と指摘を端末に保存（画面は描き直さない）
+  function devReviewSave(k, f, v) { var g = devReviewGet(); g[k] = g[k] || {}; g[k][f] = v; setLocal(DEV_REVIEW_KEY, g); }
+  appEl.addEventListener("change", function (event) {
+    var t = event.target, k = t && t.getAttribute && t.getAttribute("data-rv-ok"); if (!k) return;
+    devReviewSave(k, "ok", t.checked);
+    var li = t.closest(".dev-review-item"); if (li) li.classList.toggle("is-ok", t.checked);
+    var c = document.getElementById("dev-review-count"); if (c) c.textContent = String(document.querySelectorAll(".dev-review-item.is-ok").length);
+  });
+  appEl.addEventListener("input", function (event) {
+    var k = event.target && event.target.getAttribute && event.target.getAttribute("data-rv-note"); if (k) devReviewSave(k, "note", event.target.value);
+  });
   appEl.addEventListener("input", function (event) {
     if (event.target && event.target.id === "training-comment") {
       var countEl = document.getElementById("memo-count");
