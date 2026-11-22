@@ -1697,7 +1697,7 @@
     [].slice.call(appEl.querySelectorAll("[data-anime]")).forEach(function (fig) {
       var sc = animeScene(fig.getAttribute("data-anime")), host = fig.querySelector(".anime-host"); if (!sc || !host) return;
       var base = typeof FIGURES !== "undefined" && FIGURES[sc.fig] ? FIGURES[sc.fig].svg : "";
-      var A; try { A = AnimeCore.mount(host, base, sc, "a"); } catch (e) { host.innerHTML = base; return; }
+      var A; try { A = AnimeCore.mount(host, base, sc, fig.getAttribute("data-mode") || "a"); } catch (e) { host.innerHTML = base; return; }
       var run = { stop: false, id: sc.id, start: function () { var t0 = null; var self = this;
         var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         if (still) { A.seek(A.dur); return; }
@@ -2696,7 +2696,7 @@
     DEV_REVIEW.items.forEach(function (it) {
       var r = g[it[0]] || {};
       h += '<li class="dev-review-item' + (r.ok ? ' is-ok' : '') + '" data-rv="' + it[0] + '"><label class="dev-review-check"><input type="checkbox" data-rv-ok="' + it[0] + '"' + (r.ok ? ' checked' : '') + '><span>' + escapeHtml(it[1]) + '</span></label>' +
-        (it[2] === '@result' ? '<button class="text-link" data-action="dev-result-preview">見る</button>' : it[2] ? '<button class="text-link" data-action="dev-show" data-ids="' + it[2] + '">見る</button>' : '') +
+        (it[2] === '@result' ? '<button class="text-link" data-action="dev-result-preview">見る</button>' : it[2] ? '<button class="text-link" data-action="dev-show" data-rv-key="' + it[0] + '" data-ids="' + it[2] + '">見る</button>' : '') +
         '<textarea class="dev-ids" rows="2" data-rv-note="' + it[0] + '" placeholder="指摘があれば">' + escapeHtml(r.note || '') + '</textarea></li>';
     });
     return h + '</ol><button class="btn-pill" data-action="dev-review-mail">結果を送る（メール）</button><button class="text-link" data-action="dev-review-copy">結果をコピー（チャットに貼る）</button></div>';
@@ -2740,6 +2740,15 @@
     });
     return { list: out, missing: missing };
   }
+  // 11/22 あなたの要望：「見る」で開いた画面でもチェックと指摘、下に←（一覧の次の未点検へ）
+  function devReviewHereHtml() {
+    var k = state.devReviewKey; if (!k) return '';
+    var it = DEV_REVIEW.items.filter(function (x) { return x[0] === k; })[0]; if (!it) return '';
+    var r = devReviewGet()[k] || {};
+    return '<div class="dev-review"><div class="dev-review-item' + (r.ok ? ' is-ok' : '') + '"><label class="dev-review-check"><input type="checkbox" data-rv-ok="' + k + '"' + (r.ok ? ' checked' : '') + '><span>OK（' + escapeHtml(it[1]) + '）</span></label>' +
+      '<textarea class="dev-ids" rows="2" data-rv-note="' + k + '" placeholder="指摘があれば">' + escapeHtml(r.note || '') + '</textarea></div>' +
+      '<button class="btn-pill" data-action="dev-review-back">← 一覧へ戻る（次の未点検へ）</button></div>';
+  }
   function viewDevQuestions() {
     var r = state.devResult || { list: [], missing: [] };
     var html = '<div class="screen screen--settings">' + topBackHtml('open-settings');
@@ -2752,12 +2761,14 @@
         '<p class="question-text">' + furiganaHtml(q, "question") + '</p>' +
         '<p class="explain-text"><strong>答え：' + escapeHtml(q.choices[q.correct] || '') + '</strong></p>' +
         '<p class="explain-text">' + furiganaHtml(q, "explanation") + '</p>' +
+        (animeScene(q.id) ? '<p class="settings-label">ショートの冒頭の動き（開発版だけ）</p><figure class="explain-figure explain-anime" data-anime="' + escapeHtml(q.id) + '" data-mode="q"><div class="anime-host"></div></figure><p class="settings-label">解答の正しい動き（アプリとショート共通）</p>' : '') +
         figureHtml(q) + legalBasisHtml(q) +
         (q.quote ? '<p class="settings-note">引用：' + escapeHtml(q.quote) + '</p>' : '') +
         (q.excludedReason ? '<p class="settings-note">外した理由：' + escapeHtml(q.excludedReason) + '</p>' : '') +
         (q.lastVerifiedDate ? '<p class="settings-note">最終確認日：' + escapeHtml(q.lastVerifiedDate) + '</p>' : '') +
         '</section>';
     });
+    html += devReviewHereHtml();
     html += '<button class="btn-pill" data-action="open-settings">番号を入れ直す</button></div>';
     return html;
   }
@@ -2780,6 +2791,13 @@
     }
     if (action === 'dev-off') { setLocal(DEV_KEY, false); render(); return; }
     if (action === 'anime-replay') { mountAnimes(); return; }
+    if (action === 'dev-review-back') {
+      var from = state.devReviewKey, g = devReviewGet(), keys = DEV_REVIEW.items.map(function (x) { return x[0]; }), i = keys.indexOf(from), next = null;
+      for (var j = 1; j <= keys.length; j++) { var kk = keys[(i + j) % keys.length]; if (!(g[kk] || {}).ok) { next = kk; break; } }
+      state.devReviewKey = null; state.view = 'settings'; render({ keepScroll: true });
+      var el = appEl.querySelector('[data-rv="' + (next || from) + '"]'); if (el) el.scrollIntoView({ block: 'center' });
+      return;
+    }
     if (action === 'dev-result-preview') { state.lastSession = { summary: { count: 5, correctCount: 4, accuracy: 0.8, durationSec: 95 }, mistakes: [], kyoshu: null, surveySubmitted: false, devPreview: true }; state.view = 'result'; render(); return; }
     if (action === 'dev-review-mail') { location.href = 'mailto:zg.dev2301@gmail.com?subject=' + encodeURIComponent('【ミチト開発の確認】' + DEV_REVIEW.v) + '&body=' + encodeURIComponent(devReviewText()); return; }
     if (action === 'dev-review-copy') { var tx = devReviewText(); try { navigator.clipboard.writeText(tx).then(function () { target.textContent = 'コピーしました'; }, function () { window.prompt('コピーしてください', tx); }); } catch (e) { window.prompt('コピーしてください', tx); } return; }
@@ -2787,8 +2805,8 @@
       var preset = target.getAttribute('data-preset');
       if (preset === 'latest') { var d = latestVerifiedDate(); state.devResult = { list: questions.filter(function (q) { return q.lastVerifiedDate === d; }), missing: [] }; }
       else if (preset === 'excluded') state.devResult = { list: questions.filter(function (q) { return q.reviewStatus !== REVIEWED_STATUS && q.reviewStatus !== 'mock'; }), missing: [] };
-      else if (target.getAttribute('data-ids')) state.devResult = devFind(target.getAttribute('data-ids'));
-      else { var el = document.getElementById('dev-ids'); state.devQuery = el ? el.value : ''; state.devResult = devFind(state.devQuery); }
+      else if (target.getAttribute('data-ids')) { state.devResult = devFind(target.getAttribute('data-ids')); state.devReviewKey = target.getAttribute('data-rv-key') || null; }
+      else { var el = document.getElementById('dev-ids'); state.devQuery = el ? el.value : ''; state.devResult = devFind(state.devQuery); state.devReviewKey = null; }
       state.view = 'devQuestions'; render();
     }
   }
