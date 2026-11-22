@@ -1707,6 +1707,13 @@
       animeRuns.push(run); run.start();
     });
   }
+  function devReviewInExplainHtml(q) {
+    if (!isDevMode() || typeof DEV_REVIEW === "undefined") return "";
+    var it = DEV_REVIEW.items.filter(function (x) { return x[2] === q.id; })[0]; if (!it) return "";
+    var r = devReviewGet()[it[0]] || {};
+    return '<div class="dev-review"><div class="dev-review-item' + (r.ok ? ' is-ok' : '') + '"><label class="dev-review-check"><input type="checkbox" data-rv-ok="' + it[0] + '"' + (r.ok ? ' checked' : '') + '><span>開発用：OK（' + escapeHtml(q.id) + '）</span></label>' +
+      '<textarea class="dev-ids" rows="2" data-rv-note="' + it[0] + '" placeholder="指摘があれば">' + escapeHtml(r.note || '') + '</textarea></div></div>';
+  }
   function explanationBodyHtml(q, isCorrect, selectedIndex) {
     var correctLabel = q.type === "truefalse" ? q.choices[q.correct] + (q.correct === 0 ? "（正しい）" : "（誤り）") : (CHOICE_LETTERS[q.correct] || q.correct + 1) + ". " + (q.choices[q.correct] || "");
     var html = '<section class="explain-section">';
@@ -1714,6 +1721,7 @@
     html += '<p class="explain-text">' + furiganaHtml(q, "explanation") + "</p>";
     html += figureHtml(q);
     html += legalBasisHtml(q);
+    html += devReviewInExplainHtml(q);
     html += "</section>";
     html +=
       '<div class="hint-box">' +
@@ -2695,6 +2703,8 @@
   function devReviewHtml() {
     var g = devReviewGet(), n = DEV_REVIEW.items.filter(function (it) { return (g[it[0]] || {}).ok; }).length;
     var h = '<div class="dev-review"><h2 class="settings-label">開発用：この版の確認（' + DEV_REVIEW.v + '）</h2>' +
+      '<button class="btn-pill btn-pill--wide" data-action="dev-real-flow">本番の流れで解く（まだ OK でない問題から5問）</button>' +
+      '<p class="settings-note">本番と同じ5問の画面で解き、答えた後の解説画面でアニメ動画と表示を確かめます。解説画面の下で OK と指摘を入れられます（一覧と連動）。</p>' +
       '<p class="settings-note">上から順に「見る」で確かめ、よければ OK に印を、気になる所は下の欄に書いてください。最後に「結果を送る」。OK <span id="dev-review-count">' + n + '</span>／' + DEV_REVIEW.items.length + '</p><ol class="dev-review-list">';
     DEV_REVIEW.items.forEach(function (it) {
       var r = g[it[0]] || {};
@@ -2794,6 +2804,17 @@
     }
     if (action === 'dev-off') { setLocal(DEV_KEY, false); render(); return; }
     if (action === 'anime-replay') { mountAnimes(); return; }
+    if (action === 'dev-real-flow') {
+      var gg = devReviewGet(), want = DEV_REVIEW.items.filter(function (x) { return x[2] && x[2].charAt(0) !== '@' && !(gg[x[0]] || {}).ok; }).map(function (x) { return x[2]; });
+      if (!want.length) want = DEV_REVIEW.items.filter(function (x) { return x[2] && x[2].charAt(0) !== '@'; }).map(function (x) { return x[2]; });
+      want = want.slice(0, SESSION_SIZE);
+      var pool2 = getReviewedQuestions().filter(function (q) { return want.indexOf(q.id) >= 0; });
+      pool2.sort(function (x, y) { return want.indexOf(x.id) - want.indexOf(y.id); });
+      if (!pool2.length) return;
+      startSession(0); if (!state.session) return;
+      state.session.questions = pool2.map(function (q, idx) { return Object.assign({}, q, withShuffledChoices(q), { _instanceKey: q.id + "_" + idx }); });
+      state.session.kyoshu = 3; state.devRealFlow = true; saveProgress(); render(); return;
+    }
     if (action === 'dev-review-back') {
       var from = state.devReviewKey, g = devReviewGet(), keys = DEV_REVIEW.items.map(function (x) { return x[0]; }), i = keys.indexOf(from), next = null;
       for (var j = 1; j <= keys.length; j++) { var kk = keys[(i + j) % keys.length]; if (!(g[kk] || {}).ok) { next = kk; break; } }
