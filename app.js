@@ -232,6 +232,7 @@
     return "教習番号" + kyoshu + (c && c.name ? "　" + c.name : "");
   }
 
+  var ANIME_LEAD = "D-C005"; // 初めての人に最初に出す代表のアニメ動画の問題（一時停止）
   // avoidIds：直前に解いた問題。範囲の中でまだ解いていない問題を先に出す
   function buildSessionQuestions(kyoshu, avoidIds) {
     var reviewedQuestions = getReviewedQuestions().filter(function (q) { return !kyoshu || q.kyoshu === kyoshu; });
@@ -241,7 +242,13 @@
     var avoid = Array.isArray(avoidIds) ? avoidIds : [];
     var fresh = reviewedQuestions.filter(function (q) { return avoid.indexOf(q.id) < 0; });
     var seen = reviewedQuestions.filter(function (q) { return avoid.indexOf(q.id) >= 0; });
-    var pool = shuffle(fresh).concat(shuffle(seen));
+    // 1.2.5（11/23 あなたの決定）：まだ一度も解いていないアニメ動画の問題を先に出す。
+    // 初めての人の1問目は代表の1問（ANIME_LEAD）。アニメ動画の問題を解き終えたら、これまでどおりランダム
+    var done = getProgress();
+    var animeNew = fresh.filter(function (q) { return animeScene(q.id) && !done[q.id]; });
+    animeNew = shuffle(animeNew).sort(function (a, b) { return (b.id === ANIME_LEAD) - (a.id === ANIME_LEAD); });
+    var rest = fresh.filter(function (q) { return animeNew.indexOf(q) < 0; });
+    var pool = animeNew.concat(shuffle(rest)).concat(shuffle(seen));
     while (pool.length < SESSION_SIZE) {
       pool = pool.concat(shuffle(reviewedQuestions));
     }
@@ -1612,6 +1619,8 @@
         "</div>" +
         '<h1 class="verdict-title verdict-title--correct">正解！</h1>' +
         '<p class="verdict-text">いいですね。<br>ちゃんと理解できています 👍</p>' +
+        // 1.2.5：アニメ動画のある問題は、正解でもここで正しい動きを見せる（解説を開かない人にも届くように）
+        (animeScene(q.id) ? '<p class="verdict-text verdict-anime-lead">正しい動きは、こうです。</p>' + figureHtml(q) : '') +
         '<button class="btn-pill btn-pill--wide" data-action="next-question">' + (s.currentIndex + 1 === s.questions.length ? '結果を見る' : '次の問題へ') + '</button>' +
         '<button class="text-link" data-action="show-explanation">解説を見る</button>' +
         '<div class="ground-scene ground-scene--soft">' +
