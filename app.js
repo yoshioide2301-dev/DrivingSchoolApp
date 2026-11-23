@@ -30,7 +30,7 @@
   var UPDATES = [
     { v: "1.2.5", date: "2026年11月", point: "アニメ動画で学べる問題が24問に増え、最初の5問から見られるようになりました。", items: [
       ["新機能", ["左折・右折のしかた、交差点の優先、緊急自動車、安全地帯、トンネルの追越しなど7問の解説にアニメ動画を足し、24問になりました", "解説のアニメ動画は「🔊 声つきで見る」で、解説を声でも聞けます（音は押したときだけ出ます）"]],
-      ["改善", ["「今日の5問」では、まだ解いていないアニメ動画の問題から先に出します", "正解したときも、正しい動きをアニメ動画で確かめられます"]]
+      ["改善", ["「今日の5問」の範囲の一番上に「おすすめ　アニメ動画で学ぶ」を置きました。アニメ動画の問題だけで5問を解けます", "ほかの範囲を選んだときも、その範囲にアニメ動画の問題があれば、まだ解いていないものから先に出します", "正解したときも、正しい動きをアニメ動画で確かめられます"]]
     ], thanks: "ご意見やご報告をくださった皆さま、ありがとうございます！" },
     { v: "1.2.4", date: "2026年11月", point: "解説で、正しい運転の動きをアニメ動画で確かめられるようになりました。", items: [
       ["新機能", ["横断歩道・一時停止・進路変更・追越しなど17問の解説に、正しい運転の動きが分かるアニメ動画を付けました（「もう一度見る」で何度でも）"]],
@@ -1125,7 +1125,7 @@
       // (正式問題投入後、間違い履歴の永続化を追加予定)
       mistakeTotal: mistakes.length, // 復習の進捗表示用（正解して一覧から消えても変化しない当初件数）
       mistakeAll: mistakes.slice(), // 一覧表示用（クリア済みも「クリア」として表示する）
-      kyoshu: s.kyoshu || 0,
+      kyoshu: s.kyoshu || 0, animeOnly: !!s.animeOnly,
       questionIds: s.questions.map(function (q) { return q.id; }), // 「同じ範囲でもう5問」で重ならないように
       askReminder: shouldAskReminder()
     };
@@ -1481,6 +1481,18 @@
     state.session.kyoshu = 3; state.devRealFlow = true; state.devRealSeen = (state.devRealSeen || []).concat(want); saveProgress(); render();
   }
 
+  // 1.2.5：アニメ動画の問題だけで5問（まだ解いていない問題を先に、1問目は代表の問題）
+  function startAnimeSession() {
+    var done = getProgress();
+    var pool = getReviewedQuestions().filter(function (q) { return animeScene(q.id); });
+    if (!pool.length) return;
+    var fresh = shuffle(pool.filter(function (q) { return !done[q.id]; })).sort(function (a, b) { return (b.id === ANIME_LEAD) - (a.id === ANIME_LEAD); });
+    var seen = shuffle(pool.filter(function (q) { return done[q.id]; }));
+    startSession(0); if (!state.session) return;
+    state.session.questions = fresh.concat(seen).slice(0, SESSION_SIZE).map(function (q, idx) { return Object.assign({}, q, withShuffledChoices(q), { _instanceKey: q.id + "_" + idx }); });
+    state.session.animeOnly = true; track("anime_start", { n: pool.length }); saveProgress(); render();
+  }
+
   function startSessionWithIds(ids) {
     var pool = getReviewedQuestions().filter(function (q) { return ids.indexOf(q.id) >= 0; });
     if (!pool.length) return;
@@ -1504,6 +1516,13 @@
       '<h1 class="screen-title">今日の5問</h1>' +
       '<p class="screen-lead">どの範囲を解く？<br>学科教本の教習番号で選べます。</p>' +
       '<nav class="menu-list chapter-list">';
+    // 1.2.5（11/23 あなたの決定）：教習番号1の上に、アニメ動画の問題だけの5問。緑で少しだけ目立たせる
+    var animeN = getReviewedQuestions().filter(function (q) { return animeScene(q.id); }).length;
+    if (animeN) html += '<button class="menu-item menu-item--anime" data-action="start-anime">' +
+      '<span class="menu-icon menu-icon--green chapter-no" aria-hidden="true">▶</span>' +
+      '<span class="menu-body"><span class="menu-title">おすすめ　アニメ動画で学ぶ</span>' +
+      '<span class="menu-sub">' + animeN + '問から5問・正しい動きを動画で</span></span>' +
+      '<span class="menu-chevron" aria-hidden="true">›</span></button>';
     getChapters().forEach(function (c) {
       html += '<button class="menu-item" data-action="start-chapter" data-kyoshu="' + c.kyoshu + '">' +
         '<span class="menu-icon menu-icon--blue chapter-no">' + c.kyoshu + '</span>' +
@@ -2714,7 +2733,7 @@
     ["anime-C009", "新しいアニメ動画：D-C009 左から来る車が優先（解説で正しい動きが動く）", "D-C009"],
     ["anime-C057", "新しいアニメ動画：D-C057 安全地帯に入らない（解説で正しい動きが動く）", "D-C057"],
     ["anime-C035", "新しいアニメ動画：D-C035 緊急自動車（解説で正しい動きが動く）", "D-C035"],
-    ["today5", "ホームの「今日の5問」：まだ解いていないアニメ動画の問題が先に出る", ""],
+    ["today5b", "「今日の5問」の範囲の一番上に緑の「おすすめ　アニメ動画で学ぶ」：押すとアニメ動画の問題だけで5問（まだ解いていない問題から、1問目は D-C005）。結果の「同じ範囲でもう5問」でも続く", ""],
     ["verdict-anime", "正解の画面にも「正しい動きは、こうです。」とアニメ動画が出る", ""],
     ["voice", "🔊 声つきで見る：アニメ動画がもう一度動き、解説の最初の1文を声で読む（24問。設定の下に VOICEVOX:春日部つむぎ の表示）", "D-C005"],
     ["history", "設定の「アップデートの履歴」の 1.2.5 の文", ""]
@@ -2884,6 +2903,9 @@
     if(action.indexOf("mock-")===0){mockAction(action,target);return;}
     if(action.indexOf("dev-")===0){devAction(action,target);return;}
     switch (action) {
+      case "start-anime":
+        startAnimeSession();
+        break;
       case "open-start":
         openStart();
         break;
@@ -2904,7 +2926,8 @@
         break;
       case "start-same-chapter":
         if (state.devRealFlow && isDevMode()) { devRealFlow(true); break; }
-        if (state.lastSession) startSession(state.lastSession.kyoshu || 0, state.lastSession.questionIds);
+        if (state.lastSession && state.lastSession.animeOnly) startAnimeSession();
+        else if (state.lastSession) startSession(state.lastSession.kyoshu || 0, state.lastSession.questionIds);
         else openStart();
         break;
       case "pick-choice":
