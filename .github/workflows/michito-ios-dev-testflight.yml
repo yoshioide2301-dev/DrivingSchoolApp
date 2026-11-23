@@ -31,7 +31,7 @@ jobs:
       ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       BUILD_NUMBER: ${{ github.run_number }}
-      MARKETING_VERSION: "1.2.5"
+      MARKETING_VERSION: "1.2.9"  # 開発版の札だけ。1.2.6（18）より上にしないと TestFlight に出ない（11/24）。中身は 1.2.5 の申請と同じ
       FIREBASE_IOS_PLIST_B64: ${{ secrets.FIREBASE_IOS_PLIST_B64 }}
       MICHITO_DEV: "1"
     steps:
