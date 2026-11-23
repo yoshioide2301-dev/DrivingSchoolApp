@@ -29,7 +29,7 @@
   // 1.2 M-19：アップデートの履歴（ウェザップの型：今回の注目ポイント／【新機能】【改善】【不具合修正】【その他】）。新しい版を出すたびに先頭へ足す
   var UPDATES = [
     { v: "1.2.5", date: "2026年11月", point: "アニメ動画で学べる問題が24問に増え、最初の5問から見られるようになりました。", items: [
-      ["新機能", ["左折・右折のしかた、交差点の優先、緊急自動車、安全地帯、トンネルの追越しなど7問の解説にアニメ動画を足し、24問になりました"]],
+      ["新機能", ["左折・右折のしかた、交差点の優先、緊急自動車、安全地帯、トンネルの追越しなど7問の解説にアニメ動画を足し、24問になりました", "解説のアニメ動画は「🔊 声つきで見る」で、解説を声でも聞けます（音は押したときだけ出ます）"]],
       ["改善", ["「今日の5問」では、まだ解いていないアニメ動画の問題から先に出します", "正解したときも、正しい動きをアニメ動画で確かめられます"]]
     ], thanks: "ご意見やご報告をくださった皆さま、ありがとうございます！" },
     { v: "1.2.4", date: "2026年11月", point: "解説で、正しい運転の動きをアニメ動画で確かめられるようになりました。", items: [
@@ -1717,16 +1717,18 @@
   // 11/22 アニメ動画（ショートと同じ台本の解答の動き）がある問題は、静止の図の代わりに動きで見せる
   function animeScene(id) { return typeof ANIME_SCENES !== "undefined" && typeof AnimeCore !== "undefined" ? ANIME_SCENES[id] : null; }
   function figureHtml(q) {
-    if (animeScene(q.id)) return '<figure class="explain-figure explain-anime" data-anime="' + escapeHtml(q.id) + '"><div class="anime-host" aria-label="正しい動きのアニメ動画"></div><button class="text-link anime-replay" data-action="anime-replay" data-anime-id="' + escapeHtml(q.id) + '">もう一度見る</button></figure>';
+    if (animeScene(q.id)) return '<figure class="explain-figure explain-anime" data-anime="' + escapeHtml(q.id) + '"><div class="anime-host" aria-label="正しい動きのアニメ動画"></div><span class="anime-actions"><button class="text-link anime-replay" data-action="anime-replay" data-anime-id="' + escapeHtml(q.id) + '">もう一度見る</button><button class="text-link anime-voice" data-action="anime-voice" data-anime-id="' + escapeHtml(q.id) + '" aria-label="声つきでもう一度見る">🔊 声つきで見る</button></span></figure>';
     var f = typeof FIGURES_ENABLED !== "undefined" && FIGURES_ENABLED && typeof FIGURES !== "undefined" ? FIGURES[q.id] : null;
     return f ? '<figure class="explain-figure">' + f.svg + "<figcaption>図：" + escapeHtml(f.title) + "</figcaption></figure>" : "";
   }
 
   var animeRuns = [];
+  var lastAnimeView = "";
   function mountAnimes() {
     animeRuns.forEach(function (r) { r.stop = true; }); animeRuns = [];
     [].slice.call(appEl.querySelectorAll("[data-anime]")).forEach(function (fig) {
       var sc = animeScene(fig.getAttribute("data-anime")), host = fig.querySelector(".anime-host"); if (!sc || !host) return;
+      if (lastAnimeView !== sc.id) { lastAnimeView = sc.id; track("anime_view", { id: sc.id }); }  // 1.2.5 どのアニメ動画が見られているか（同じ問題の描き直しは数えない）
       var base = typeof FIGURES !== "undefined" && FIGURES[sc.fig] ? FIGURES[sc.fig].svg : "";
       var A; try { A = AnimeCore.mount(host, base, sc, fig.getAttribute("data-mode") || "a"); } catch (e) { host.innerHTML = base; return; }
       var run = { stop: false, id: sc.id, start: function () { var t0 = null; var self = this;
@@ -2454,6 +2456,7 @@
     html += '<section class="settings-group">';
     html += '<h2 class="settings-label">協力してくださった方へ</h2>';
     html += '<p class="settings-note">テスト版にご参加いただいた皆さまの声をもとに、ミチトはつくられています。心より感謝いたします。</p>';
+    html += '<p class="settings-note">解説のアニメ動画の声（🔊）：VOICEVOX:春日部つむぎ</p>';
     html += '</section>';
 
     html += '<p class="settings-note" data-action="dev-tap">ミチト v' + escapeHtml(APP_VERSION) + '</p>';
@@ -2713,6 +2716,7 @@
     ["anime-C035", "新しいアニメ動画：D-C035 緊急自動車（解説で正しい動きが動く）", "D-C035"],
     ["today5", "ホームの「今日の5問」：まだ解いていないアニメ動画の問題が先に出る", ""],
     ["verdict-anime", "正解の画面にも「正しい動きは、こうです。」とアニメ動画が出る", ""],
+    ["voice", "🔊 声つきで見る：アニメ動画がもう一度動き、解説の最初の1文を声で読む（24問。設定の下に VOICEVOX:春日部つむぎ の表示）", "D-C005"],
     ["history", "設定の「アップデートの履歴」の 1.2.5 の文", ""]
   ] };
   var DEV_REVIEW_KEY = "michito_dev_review_" + DEV_REVIEW.v + "b";
@@ -2825,7 +2829,6 @@
       render({ keepScroll: true }); return;
     }
     if (action === 'dev-off') { setLocal(DEV_KEY, false); render(); return; }
-    if (action === 'anime-replay') { mountAnimes(); return; }
     if (action === 'dev-real-flow') { devRealFlow(false); return; }
     if (action === 'dev-review-back') {
       var from = state.devReviewKey, g = devReviewGet(), keys = DEV_REVIEW.items.map(function (x) { return x[0]; }), i = keys.indexOf(from), next = null;
@@ -2870,6 +2873,14 @@
       state.view='support';render();return;
     }
 
+    // 11/23 もう一度見る・🔊 は開発用の処理の中にあり届いていなかった（描き直しで動いて見えていた）→ ここで受ける
+    if (action === 'anime-replay') { mountAnimes(); track("anime_replay", { id: target.getAttribute("data-anime-id") || "" }); return; }
+    // 1.2.5：🔊 を押したときだけ声（解説の最初の1文、VOICEVOX:春日部つむぎ）。勝手には鳴らさない（11/22 あなたの決定 A）
+    if (action === 'anime-voice') {
+      var vid = target.getAttribute("data-anime-id") || "";
+      try { if (state.animeAudio) state.animeAudio.pause(); state.animeAudio = new Audio("audio/anime/" + vid + ".m4a"); state.animeAudio.play().catch(function () {}); } catch (e) {}
+      mountAnimes(); track("anime_voice", { id: vid }); return;
+    }
     if(action.indexOf("mock-")===0){mockAction(action,target);return;}
     if(action.indexOf("dev-")===0){devAction(action,target);return;}
     switch (action) {
