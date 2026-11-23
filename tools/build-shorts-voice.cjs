@@ -5,6 +5,9 @@
 // クレジット：「VOICEVOX:春日部つむぎ」を動画と投稿の説明に必ず書く（キャラクターの規約）。
 // 使い方: node tools/build-shorts-voice.cjs <出力フォルダ> D-C016 D-C002 ...
 const fs = require('fs'), path = require('path'), os = require('os'), { execFileSync } = require('child_process');
+// 1文目が原則の説明で、1文だけだと答えと逆に聞こえる問題は「ただし」の2文目まで（11/23。tools/anime-voice.cjs と同じ一覧）
+const TWO = ["D-C098", "D-C115"];
+const first = (s, id) => s.split("。").slice(0, TWO.includes(id) ? 2 : 1).join("。") + "。";
 const ROOT = path.join(__dirname, '..');
 const OUT = process.argv[2], IDS = process.argv.slice(3);
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
@@ -86,7 +89,7 @@ const tts1 = async (text, wav) => {
     // 解説の全文と条文は画面に出し、読みたい人は一時停止して読む。最後はフォローのボタンを点滅させ、声は入れない。
     const band = q.band || BAND[id] || '3秒で答えて！';
     const qTop = `<div class="band">${band}</div>`;
-    const ex1 = kana(q, 'explanation').split('。')[0] + '。';
+    const ex1 = first(kana(q, 'explanation'), q.id);
     // 最後：まずプロフィールのリンク（赤で3回点滅）→ 次にフォロー（黄から赤に変わって3回点滅）。10/24 本人の設計
     const endPage = (step, on) => head + `<div class="end2"><div class="sub">500問すべて無料・登録不要</div><div class="sub sub3">答えの理由は、すべて<br>丁寧な解説と、根拠となる条文つき</div></div><div class="cta${step === 1 ? ' red' : ''}${step === 1 && on ? ' on' : ''}"><small class="up">仮免学科対策アプリ『ミチト』は、</small>プロフィールのリンクから<small>iPhone・Android どちらも</small></div><div class="plus">＋</div><div class="cta${step === 2 ? ' red' : ''}${step === 2 && on ? ' on' : ''}"><small class="up">毎日出題するので</small>フォローしてね</div><div class="credit">VOICEVOX:春日部つむぎ</div>`;
     const scenes = [
@@ -94,7 +97,7 @@ const tts1 = async (text, wav) => {
       { html: head + qTop + qCard(q) + '<div class="cd"><b>3</b></div>', sfx: tick, min: 0.6 },
       { html: head + qTop + qCard(q) + '<div class="cd"><b>2</b></div>', sfx: tick, min: 0.6 },
       { html: head + qTop + qCard(q) + '<div class="cd"><b>1</b></div>', sfx: tick, min: 0.6 },
-      { html: head + `<div class="card"><div class="ans"><span class="mark" style="color:${ans === '○' ? '#0E7C86' : '#F0436F'};font-size:${ans === '○' ? 160 : 230}px">${ans}</span><span class="tag">答え</span></div><div class="e">${esc(q.explanation.split('。')[0] + '。')}</div><div class="law"><small>根拠の条文</small>${esc(q.ref)}</div>${q.notInApp ? '' : '<div class="more">理由の続き・図解・条文の全文は<br>アプリで →</div>'}</div>`, say: '答えは、' + ansSay + '。' + ex1, pre: chime, min: 3, answer: true },
+      { html: head + `<div class="card"><div class="ans"><span class="mark" style="color:${ans === '○' ? '#0E7C86' : '#F0436F'};font-size:${ans === '○' ? 160 : 230}px">${ans}</span><span class="tag">答え</span></div><div class="e">${esc(first(q.explanation, q.id))}</div><div class="law"><small>根拠の条文</small>${esc(q.ref)}</div>${q.notInApp ? '' : '<div class="more">理由の続き・図解・条文の全文は<br>アプリで →</div>'}</div>`, say: '答えは、' + ansSay + '。' + ex1, pre: chime, min: 3, answer: true },
       { html: endPage(1, 1), say: '仮免学科対策アプリ、ミチトは、プロフィールのリンクから。', min: 0.35 }, { html: endPage(1, 0), min: 0.3 }, { html: endPage(1, 1), min: 0.3 }, { html: endPage(1, 0), min: 0.3 }, { html: endPage(1, 1), min: 0.3 }, { html: endPage(2, 1), say: '毎日出題するので、フォローしてね。', min: 0.35 }, { html: endPage(2, 0), min: 0.3 }, { html: endPage(2, 1), min: 0.3 }, { html: endPage(2, 0), min: 0.3 }, { html: endPage(2, 1), min: 0.6, end: true }
     ];
     const parts = [];

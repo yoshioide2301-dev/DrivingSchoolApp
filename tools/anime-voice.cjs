@@ -11,12 +11,15 @@ const qs = eval(src.slice(src.indexOf('['), src.lastIndexOf(']') + 1));
 const FURIGANA = load('questions/furigana.js', 'FURIGANA'), SCENES = load('questions/anime.js', 'ANIME_SCENES');
 const yomi = s => s.replace(/km\/h/g, 'キロ').replace(/(\d+(?:\.\d+)?)m/g, '$1メートル').replace(/○/g, 'マル').replace(/×/g, 'バツ');
 const kana = (q, field) => { const r = FURIGANA[q.id] && FURIGANA[q.id][field]; const s = r && r.replace(/《[^》]*》/g, '') === q[field] ? r.replace(/([一-鿿々〆ヶ]+)《([^》]*)》/g, '$2') : q[field]; return yomi(s); };
+// 1文目が原則の説明で、1文だけだと答えと逆に聞こえる問題は「ただし」の2文目まで読む（11/23。ショートの build-shorts-voice.cjs と同じ一覧）
+const TWO = ["D-C098", "D-C115"];
+const first = (s, id) => s.split("。").slice(0, TWO.includes(id) ? 2 : 1).join("。") + "。";
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SCENES);
 (async () => {
   fs.mkdirSync(OUT, { recursive: true }); const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'av-')); const list = [];
   for (const id of ids) {
     const q = qs.find(x => x.id === id); if (!q) { console.log('見つからない', id); continue; }
-    const text = kana(q, 'explanation').split('。')[0] + '。';
+    const text = first(kana(q, 'explanation'), id);
     const aq = await (await fetch(VV + '/audio_query?speaker=' + SPEAKER + '&text=' + encodeURIComponent(text), { method: 'POST' })).json();
     aq.speedScale = SPEED; aq.outputSamplingRate = 44100; aq.prePhonemeLength = 0.1; aq.postPhonemeLength = 0.2;
     const r = await fetch(VV + '/synthesis?speaker=' + SPEAKER, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(aq) });
@@ -24,5 +27,9 @@ const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(S
     execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', wav, '-ac', '1', '-c:a', 'aac', '-b:a', '64k', path.join(OUT, id + '.m4a')]);
     list.push(id + '\t' + text); console.log(id, text);
   }
-  fs.writeFileSync(path.join(OUT, '読み上げの文.txt'), list.join('\n') + '\n');
+  // 一部の ID だけ作り直したときも、一覧は全体を保つ（11/23）
+  const lf = path.join(OUT, '読み上げの文.txt'), old = {};
+  if (fs.existsSync(lf)) fs.readFileSync(lf, 'utf8').split(/\r?\n/).filter(Boolean).forEach(l => { old[l.split('\t')[0]] = l; });
+  list.forEach(l => { old[l.split('\t')[0]] = l; });
+  fs.writeFileSync(lf, Object.keys(SCENES).filter(id => old[id]).map(id => old[id]).join('\n') + '\n');
 })();
