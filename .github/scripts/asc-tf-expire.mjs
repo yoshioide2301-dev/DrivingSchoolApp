@@ -1,10 +1,11 @@
 // TestFlight の古いビルドを期限切れにする（あなたの OK があったものだけ。11/11 作成：1.3（29）が 1.2.2 より上に出ていた件）
 // タグ asc-tf-expire-<版>-<ビルド番号>（例 asc-tf-expire-1.3-29）。版とビルド番号の両方が合うときだけ期限切れにする。
 import crypto from 'node:crypto';
-const BUNDLE_ID = 'com.yoshioide2301.michito';
-const m = (process.env.GITHUB_REF_NAME || '').match(/^asc-tf-expire-([\d.]+)-(\d+)$/);
+// 11/24：開発版（ミチト開発）は asc-tf-expire-dev-<版>-<ビルド番号>。dev のときは、まず期限切れでない組み立ての一覧を出す。
+const m = (process.env.GITHUB_REF_NAME || '').match(/^asc-tf-expire-(dev-)?([\d.]+)-(\d+)$/);
 if (!m) { console.log('タグの形が違うので何もしない'); process.exit(0); }
-const [, VER, NUM] = m;
+const [, DEV, VER, NUM] = m;
+const BUNDLE_ID = DEV ? 'com.yoshioide2301.michito.dev' : 'com.yoshioide2301.michito';
 const b64 = b => Buffer.from(b).toString('base64url');
 function token() {
   const now = Math.floor(Date.now() / 1000);
@@ -19,6 +20,13 @@ async function api(method, path, data) {
 }
 const app = await api('GET', '/v1/apps?filter[bundleId]=' + BUNDLE_ID);
 const appId = app.json.data[0].id;
+if (DEV) {
+  const all = await api('GET', '/v1/builds?filter[app]=' + appId + '&filter[expired]=false&include=preReleaseVersion&limit=50');
+  const pv = {}; for (const x of (all.json.included || [])) pv[x.id] = x.attributes.version;
+  console.log('ミチト開発の期限切れでない組み立て：');
+  for (const x of all.json.data) console.log('  ' + (pv[x.relationships.preReleaseVersion.data?.id] || '?') + '（' + x.attributes.version + '） ' + x.attributes.uploadedDate);
+  if (VER === '0') process.exit(0);  // 一覧だけ（asc-tf-expire-dev-0-0）
+}
 const b = await api('GET', '/v1/builds?filter[app]=' + appId + '&filter[version]=' + NUM + '&filter[preReleaseVersion.version]=' + VER + '&limit=2');
 if (!b.ok || b.json.data.length !== 1) { console.log('版 ' + VER + '（' + NUM + '）がちょうど1つ見つからないので何もしない'); process.exit(1); }
 const id = b.json.data[0].id;
