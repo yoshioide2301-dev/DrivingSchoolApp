@@ -30,8 +30,11 @@ async function api(method, path, data) {
 const say = (...a) => console.log(...a);
 
 const apps = await api('GET', '/v1/apps?filter[bundleId]=com.yoshioide2301.michito');
-const app = apps.json && apps.json.data[0];
-if (!app) { say('ミチトが見つからない'); process.exit(1); }
+// 11/24：filter は「ミチト開発」（…michito.dev）も返すため、識別名が完全に一致する本番だけを選ぶ。開発用なら止める
+const app = apps.json && apps.json.data.find(a => a.attributes.bundleId === 'com.yoshioide2301.michito');
+if (!app) { say('ミチト（本番）が見つからない'); process.exit(1); }
+if (/開発/.test(app.attributes.name || '')) { say('相手が開発用のアプリなので止める', app.attributes.name); process.exit(1); }
+say('アプリ：', app.attributes.name, app.attributes.bundleId, app.id);
 const appId = app.id;
 say('アプリ：見つかった', 'contentRightsDeclaration=' + app.attributes.contentRightsDeclaration);
 
