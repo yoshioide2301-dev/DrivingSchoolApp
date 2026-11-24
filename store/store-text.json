@@ -8,10 +8,10 @@
   "privacyPolicyUrl": "https://yoshioide2301-dev.github.io/DrivingSchoolApp/privacy.html",
   "supportUrl": "https://yoshioide2301-dev.github.io/DrivingSchoolApp/privacy.html",
   "copyright": "2026 Yoshio Ide",
-  "versionString": "1.2.4",
-  "buildNumber": 37,
+  "versionString": "1.2.5",
+  "buildNumber": 38,
   "primaryCategory": "EDUCATION",
   "secondaryCategory": "REFERENCE",
   "reviewNotes": "Michito is an independent study app for the Japanese provisional driving licence written test. It contains 500 original true/false practice questions. Each question is written from the text of Japanese traffic laws (Road Traffic Act, its Enforcement Order and Regulations, and the Order on Road Signs and Markings), and the legal basis is shown under each explanation. Features: five questions at a time by lesson range, a 50-question 30-minute mock exam with scoring and a score chart, a review list of incorrectly answered questions, a list of road signs, and simple diagrams for some questions. No account or login is required. Learning records are saved on the device. The app sends anonymous usage analytics, crash reports and performance data through Google Firebase (screens opened, question numbers with correct/incorrect results; no question text, chosen answers, memos, names or IDFA, and no tracking). Users can turn this off in Settings under the usage analytics item. The optional feedback screen only opens the user's own mail app with a pre-filled message; nothing is sent unless the user sends the e-mail. Apart from this analytics and a version check against the public App Store lookup, the app does not access the network. It is not affiliated with any driving school, the police, or the examination authority.\n\nVersion 1.2.2: adds an optional daily study reminder using local notifications only (no server, no push). It is off by default; the app asks only after the user finishes a 5-question set, and the time can be changed or turned off in Settings.",
-  "whatsNew": "今回の注目ポイント：\n解説で、正しい運転の動きをアニメ動画で確かめられるようになりました。\n\n【新機能】\n・横断歩道・一時停止・進路変更・追越しなど17問の解説に、正しい運転の動きが分かるアニメ動画を付けました（「もう一度見る」で何度でも）\n\n【改善】\n・これまでの図の線をなめらかにし、文字は道路の外の白い札にまとめて見やすくしました。自分の車には「あなた」と表示します\n・横断歩道の手前の追抜きの問題の解説に、根拠の条文（道路交通法 第38条第3項）を足しました\n・結果の画面の「使い心地を伝える」を見つけやすくしました\n\nご意見やご報告をくださった皆さま、ありがとうございます！"
+  "whatsNew": "今回の注目ポイント：\nアニメ動画で学べる問題が24問に増え、最初の5問から見られるようになりました。\n\n【新機能】\n・左折・右折のしかた、交差点の優先、緊急自動車、安全地帯、トンネルの追越しなど7問の解説にアニメ動画を足し、24問になりました\n・解説のアニメ動画は「🔊 声つきで見る」で、解説を声でも聞けます（音は押したときだけ出ます）\n\n【改善】\n・「今日の5問」の範囲の一番上に「おすすめ　アニメ動画で学ぶ」を置きました。アニメ動画の問題だけで5問を解けます\n・ほかの範囲を選んだときも、その範囲にアニメ動画の問題があれば、まだ解いていないものから先に出します\n・正解したときも、正しい動きをアニメ動画で確かめられます\n\nご意見やご報告をくださった皆さま、ありがとうございます！"
 }
