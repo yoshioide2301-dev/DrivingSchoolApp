@@ -28,7 +28,7 @@ async function all(label, path) {
   return data;
 }
 const apps = await call('アプリ', '/v1/apps?filter[bundleId]=com.yoshioide2301.michito&fields[apps]=bundleId,name');
-const id = apps && apps.data[0] && apps.data[0].id;
+const id = apps && (apps.data.find(a => a.attributes && a.attributes.bundleId === 'com.yoshioide2301.michito') || {}).id; // 11/24：filter は「ミチト開発」（.dev）も返すため完全一致で本番を選ぶ
 if (!id) { console.log('ミチトが見つからないので止めます'); process.exit(1); }
 
 // ── TestFlight ──
