@@ -31,7 +31,7 @@ jobs:
       ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       BUILD_NUMBER: ${{ github.run_number }}
-      MARKETING_VERSION: "1.2.6"  # 11/24 あなたの決定：開発版は本番と同じ版数
+      MARKETING_VERSION: "1.2.7"  # 11/24 あなたの決定：開発版は本番と同じ版数
       FIREBASE_IOS_PLIST_B64: ${{ secrets.FIREBASE_IOS_PLIST_B64 }}
       MICHITO_DEV: "1"
     steps:

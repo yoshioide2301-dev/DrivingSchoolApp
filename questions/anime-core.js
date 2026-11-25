@@ -25,6 +25,7 @@
     });
   }
   function mount(host, svgText, scene, mode) {
+    if (scene.kind === "card") return mountCard(host, scene, mode);   // 11/25 C 段（制度・数字のカード）は別の描き方。車の動きの問題には関係しない
     host.innerHTML = scene.svg || svgText; var svg = host.querySelector("svg"), log = [], S = scene[mode] || {};
     strip(svg, (scene.strip || {})[mode], log);
     // 自分の車：元の車と「あなた」の札を消し、動く車と札を描き直す
@@ -76,6 +77,64 @@
     }
     seek(0);
     return { seek: seek, dur: dur, log: log, svg: svg };
+  }
+  // 11/25 C 段：制度・数字・書類の問題のカード型。台本の例（a）：
+  //  {"kind":"card","a":{"dur":6.5,"title":"仮免で練習するときは？","seats":{"left":"指導者","right":"練習する人","hl":"left","t":[1,2.2]},
+  //   "cards":[{"t":1.4,"text":"第一種免許を 通算3年以上","em":"3年"}],"ref":"道路交通法 第87条第2項","refT":4.4,"band":{"t":4.8,"text":"○ 指導者を横に乗せて","kind":"ok"}}}
+  //  座席は日本の車（運転席が右）。right＝運転者席、left＝助手席。文は解説の文から取り、新しい事実は足さない。
+  function mountCard(host, scene, mode) {
+    var S = scene[mode] || {}, cl = function (x) { return Math.max(0, Math.min(1, x)); }, eo = function (x) { return 1 - Math.pow(1 - cl(x), 3); };
+    host.innerHTML = '<svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif"></svg>';
+    var svg = host.querySelector("svg"), dur = S.dur || 6, items = [];
+    el("rect", { x: 0, y: 0, width: 320, height: 200, fill: "#F4F8FB" }, svg);
+    var tt = el("text", { x: 160, y: 24, "font-size": S.titleSize || 15, "font-weight": 900, fill: "#123", "text-anchor": "middle" }, svg); tt.textContent = S.title || "";
+    var seat = S.seats, mk2 = S.marks, sg = S.sign || S.signSvg, cx = (seat || mk2 || sg) ? 118 : 20, cw = (seat || mk2 || sg) ? 192 : 280;
+    if (sg) {   // 11/25 B 段：標識を左に大きく（sign＝アプリの signs/color の絵のパス、signSvg＝100×100 の中に描いた絵。数字を問題に合わせるとき）
+      var sgG = el("g", {}, svg), box;
+      if (S.signSvg) { box = el("svg", { x: 18, y: 42, width: 90, height: 90, viewBox: "0 0 100 100" }, sgG); box.innerHTML = S.signSvg; }
+      else el("image", { x: 18, y: 42, width: 90, height: 90, href: S.signSrc || S.sign }, sgG);
+      if (S.signName) { var sn = el("text", { x: 63, y: 150, "font-size": Math.min(11, 96 / S.signName.length), "font-weight": 800, fill: "#123", "text-anchor": "middle" }, sgG); sn.textContent = S.signName; }
+      items.push(function (t) { var k = eo((t - (S.signT || 0.3)) / 0.5), sc = 0.7 + 0.3 * k + (S.signPulse && t > S.signPulse[0] && t < S.signPulse[1] ? 0.06 * Math.sin(t * 8) : 0); sgG.setAttribute("opacity", k); sgG.setAttribute("transform", "translate(63 87) scale(" + sc + ") translate(-63 -87)"); });
+    }
+    if (mk2) {   // 11/25 上から見た車（上が前）の前と後ろに札が付く（標識の絵柄は描かず、名前の文字で示す）
+      var mg2 = el("g", {}, svg);
+      el("rect", { x: 33, y: 52, width: 60, height: 92, rx: 16, fill: "#0E7C86" }, mg2); el("rect", { x: 41, y: 66, width: 44, height: 18, rx: 4, fill: "#fff", opacity: ".85" }, mg2);
+      var ft = el("text", { x: 63, y: 48, "font-size": 9, "font-weight": 800, fill: "#567", "text-anchor": "middle" }, mg2); ft.textContent = "前";
+      var rt2 = el("text", { x: 63, y: 158, "font-size": 9, "font-weight": 800, fill: "#567", "text-anchor": "middle" }, mg2); rt2.textContent = "後ろ";
+      items.push(function (t) { var k = eo((t - 0.3) / 0.5); mg2.setAttribute("opacity", k); });
+      [["front", 56], ["rear", 128]].forEach(function (a) { var m = mk2[a[0]]; if (!m) return; var g = el("g", {}, svg), w = m.text.length * 8 + 10;
+        el("rect", { x: 63 - w / 2, y: a[1] - 9, width: w, height: 16, rx: 4, fill: "#FFE07A", stroke: "#E0A800", "stroke-width": 1.5 }, g);
+        var tx = el("text", { x: 63, y: a[1] + 3, "font-size": 8, "font-weight": 900, fill: "#432", "text-anchor": "middle" }, g); tx.textContent = m.text;
+        items.push(function (t) { var k = eo((t - m.t) / 0.35), sc = 0.6 + 0.4 * k; g.setAttribute("opacity", k); g.setAttribute("transform", "translate(63 " + a[1] + ") scale(" + sc + ") translate(-63 " + (-a[1]) + ")"); }); });
+    }
+    if (seat) {
+      var cg = el("g", {}, svg);
+      el("rect", { x: 20, y: 40, width: 86, height: 108, rx: 18, fill: "#fff", stroke: "#33AA66", "stroke-width": 3 }, cg);
+      var mk = function (x, txt, on) { var g = el("g", {}, cg), r = el("rect", { x: x, y: 64, width: 30, height: 34, rx: 8, fill: on ? "#FFE07A" : "#DDDDEE", stroke: on ? "#E0A800" : "none", "stroke-width": 2 }, g);
+        txt.split("\n").forEach(function (s, i, a) { var t = el("text", { x: x + 15, y: 81 - (a.length - 1) * 5.5 + i * 11 + 3.5, "font-size": 9.5, "font-weight": 800, fill: "#334", "text-anchor": "middle" }, g); t.textContent = s; }); return g; };
+      var gl = mk(28, seat.left || "", seat.hl === "left"), gr = mk(64, seat.right || "", seat.hl === "right");
+      var lb = el("text", { x: 63, y: 140, "font-size": 9.5, "font-weight": 800, fill: "#33AA66", "text-anchor": "middle" }, cg); lb.textContent = seat.caption || "運転者席の横に";
+      var hg = seat.hl === "left" ? gl : seat.hl === "right" ? gr : null, hx = seat.hl === "left" ? 43 : 79;
+      items.push(function (t) { var k = eo((t - 0.3) / 0.5); cg.setAttribute("opacity", k); cg.setAttribute("transform", "translate(0 " + (1 - k) * 20 + ")");
+        if (hg) { var w = seat.t || [1, 2.2], on = t > w[0] && t < w[1], sc = on ? 1 + 0.12 * (0.5 + 0.5 * Math.sin(t * 8)) : 1; hg.setAttribute("transform", "translate(" + hx + " 81) scale(" + sc + ") translate(" + (-hx) + " -81)"); } });
+    }
+    (S.cards || []).forEach(function (c, i) {
+      var y = (S.cardTop || 40) + i * (S.cardGap || 40), g = el("g", {}, svg), txt = c.text, n = txt.length, fs = Math.min(c.size || 12, (cw - 18) / (n + 1));
+      el("rect", { x: cx, y: y, width: cw, height: 34, rx: 8, fill: c.ng ? "#FFF0F2" : "#fff", stroke: c.ng ? "#E5243B" : "#9DB7D5", "stroke-width": 2 }, g);
+      var t = el("text", { x: cx + 9, y: y + 17 + fs * 0.36, "font-size": fs, "font-weight": 800, fill: "#123" }, g), em = c.em || "", k0 = em ? txt.indexOf(em) : -1;
+      var part = function (s, red) { if (!s) return; var sp = el("tspan", red ? { fill: "#D00033", "font-size": fs * 1.25, "font-weight": 900 } : {}, t); sp.textContent = s; };
+      if (k0 >= 0) { part(txt.slice(0, k0)); part(em, true); part(txt.slice(k0 + em.length)); } else part(txt);
+      items.push(function (tm) { var k = eo((tm - c.t) / 0.45); g.setAttribute("opacity", k); g.setAttribute("transform", "translate(" + (1 - k) * 40 + " 0)"); });
+    });
+    if (S.big) { var bgt = el("text", { x: 0, y: 0, "font-size": S.big.size || 34, "font-weight": 900, fill: S.big.color || "#D00033", "text-anchor": "middle" }, svg); bgt.textContent = S.big.text;   // 冒頭の大きな問い（ショートの q 用）
+      items.push(function (t) { var k = eo((t - (S.big.t || 0.2)) / 0.4), sc = k * (1 + 0.06 * Math.sin(t * 7)); bgt.setAttribute("opacity", k); bgt.setAttribute("transform", "translate(" + (S.big.x || 160) + " " + (S.big.y || 112) + ") scale(" + sc + ")"); }); }
+    if (S.ref) { var rf = el("text", { x: 312, y: 162, "font-size": 9.5, fill: "#567", "text-anchor": "end" }, svg); rf.textContent = "根拠：" + S.ref; var rt = S.refT != null ? S.refT : dur - 2; items.push(function (t) { rf.setAttribute("opacity", eo((t - rt) / 0.4)); }); }
+    if (S.band) { var bg = el("g", {}, svg), col = S.band.kind === "ng" ? "#C8102E" : "#1F6FB2";
+      el("rect", { x: 0, y: 170, width: 320, height: 30, fill: col }, bg); var bt = el("text", { x: 160, y: 190, "font-size": Math.min(13, 300 / (S.band.text.length + 1)), "font-weight": 900, fill: "#fff", "text-anchor": "middle" }, bg); bt.textContent = S.band.text;
+      items.push(function (t) { bg.setAttribute("transform", "translate(0 " + (1 - eo((t - S.band.t) / 0.4)) * 30 + ")"); }); }
+    function seek(t) { items.forEach(function (f) { f(t); }); return { me: null, label: null, tags: [] }; }
+    seek(0);
+    return { seek: seek, dur: dur, log: [], svg: svg };
   }
   G.AnimeCore = { mount: mount };
 })(typeof window !== "undefined" ? window : this);

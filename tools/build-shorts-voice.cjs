@@ -6,7 +6,7 @@
 // 使い方: node tools/build-shorts-voice.cjs <出力フォルダ> D-C016 D-C002 ...
 const fs = require('fs'), path = require('path'), os = require('os'), { execFileSync } = require('child_process');
 // 1文目が原則の説明で、1文だけだと答えと逆に聞こえる問題は「ただし」の2文目まで（11/23。tools/anime-voice.cjs と同じ一覧）
-const TWO = ["D-C098", "D-C115"];
+const TWO = ["D-C098", "D-C115", "D-C023"];   // 11/25 D-C023 を追加（1文目だけでは答えが伝わらない）
 const first = (s, id) => s.split("。").slice(0, TWO.includes(id) ? 2 : 1).join("。") + "。";
 const ROOT = path.join(__dirname, '..');
 const OUT = process.argv[2], IDS = process.argv.slice(3);

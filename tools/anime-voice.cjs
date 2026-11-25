@@ -12,7 +12,7 @@ const FURIGANA = load('questions/furigana.js', 'FURIGANA'), SCENES = load('quest
 const yomi = s => s.replace(/km\/h/g, 'キロ').replace(/(\d+(?:\.\d+)?)m/g, '$1メートル').replace(/○/g, 'マル').replace(/×/g, 'バツ');
 const kana = (q, field) => { const r = FURIGANA[q.id] && FURIGANA[q.id][field]; const s = r && r.replace(/《[^》]*》/g, '') === q[field] ? r.replace(/([一-鿿々〆ヶ]+)《([^》]*)》/g, '$2') : q[field]; return yomi(s); };
 // 1文目が原則の説明で、1文だけだと答えと逆に聞こえる問題は「ただし」の2文目まで読む（11/23。ショートの build-shorts-voice.cjs と同じ一覧）
-const TWO = ["D-C098", "D-C115"];
+const TWO = ["D-C098", "D-C115", "D-C023"];   // 11/25 D-C023 を追加（1文目だけでは答えが伝わらない）
 const first = (s, id) => s.split("。").slice(0, TWO.includes(id) ? 2 : 1).join("。") + "。";
 const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SCENES);
 (async () => {
