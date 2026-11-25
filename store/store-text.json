@@ -8,10 +8,10 @@
   "privacyPolicyUrl": "https://yoshioide2301-dev.github.io/DrivingSchoolApp/privacy.html",
   "supportUrl": "https://yoshioide2301-dev.github.io/DrivingSchoolApp/privacy.html",
   "copyright": "2026 Yoshio Ide",
-  "versionString": "1.2.6",
-  "buildNumber": 40,
+  "versionString": "1.2.7",
+  "buildNumber": 41,
   "primaryCategory": "EDUCATION",
   "secondaryCategory": "REFERENCE",
   "reviewNotes": "Michito is an independent study app for the Japanese provisional driving licence written test. It contains 500 original true/false practice questions. Each question is written from the text of Japanese traffic laws (Road Traffic Act, its Enforcement Order and Regulations, and the Order on Road Signs and Markings), and the legal basis is shown under each explanation. Features: five questions at a time by lesson range, a 50-question 30-minute mock exam with scoring and a score chart, a review list of incorrectly answered questions, a list of road signs, and simple diagrams for some questions. No account or login is required. Learning records are saved on the device. The app sends anonymous usage analytics, crash reports and performance data through Google Firebase (screens opened, question numbers with correct/incorrect results; no question text, chosen answers, memos, names or IDFA, and no tracking). Users can turn this off in Settings under the usage analytics item. The optional feedback screen only opens the user's own mail app with a pre-filled message; nothing is sent unless the user sends the e-mail. Apart from this analytics and a version check against the public App Store lookup, the app does not access the network. It is not affiliated with any driving school, the police, or the examination authority.\n\nVersion 1.2.2: adds an optional daily study reminder using local notifications only (no server, no push). It is off by default; the app asks only after the user finishes a 5-question set, and the time can be changed or turned off in Settings.",
-  "whatsNew": "今回の注目ポイント：\nアニメ動画で学べる問題が30問に増えました。\n\n【新機能】\n・踏切の一時停止、路面電車の横を通るとき、一方通行での緊急自動車、歩道を横切るとき、追越しではみ出せる道路など6問の解説にアニメ動画を足し、30問になりました\n\n【改善】\n・「左折するときは左に寄る」問題のアニメ動画で、寄せた車が歩道にはみ出して見えないよう、動きを直しました\n\nご意見やご報告をくださった皆さま、ありがとうございます！"
+  "whatsNew": "今回の注目ポイント：\nアニメ動画で学べる問題が50問に増えました（500問の1割）。\n\n【新機能】\n・車線の通り方・進路変更・道路の中央・工事のときのはみ出し・状況に応じた速度など、運転の動きの問題6問の解説にアニメ動画を足しました\n・徐行の意味・仮免許の練習のしかた・免許の種類・歩行者の扱いなど、決まりや数字を覚える問題と、標識の問題の解説に、要点が順に出るアニメ動画を足しました（あわせて14問）\n・どちらも「声つきで見る」で、解説の最初の文を声で聞けます\n\nご意見やご報告をくださった皆さま、ありがとうございます！"
 }
