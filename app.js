@@ -2737,11 +2737,9 @@
   // 1.2.6 の確認一覧は枝 michito/v1.3（組み立て23）
   // 1.2.7 の24項目は 11/25 15:07 のあなたの確認で21 OK、指摘3を直した再確認
   var DEV_REVIEW = { v: "1.2.7", items: [
-    ["re-C051", "直した D-C051：中央線が道幅の真ん中より右にずれた道路。左に2車線、あなたの車は左の車線、右の車線に「ここも左側部分」", "D-C051"],
-    ["re-C174", "直した D-C174：車の前と後ろに仮免許練習標識そのもの（白地に黒字、上に小さく「仮免許」・下に大きく「練習中」）", "D-C174"],
-    ["re-N037", "直した D-N037：車の前と後ろに聴覚障害者標識そのもの（緑の円に黄色の蝶）", "D-N037"]
+    ["re2-C051", "直した D-C051 の解説2文目：「中央線が道路の幅の真ん中からずれていても、その中央線を基準に左側の部分を通行します。」と、動画の最後の一言「ずれていても、中央線を基準に左側を通る」", "D-C051"]
   ] };
-  var DEV_REVIEW_KEY = "michito_dev_review_" + DEV_REVIEW.v + "e";
+  var DEV_REVIEW_KEY = "michito_dev_review_" + DEV_REVIEW.v + "f";
   function devReviewGet() { var g = getLocal(DEV_REVIEW_KEY, null); return g && typeof g === "object" ? g : {}; }
   function devReviewText() {
     var g = devReviewGet(), lines = ["【ミチト開発の確認】" + DEV_REVIEW.v];
