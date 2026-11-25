@@ -5,6 +5,7 @@ name: Michito ASC report
 on:
   schedule:
     - cron: "23 17 * * *"
+    - cron: "47 20 * * *"   # 11/25 予備：GitHub が 2:23 の回を飛ばしても朝の報告に間に合うよう、5:47 にもう1回（11/24 の回が丸ごと来なかった件）
   push:
     tags:
       - "asc-report-*"
