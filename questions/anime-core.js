@@ -95,6 +95,7 @@
       else el("image", { x: 18, y: 42, width: 90, height: 90, href: S.signSrc || S.sign }, sgG);
       if (S.signName) { var sn = el("text", { x: 63, y: 150, "font-size": Math.min(11, 96 / S.signName.length), "font-weight": 800, fill: "#123", "text-anchor": "middle" }, sgG); sn.textContent = S.signName; }
       items.push(function (t) { var k = eo((t - (S.signT || 0.3)) / 0.5), sc = 0.7 + 0.3 * k + (S.signPulse && t > S.signPulse[0] && t < S.signPulse[1] ? 0.06 * Math.sin(t * 8) : 0); sgG.setAttribute("opacity", k); sgG.setAttribute("transform", "translate(63 87) scale(" + sc + ") translate(-63 -87)"); });
+      if (S.signBlink && box) items.push(function (t) { var e = box.querySelector("#blink"); if (e) e.setAttribute("opacity", t > S.signBlink && Math.floor((t - S.signBlink) * 2.5) % 2 ? 0.12 : 1); });   // 11/25 信号の点滅（signSvg の中の #blink を点滅させる）
     }
     if (mk2) {   // 11/25 上から見た車（上が前）の前と後ろに札が付く（標識の絵柄は描かず、名前の文字で示す）
       var mg2 = el("g", {}, svg);

@@ -2741,9 +2741,9 @@
   // 1.2.7 の確認一覧は枝 michito/v1.2.7
   // 1.2.8（27）は 11/25 16:18 のあなたの確認で7 OK、D-M027 は当たり前すぎる→D-C155 に差し替え
   var DEV_REVIEW = { v: "1.2.8", items: [
-    ["swap-C155", "D-M027（青信号の歩行者）の代わりの新しいアニメ動画：D-C155 歩行者用信号の青の点滅、急げば渡り切れるなら始めてよい？（声つきで見るも）", "D-C155"]
+    ["swap-C155", "D-M027（青信号の歩行者）の代わりの新しいアニメ動画：D-C155 歩行者用信号の青の点滅：横断歩道の先の歩行者用信号機で青が点滅する絵を左に足した（あなたの指摘）", "D-C155"]
   ] };
-  var DEV_REVIEW_KEY = "michito_dev_review_" + DEV_REVIEW.v + "db";
+  var DEV_REVIEW_KEY = "michito_dev_review_" + DEV_REVIEW.v + "dc";
   function devReviewGet() { var g = getLocal(DEV_REVIEW_KEY, null); return g && typeof g === "object" ? g : {}; }
   function devReviewText() {
     var g = devReviewGet(), lines = ["【ミチト開発の確認】" + DEV_REVIEW.v];
