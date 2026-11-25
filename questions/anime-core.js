@@ -103,6 +103,9 @@
       var rt2 = el("text", { x: 63, y: 158, "font-size": 9, "font-weight": 800, fill: "#567", "text-anchor": "middle" }, mg2); rt2.textContent = "後ろ";
       items.push(function (t) { var k = eo((t - 0.3) / 0.5); mg2.setAttribute("opacity", k); });
       [["front", 56], ["rear", 128]].forEach(function (a) { var m = mk2[a[0]]; if (!m) return; var g = el("g", {}, svg), w = m.text.length * 8 + 10;
+        // 11/26 m.svg があれば、名前の札の代わりに標識の絵そのもの（様式どおりに描いた絵、m.vb の座標）を置く（あなたの 1.2.7 の指摘）
+        if (m.svg) { var bw = m.w || 34, bh = m.h || 20, cy2 = a[1] + (a[0] === "front" ? 9 : -6), box2 = el("svg", { x: 63 - bw / 2, y: cy2 - bh / 2, width: bw, height: bh, viewBox: m.vb || "0 0 100 100" }, g); box2.innerHTML = m.svg;
+          items.push(function (t) { var k = eo((t - m.t) / 0.35), sc = 0.6 + 0.4 * k; g.setAttribute("opacity", k); g.setAttribute("transform", "translate(63 " + a[1] + ") scale(" + sc + ") translate(-63 " + (-a[1]) + ")"); }); return; }
         el("rect", { x: 63 - w / 2, y: a[1] - 9, width: w, height: 16, rx: 4, fill: "#FFE07A", stroke: "#E0A800", "stroke-width": 1.5 }, g);
         var tx = el("text", { x: 63, y: a[1] + 3, "font-size": 8, "font-weight": 900, fill: "#432", "text-anchor": "middle" }, g); tx.textContent = m.text;
         items.push(function (t) { var k = eo((t - m.t) / 0.35), sc = 0.6 + 0.4 * k; g.setAttribute("opacity", k); g.setAttribute("transform", "translate(63 " + a[1] + ") scale(" + sc + ") translate(-63 " + (-a[1]) + ")"); }); });
