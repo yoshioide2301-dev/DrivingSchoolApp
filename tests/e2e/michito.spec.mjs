@@ -57,10 +57,9 @@ test('2 出題は500問ちょうどで、画面にも500問と出る', async ({ 
   await act(page, 'open-start');
   await expect(page.getByText('500問から5問').first()).toBeVisible();
 });
-test('3 開発用メニューの「最近直した」と「外した問題」が問題データと一致', async ({ page }) => {
+// 11/22 から「最近直した」の一覧は「この版の確認」に置き換わったので、「外した問題」だけを確かめる（11/26）
+test('3 開発用メニューの「外した問題」が問題データと一致', async ({ page }) => {
   await dev(page);
-  await page.locator('[data-preset="latest"]').click(); expect(await devIds(page)).toEqual(latest);
-  await settings(page); // 一覧の画面から設定へ戻ってから、もう一つの一覧を開く
   await page.locator('[data-preset="excluded"]').click(); expect(await devIds(page)).toEqual(excluded);
 });
 test('4 外した問題は普段の5問にも模試にも出ない', async ({ page }) => {
