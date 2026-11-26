@@ -194,3 +194,20 @@ test('15 文字「特大」・幅360：主な画面で横にはみ出さない',
   await act(page, 'mock-start'); expect(await over(), '模試').toBeLessThanOrEqual(0);
   await settings(page); expect(await over(), '設定').toBeLessThanOrEqual(0);
 });
+
+// 11/26 あなたの指摘：開発版の「本番の流れで解く」は5問ずつでなく全部続けて出し、何問中何問目かを出す
+test('開発版：本番の流れで解くは全部続けて出し、何問目かを出す', async ({ page }) => {
+  await dev(page);
+  await act(page, 'dev-real-flow');
+  const total = await page.evaluate(() => document.querySelectorAll('[data-rv-ok]').length || 0);
+  await expect(page.locator('.dev-real-progress:visible')).toContainText('1問目');
+  const all = await page.locator('.question-position:visible').first().textContent();
+  expect(Number((all.match(/全(\d+)問/) || [])[1])).toBeGreaterThan(5);
+  await page.locator('.choice-btn:not([disabled]):visible').first().click();
+  for (let i = 0; i < 5 && !(await page.locator('.dev-real-progress:visible', { hasText: '2問目' }).count()); i++) {
+    for (const sel of ['[data-action="next-question"]', '[data-action="skip-reflection"]', '[data-action="select-mood"]', '[data-action="next-after-reflection"]']) {
+      const el = page.locator(sel + ':visible').first(); if (await el.count()) { await el.click(); break; }
+    }
+  }
+  await expect(page.locator('.dev-real-progress:visible')).toContainText('2問目');
+});
