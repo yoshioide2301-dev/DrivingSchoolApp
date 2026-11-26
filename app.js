@@ -1477,21 +1477,24 @@
   }
 
   // 指定した問題だけで「今日の5問」と同じ流れを始める（標識から問題へ）
-  // 11/22 開発版だけ：本番と同じ5問の画面で、この版の確認の問題を順に解く。結果画面の「もう5問」でも続きの5問へ（11/22 あなたの指摘：普通の問題に進んでしまった）
+  // 11/22 開発版だけ：本番と同じ画面で、この版の確認の問題を順に解く。
+  // 11/26 あなたの指摘：5問ずつはやめ、まだ見ていない問題（OK も指摘もない問題）を全部続けて出す。何問中何問目かを上に出す。
   function devRealFlow(cont) {
-    if (!cont) state.devRealSeen = [];
     var gg = devReviewGet(), all = DEV_REVIEW.items.filter(function (x) { return x[2] && x[2].charAt(0) !== '@'; }).map(function (x) { return [x[0], x[2]]; });
-    var seen = state.devRealSeen || [];
-    var want = all.filter(function (x) { return !(gg[x[0]] || {}).ok && seen.indexOf(x[1]) < 0; }).map(function (x) { return x[1]; });
-    if (!want.length) { state.devRealSeen = []; want = all.filter(function (x) { return !(gg[x[0]] || {}).ok; }).map(function (x) { return x[1]; }); }
+    var want = all.filter(function (x) { var r = gg[x[0]] || {}; return !r.ok && !r.note; }).map(function (x) { return x[1]; });
+    if (!want.length) want = all.filter(function (x) { return !(gg[x[0]] || {}).ok; }).map(function (x) { return x[1]; });
     if (!want.length) want = all.map(function (x) { return x[1]; });
-    want = want.slice(0, SESSION_SIZE);
     var pool2 = getReviewedQuestions().filter(function (q) { return want.indexOf(q.id) >= 0; });
     pool2.sort(function (x, y) { return want.indexOf(x.id) - want.indexOf(y.id); });
     if (!pool2.length) return;
     startSession(0); if (!state.session) return;
     state.session.questions = pool2.map(function (q, idx) { return Object.assign({}, q, withShuffledChoices(q), { _instanceKey: q.id + "_" + idx }); });
-    state.session.kyoshu = 3; state.devRealFlow = true; state.devRealSeen = (state.devRealSeen || []).concat(want); saveProgress(); render();
+    state.session.kyoshu = 3; state.devRealFlow = true; state.devRealTotal = all.length; state.devRealBase = all.length - pool2.length; saveProgress(); render();
+  }
+  function devRealProgressHtml() {
+    if (!state.devRealFlow || !isDevMode() || !state.session || !state.devRealTotal) return '';
+    var s = state.session, at = state.devRealBase + s.currentIndex + 1, left = state.devRealTotal - at;
+    return '<div class="dev-real-progress" style="margin:4px 0 8px;padding:6px 10px;border-radius:8px;background:#e8f1fb;color:#123;font-weight:700;font-size:15px">開発の確認：全' + state.devRealTotal + '問のうち ' + at + '問目（あと' + left + '問）</div>';
   }
 
   // 1.2.5：アニメ動画の問題だけで5問（まだ解いていない問題を先に、1問目は代表の問題）
@@ -1581,6 +1584,7 @@
       '<div class="screen screen--question screen--split">' +
       questionIdentityHtml(q) +
       '<div class="quiz-progress">' +
+      devRealProgressHtml() +
       '<div class="question-position">第' + (s.currentIndex + 1) + '問 <span>／全' + s.questions.length + '問</span></div>' +
       '<div class="quiz-progress-label">' + escapeHtml(s.kyoshu ? "教習番号" + s.kyoshu : "今日の5問") + '<span class="quiz-progress-count">' +
       (s.currentIndex + 1) +
@@ -1688,6 +1692,7 @@
     return (
       '<div class="screen screen--explain screen--split">' +
       questionIdentityHtml(q) +
+      devRealProgressHtml() +
       '<div class="question-position">第' + (s.currentIndex + 1) + '問 <span>／全' + s.questions.length + '問</span></div>' +
       answerOutcomeHtml(isCorrect) +
       '<section class="panel"><h2 class="explain-label">設問</h2><p class="question-text">' + furiganaHtml(q, "question") + '</p></section>' +
@@ -2857,7 +2862,7 @@
   function devReviewHtml() {
     var g = devReviewGet(), n = DEV_REVIEW.items.filter(function (it) { return (g[it[0]] || {}).ok; }).length;
     var h = '<div class="dev-review"><h2 class="settings-label">開発用：この版の確認（' + DEV_REVIEW.v + '）</h2>' +
-      '<button class="btn-pill btn-pill--wide" data-action="dev-real-flow">本番の流れで解く（まだ OK でない問題から5問）</button>' +
+      '<button class="btn-pill btn-pill--wide" data-action="dev-real-flow">本番の流れで解く（まだ見ていない問題を全部続けて）</button>' +
       '<p class="settings-note">本番と同じ5問の画面で解き、答えた後の解説画面でアニメ動画と表示を確かめます。解説画面の下で OK と指摘を入れられます（一覧と連動）。</p>' +
       '<p class="settings-note">上から順に「見る」で確かめ、よければ OK に印を、気になる所は下の欄に書いてください。最後に「結果を送る」。OK <span id="dev-review-count">' + n + '</span>／' + DEV_REVIEW.items.length + '</p><ol class="dev-review-list">';
     DEV_REVIEW.items.forEach(function (it) {
