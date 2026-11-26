@@ -2759,8 +2759,8 @@
   function devReviewHtml() {
     var g = devReviewGet(), n = DEV_REVIEW.items.filter(function (it) { return (g[it[0]] || {}).ok; }).length;
     var h = '<div class="dev-review"><h2 class="settings-label">開発用：この版の確認（' + DEV_REVIEW.v + '）</h2>' +
-      '<button class="btn-pill btn-pill--wide" data-action="dev-real-flow">本番の流れで解く（まだ見ていない問題を全部続けて）</button>' +
-      '<p class="settings-note">本番と同じ5問の画面で解き、答えた後の解説画面でアニメ動画と表示を確かめます。解説画面の下で OK と指摘を入れられます（一覧と連動）。</p>' +
+      (DEV_REVIEW.items.some(function (it) { return it[2] && it[2].charAt(0) !== '@'; }) ? '<button class="btn-pill btn-pill--wide" data-action="dev-real-flow">本番の流れで解く（まだ見ていない問題を全部続けて）</button>' +
+      '<p class="settings-note">本番と同じ5問の画面で解き、答えた後の解説画面でアニメ動画と表示を確かめます。解説画面の下で OK と指摘を入れられます（一覧と連動）。</p>' : '') +
       '<p class="settings-note">上から順に「見る」で確かめ、よければ OK に印を、気になる所は下の欄に書いてください。最後に「結果を送る」。OK <span id="dev-review-count">' + n + '</span>／' + DEV_REVIEW.items.length + '</p><ol class="dev-review-list">';
     DEV_REVIEW.items.forEach(function (it) {
       var r = g[it[0]] || {};
