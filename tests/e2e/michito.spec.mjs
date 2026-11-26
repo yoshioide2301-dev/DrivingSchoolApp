@@ -215,11 +215,16 @@ test('開発版：本番の流れで解くは全部続けて出し、何問目�
 test('アニメ動画：データにある問題は全部画面に出て、外した問題には出ない', async ({ page }) => {
   const ids = await page.evaluate(() => Object.keys(window.ANIME_SCENES || {}));
   expect(ids.length).toBeGreaterThan(0);
-  const removed = (await page.evaluate(() => (document.documentElement.outerHTML.match(/ANIME_REMOVED[^\n]*/) || [''])[0])) ? [] : [];
+  test.setTimeout(240000);
   await dev(page);
-  await page.fill('#dev-ids', ids.join(' ')); await act(page, 'dev-show');
-  await page.waitForTimeout(1500);
-  const shown = await page.evaluate(() => [...new Set([...document.querySelectorAll('[data-anime]')].filter(f => f.querySelector('.anime-host svg, .anime-host canvas, .anime-host *')).map(f => f.getAttribute('data-anime')))]);
+  const shown = [];
+  for (let i = 0; i < ids.length; i += 10) {
+    const part = ids.slice(i, i + 10);
+    if (i) await settings(page);
+    await page.fill('#dev-ids', part.join(' ')); await act(page, 'dev-show');
+    await page.waitForTimeout(700);
+    shown.push(...await page.evaluate(() => [...new Set([...document.querySelectorAll('[data-anime]')].filter(f => f.querySelector('.anime-host *')).map(f => f.getAttribute('data-anime')))]));
+  }
   expect(shown.sort()).toEqual(ids.slice().sort());
   const removed = 'D-M055 D-M056 D-M057 D-M058 D-M060 D-M285 D-M316 D-M317 D-N002 D-N003 D-N010 D-N015 D-N024 D-N026 D-N029'.split(' ').filter(x => !ids.includes(x));
   await settings(page); await page.fill('#dev-ids', removed.join(' ')); await act(page, 'dev-show'); await page.waitForTimeout(800);
