@@ -3,7 +3,7 @@
 import crypto from 'node:crypto';
 // 11/24：開発版（ミチト開発）は asc-tf-expire-dev-<版>-<ビルド番号>。dev のときは、まず期限切れでない組み立ての一覧を出す。
 // 11/26（2回目の失敗の後・あなたの指示）：開発版の組み立ての最後に DEV_TOP_VERSION=<この版> で呼ぶと、
-// 期限切れでない開発版のうち、この版より大きい版をすべて期限切れにする（下の版の開発版が TestFlight で上の版に隠れ、以前のビルドからも選べないため。ルールブック 19-5・20）
+// 11/26 あなたの指摘で変更：確認中の上の版を勝手に消さない。上の版があれば、DEV_TOP_EXPIRE=1（手動実行で expire_higher を選んだとき）だけ期限切れにし、それ以外は一覧を出して止める（下の版の開発版が TestFlight で上の版に隠れ、以前のビルドからも選べないため。ルールブック 19-5・20）
 const TOP = process.env.DEV_TOP_VERSION || ((process.env.GITHUB_REF_NAME || '').match(/^asc-tf-expire-devtop-([\d.]+)-\d+$/) || [])[1] || '';  // 手で試すときはタグ asc-tf-expire-devtop-<版>-<番号>
 const m = TOP ? [null, 'dev-', 'top', '0'] : (process.env.GITHUB_REF_NAME || '').match(/^asc-tf-expire-(dev-)?([\d.]+)-(\d+)$/);
 if (!m) { console.log('タグの形が違うので何もしない'); process.exit(0); }
@@ -35,11 +35,12 @@ if (DEV) {
     for (const x of all.json.data) {
       const v = pv[x.relationships.preReleaseVersion.data?.id] || '';
       if (v && vcmp(v, TOP) > 0) {
+        if (process.env.DEV_TOP_EXPIRE !== '1') { console.log('上の版がある（期限切れにはしない）：' + v + '（' + x.attributes.version + '）'); bad++; continue; }
         const r = await api('PATCH', '/v1/builds/' + x.id, { data: { type: 'builds', id: x.id, attributes: { expired: true } } });
         console.log((r.ok ? '上の版なので期限切れにした ' : '期限切れに失敗 ' + r.status + ' ') + v + '（' + x.attributes.version + '）'); if (!r.ok) bad++;
       }
     }
-    console.log(bad ? '上の版が残っている（あなたの TestFlight に今回の組み立てが出ない）' : 'この版 ' + TOP + ' より上の開発版はない＝今回の組み立てが一番上に出る');
+    console.log(bad ? '止めた：上の版が残っているので、今回の組み立てはあなたの TestFlight に出ない。上の版があなたの確認中でないかを確かめ、確認済みなら手動実行で expire_higher を選んで組み立て直す（ルールブック 20）' : 'この版 ' + TOP + ' より上の開発版はない＝今回の組み立てが一番上に出る');
     process.exit(bad ? 1 : 0);
   }
 }
