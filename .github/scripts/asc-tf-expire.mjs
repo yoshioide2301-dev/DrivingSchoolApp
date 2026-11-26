@@ -3,7 +3,7 @@
 import crypto from 'node:crypto';
 // 11/24：開発版（ミチト開発）は asc-tf-expire-dev-<版>-<ビルド番号>。dev のときは、まず期限切れでない組み立ての一覧を出す。
 // 11/26（2回目の失敗の後・あなたの指示）：開発版の組み立ての最後に DEV_TOP_VERSION=<この版> で呼ぶと、
-// 期限切れでない開発版のうち、この版より大きい版をすべて期限切れにする（下の版の開発版が TestFlight で上の版に隠れ、以前のビルドからも選べないため。ルールブック 19-5・22）
+// 期限切れでない開発版のうち、この版より大きい版をすべて期限切れにする（下の版の開発版が TestFlight で上の版に隠れ、以前のビルドからも選べないため。ルールブック 19-5・20）
 const TOP = process.env.DEV_TOP_VERSION || ((process.env.GITHUB_REF_NAME || '').match(/^asc-tf-expire-devtop-([\d.]+)-\d+$/) || [])[1] || '';  // 手で試すときはタグ asc-tf-expire-devtop-<版>-<番号>
 const m = TOP ? [null, 'dev-', 'top', '0'] : (process.env.GITHUB_REF_NAME || '').match(/^asc-tf-expire-(dev-)?([\d.]+)-(\d+)$/);
 if (!m) { console.log('タグの形が違うので何もしない'); process.exit(0); }

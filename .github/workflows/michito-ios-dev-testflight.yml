@@ -158,7 +158,7 @@ jobs:
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
           echo "Uploaded build number $BUILD_NUMBER"
 
-      - name: 上の版の開発版を期限切れにする（今回の組み立てを TestFlight の一番上に出す。11/26 2回目の失敗の対策・ルールブック 22）
+      - name: 上の版の開発版を期限切れにする（今回の組み立てを TestFlight の一番上に出す。11/26 2回目の失敗の対策・ルールブック 20）
         working-directory: .
         env:
           DEV_TOP_VERSION: ${{ env.MARKETING_VERSION }}
