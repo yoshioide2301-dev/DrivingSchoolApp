@@ -158,6 +158,11 @@ jobs:
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
           echo "Uploaded build number $BUILD_NUMBER"
 
+      - name: 上の版の開発版を期限切れにする（今回の組み立てを TestFlight の一番上に出す。11/26 2回目の失敗の対策・ルールブック 22）
+        working-directory: .
+        env:
+          DEV_TOP_VERSION: ${{ env.MARKETING_VERSION }}
+        run: node .github/scripts/asc-tf-expire.mjs
       # 安全確認：ビルド前に無かった・開発用だけ・作られたばかり・2枚まで（asc-certs.mjs）。配布用やリリース中のアプリには触れない
       - name: この回に作った開発用の証明書を取り消す
         if: always()

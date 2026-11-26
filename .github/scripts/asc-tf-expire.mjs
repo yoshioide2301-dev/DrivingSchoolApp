@@ -2,9 +2,13 @@
 // タグ asc-tf-expire-<版>-<ビルド番号>（例 asc-tf-expire-1.3-29）。版とビルド番号の両方が合うときだけ期限切れにする。
 import crypto from 'node:crypto';
 // 11/24：開発版（ミチト開発）は asc-tf-expire-dev-<版>-<ビルド番号>。dev のときは、まず期限切れでない組み立ての一覧を出す。
-const m = (process.env.GITHUB_REF_NAME || '').match(/^asc-tf-expire-(dev-)?([\d.]+)-(\d+)$/);
+// 11/26（2回目の失敗の後・あなたの指示）：開発版の組み立ての最後に DEV_TOP_VERSION=<この版> で呼ぶと、
+// 期限切れでない開発版のうち、この版より大きい版をすべて期限切れにする（下の版の開発版が TestFlight で上の版に隠れ、以前のビルドからも選べないため。ルールブック 19-5・22）
+const TOP = process.env.DEV_TOP_VERSION || ((process.env.GITHUB_REF_NAME || '').match(/^asc-tf-expire-devtop-([\d.]+)-\d+$/) || [])[1] || '';  // 手で試すときはタグ asc-tf-expire-devtop-<版>-<番号>
+const m = TOP ? [null, 'dev-', 'top', '0'] : (process.env.GITHUB_REF_NAME || '').match(/^asc-tf-expire-(dev-)?([\d.]+)-(\d+)$/);
 if (!m) { console.log('タグの形が違うので何もしない'); process.exit(0); }
 const [, DEV, VER, NUM] = m;
+const vcmp = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d; } return 0; };
 const BUNDLE_ID = DEV ? 'com.yoshioide2301.michito.dev' : 'com.yoshioide2301.michito';
 const b64 = b => Buffer.from(b).toString('base64url');
 function token() {
@@ -26,6 +30,18 @@ if (DEV) {
   console.log('ミチト開発の期限切れでない組み立て：');
   for (const x of all.json.data) console.log('  ' + (pv[x.relationships.preReleaseVersion.data?.id] || '?') + '（' + x.attributes.version + '） ' + x.attributes.uploadedDate);
   if (VER === '0') process.exit(0);  // 一覧だけ（asc-tf-expire-dev-0-0）
+  if (VER === 'top') {
+    let bad = 0;
+    for (const x of all.json.data) {
+      const v = pv[x.relationships.preReleaseVersion.data?.id] || '';
+      if (v && vcmp(v, TOP) > 0) {
+        const r = await api('PATCH', '/v1/builds/' + x.id, { data: { type: 'builds', id: x.id, attributes: { expired: true } } });
+        console.log((r.ok ? '上の版なので期限切れにした ' : '期限切れに失敗 ' + r.status + ' ') + v + '（' + x.attributes.version + '）'); if (!r.ok) bad++;
+      }
+    }
+    console.log(bad ? '上の版が残っている（あなたの TestFlight に今回の組み立てが出ない）' : 'この版 ' + TOP + ' より上の開発版はない＝今回の組み立てが一番上に出る');
+    process.exit(bad ? 1 : 0);
+  }
 }
 const b = await api('GET', '/v1/builds?filter[app]=' + appId + '&filter[version]=' + NUM + '&filter[preReleaseVersion.version]=' + VER + '&limit=2');
 if (!b.ok || b.json.data.length !== 1) { console.log('版 ' + VER + '（' + NUM + '）がちょうど1つ見つからないので何もしない'); process.exit(1); }
